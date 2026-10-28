@@ -1,0 +1,34 @@
+// Beacon v0.3 control flow and List access
+
+person: type = {
+    name: string
+    age: number
+
+    inspect: fn(ages: list) = [
+        if .age > 40 then
+            print("{.age} is old!")
+        else
+            print("Young!")
+        end,
+
+        if .age == 42 then
+            print("Age check passed")
+        end,
+
+        for [i: number = 0, i < ages.length(), i += 1]
+            if .age < ages@i then
+                print("I'm younger than", ages@i)
+            end
+        loop,
+
+        .age
+    ]
+}
+
+ages: list = [24, 55, 9, 17, 49]
+ada: person = {
+    name: "Ada"
+    age: 42
+}
+
+print(ada.inspect(ages))

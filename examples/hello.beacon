@@ -1,0 +1,30 @@
+// Beacon v0
+x: number = 1
+
+y: fn(a: number) = [
+    a += 1,
+    a += 1,
+    a
+]
+
+print(y(x))
+
+person: type = {
+    name: string
+    age: number
+
+    greet: fn(greeting: string) = "Hello, {greeting}! I'm {.name}"
+
+    birthday: fn() = [
+        .age += 1,
+        .age
+    ]
+}
+
+ada: person = {
+    name: "Ada"
+    age: 36
+}
+
+print(ada.greet("Beacon"))
+print(ada.birthday())
