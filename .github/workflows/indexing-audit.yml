@@ -107,7 +107,9 @@ jobs:
       - name: Audit migrated Beacon source
         shell: bash
         run: |
-          if grep -R -n --include='*.beacon' '@"' compiler std examples; then
+          # Match postfix quoted-key syntax such as entry@"file", but do not
+          # mistake the lexer's string literal "@" for an access expression.
+          if grep -R -n -P --include='*.beacon' '[A-Za-z0-9_\)]@"[A-Za-z_]' compiler std examples; then
             echo 'Quoted Record @ access remains.' >&2
             exit 1
           fi
