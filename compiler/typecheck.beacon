@@ -13,7 +13,7 @@ collectTypeDefinitions: fn(program: list) = [
             name: symbol = node@1
             declaredType: symbol = node@2
             if declaredType.name == "type" then
-                types@(name.name) = node@3
+                types.set(name.name, node@3)
             end
         end
     loop,
@@ -26,7 +26,7 @@ splitTypeNames: fn(typeName: string) = [
     current: string = "",
 
     for [i: number = 0, i < typeName.length(), i += 1]
-        character: string = typeName@i
+        character: string = typeName.slice(i, 1)
         if character == "|" then
             if current != "" then
                 result.append(current)
@@ -84,7 +84,7 @@ commonPrefixLength: fn(left: string, right: string) = [
     score: number = 0,
     active: boolean = true,
     for [i: number = 0, i < limit and active, i += 1]
-        if left@i == right@i then
+        if left.slice(i, 1) == right.slice(i, 1) then
             score += 1
         else
             active = false
@@ -100,7 +100,7 @@ fieldNames: fn(members: record) = [
 
     for [i: number = 0, i < keys.length(), i += 1]
         key: string = keys@i
-        if kind(members@key) == "symbol" then
+        if kind(members.get(key)) == "symbol" then
             result.append(key)
         end
     loop,
@@ -146,7 +146,7 @@ validFieldsText: fn(members: record) = [
 namedTypeMembers: fn(types: record, typeName: string) = [
     result: atom | list | record | null = null,
     if types.has(typeName) then
-        typeNode: atom | list | record = types@typeName
+        typeNode: atom | list | record = types.get(typeName)
         if isForm(typeNode, "type") then
             result = typeNode@1
         end
@@ -225,9 +225,9 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
         key: string = keys@i
         fieldPath: list = path.concat([key])
 
-        if members.has(key) and kind(members@key) == "symbol" then
-            expectedFieldType: symbol = members@key
-            validateValueAgainstType(value@key, expectedFieldType.name, fieldPath, types, sources, diagnostics)
+        if members.has(key) and kind(members.get(key)) == "symbol" then
+            expectedFieldType: symbol = members.get(key)
+            validateValueAgainstType(value.get(key), expectedFieldType.name, fieldPath, types, sources, diagnostics)
         else
             suggestion: string = suggestField(members, key)
             hints: list = []
@@ -235,7 +235,7 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
             expected: atom | list | record | null = { owner: typeName }
 
             if suggestion != "" then
-                expectedSymbol: symbol = members@suggestion
+                expectedSymbol: symbol = members.get(suggestion)
                 expected = { owner: typeName, field: suggestion, type: expectedSymbol.name }
                 hints.append("Did you mean '" + suggestion + "'?")
                 suggestedFields.append(suggestion)
@@ -251,7 +251,7 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
                 source,
                 fieldPath,
                 expected,
-                { field: key, type: staticTypeName(value@key) },
+                { field: key, type: staticTypeName(value.get(key)) },
                 notes,
                 hints))
         end
@@ -262,7 +262,7 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
     memberKeys: list = members.keys(),
     for [i: number = 0, i < memberKeys.length(), i += 1]
         key: string = memberKeys@i
-        member: atom | list | record = members@key
+        member: atom | list | record = members.get(key)
 
         if kind(member) == "symbol" and not value.has(key) and not listContainsString(suggestedFields, key) then
             missingPath: list = path.concat([key])
@@ -314,8 +314,8 @@ compileProgramResult: fn(program: list, sources: list) = [
         diagnostics: diagnostics
     },
 
-    if result@"ok" then
-        result@"plan" = compile(program)
+    if result.ok then
+        result.plan = compile(program)
     end,
 
     result

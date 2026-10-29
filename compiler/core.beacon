@@ -38,7 +38,7 @@ hasBeaconExtension: fn(name: string) = [
 namedIncludePath: fn(name: string) = [
     path: string = "",
     for [i: number = 0, i < name.length(), i += 1]
-        character: string = name@i
+        character: string = name.slice(i, 1)
         if character == "." then
             path += "/"
         else
@@ -53,7 +53,7 @@ splitDottedName: fn(name: string) = [
     current: string = "",
 
     for [i: number = 0, i < name.length(), i += 1]
-        character: string = name@i
+        character: string = name.slice(i, 1)
         if character == "." then
             if current == "" then
                 fail("Invalid named include: " + name)
@@ -87,8 +87,8 @@ formatIncludeCycle: fn(stack: list, repeated: string) = [
 ]
 
 resolveIncludePath: fn(currentFile: string, spec: record) = [
-    includeKind: string = spec@"kind",
-    includeName: string = spec@"name",
+    includeKind: string = spec.kind,
+    includeName: string = spec.name,
     result: string = "",
 
     if hasBeaconExtension(includeName) then
@@ -175,17 +175,17 @@ namespaceModuleRegistered: fn(tree: record, parts: list) = [
     found: boolean = true,
 
     for [i: number = 0, i < parts.length(), i += 1]
-        children: record = node@"children"
+        children: record = node.children
         part: string = parts@i
         if not children.has(part) then
             found = false
         else
-            node = children@part
+            node = children.get(part)
         end
     loop,
 
     if found then
-        found = kind(node@"module") == "list"
+        found = kind(node.module) == "list"
     end,
     found
 ]
@@ -194,18 +194,18 @@ registerNamespaceModule: fn(tree: record, parts: list, program: list) = [
     node: record = tree,
 
     for [i: number = 0, i < parts.length(), i += 1]
-        children: record = node@"children"
+        children: record = node.children
         part: string = parts@i
         if not children.has(part) then
-            children@part = newNamespaceNode()
+            children.set(part, newNamespaceNode())
         end
-        node = children@part
+        node = children.get(part)
     loop,
 
-    if kind(node@"module") == "list" then
+    if kind(node.module) == "list" then
         fail("Standard-library namespace included more than once: " + parts@(parts.length() - 1))
     end,
-    node@"module" = program,
+    node.module = program,
     tree
 ]
 
@@ -228,13 +228,13 @@ namespaceExportNames: fn(program: list) = [
 ]
 
 namespaceNodeExpression: fn(node: record) = [
-    module: atom | list | record | null = node@"module",
+    module: atom | list | record | null = node.module,
     body: list = [symbol("do")],
     if kind(module) == "list" then
         body = module
     end,
 
-    children: record = node@"children",
+    children: record = node.children,
     childKeys: list = children.keys(),
     childExpressions: record = {},
     exports: list = namespaceExportNames(body),
@@ -244,7 +244,7 @@ namespaceNodeExpression: fn(node: record) = [
         if listContainsString(exports, key) then
             fail("Standard-library namespace member conflicts with child namespace: " + key)
         end
-        childExpressions@key = namespaceNodeExpression(children@key)
+        childExpressions.set(key, namespaceNodeExpression(children.get(key)))
     loop,
 
     [symbol("namespace"), body, childExpressions]
@@ -252,7 +252,7 @@ namespaceNodeExpression: fn(node: record) = [
 
 composeStandardNamespaces: fn(program: list, tree: record) = [
     result: list = [symbol("do")],
-    root: record = tree@"children",
+    root: record = tree.children,
     roots: list = root.keys(),
 
     for [i: number = 0, i < roots.length(), i += 1]
@@ -264,7 +264,7 @@ composeStandardNamespaces: fn(program: list, tree: record) = [
             symbol("def"),
             symbol(name),
             symbol("record"),
-            namespaceNodeExpression(root@name)
+            namespaceNodeExpression(root.get(name))
         ])
     loop,
 
@@ -279,14 +279,14 @@ resolveProgramIncludes: fn(program: list, currentFile: string, seen: list, stack
         node: atom | list | record = program@i
         if isForm(node, "include") then
             spec: record = node@1
-            includeKind: string = spec@"kind"
+            includeKind: string = spec.kind
             includePath: string = resolveIncludePath(currentFile, spec)
 
             if includeKind == "local" then
                 included: list = loadProgramInternal(includePath, seen, stack, standardNamespaces)
                 appendProgramBody(result, included)
             else
-                parts: list = standardNamespaceParts(spec@"name")
+                parts: list = standardNamespaceParts(spec.name)
                 if not namespaceModuleRegistered(standardNamespaces, parts) then
                     moduleNamespaces: record = newNamespaceNode()
                     included: list = loadProgramInternal(includePath, [], stack, moduleNamespaces)

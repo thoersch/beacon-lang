@@ -35,7 +35,7 @@ makeToken: fn(tokenKind: string, tokenText: string, tokenLine: number, tokenColu
 peek: fn(source: string, index: number) = [
     result: string = "",
     if index >= 0 and index < source.length() then
-        result = source@index
+        result = source.slice(index, 1)
     end,
     result
 ]
@@ -43,7 +43,7 @@ peek: fn(source: string, index: number) = [
 containsCharacter: fn(characters: string, character: string) = [
     found: boolean = false,
     for [i: number = 0, i < characters.length(), i += 1]
-        if characters@i == character then
+        if characters.slice(i, 1) == character then
             found = true
         end
     loop,
@@ -80,11 +80,11 @@ punctuationAt: fn(source: string, index: number) = [
         end
     end,
 
-    if not result@"matched" then
+    if not result.matched then
         for [i: number = 0, i < punctuationTable.length(), i += 1]
             entry: record = punctuationTable@i
-            if entry@"char" == character then
-                result = { matched: true, kind: entry@"kind", text: character, width: 1 }
+            if entry.char == character then
+                result = { matched: true, kind: entry.kind, text: character, width: 1 }
             end
         loop
     end,
@@ -206,10 +206,10 @@ lex: fn(source: string) = [
                                 tokens.append(makeToken("string", text, stringLine, stringColumn))
                             else
                                 punctuation: record = punctuationAt(source, index)
-                                if punctuation@"matched" then
-                                    tokens.append(makeToken(punctuation@"kind", punctuation@"text", line, column))
-                                    index += punctuation@"width"
-                                    column += punctuation@"width"
+                                if punctuation.matched then
+                                    tokens.append(makeToken(punctuation.kind, punctuation.text, line, column))
+                                    index += punctuation.width
+                                    column += punctuation.width
                                 else
                                     fail("Unexpected character at {line}:{column}")
                                 end
