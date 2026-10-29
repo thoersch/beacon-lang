@@ -117,3 +117,32 @@ jobs:
           record_output="$(bash ./beacon.sh /tmp/record-methods.beacon)"
           grep -Fx 'Ada' <<<"$record_output"
           grep -Fx 'Grace' <<<"$record_output"
+
+      - name: Verify ordered function clauses
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/function-clauses.beacon)"
+          printf '%s\n' "$output"
+
+          expected=$'fn\nstring\nnumber\natom\nacon\neac\nvalue:Ada\nvalue:number\nperson\nscalar'
+          [[ "$output" == "$expected" ]]
+
+          cat > /tmp/no-function-clause.beacon <<'BEACON'
+          onlyNumber: fn = [
+              fn(value: number) = value
+          ]
+          print(onlyNumber("Beacon"))
+          BEACON
+
+          set +e
+          no_match="$(bash ./beacon.sh /tmp/no-function-clause.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F 'No matching function clause for (string)' <<<"$no_match"
+
+          cat > /tmp/legacy-function.beacon <<'BEACON'
+          twice: fn(value: number) = value * 2
+          print(twice(21))
+          BEACON
+          [[ "$(bash ./beacon.sh /tmp/legacy-function.beacon)" == '42' ]]
