@@ -1,0 +1,45 @@
+endsWith: fn(str: string, search: string) =
+    search.length() <= str.length() and
+    str.slice(str.length() - search.length(), search.length()) == search
+
+value: number =
+    1 +
+    2 *
+    3
+
+assigned: number = 0
+assigned =
+    40 +
+    2
+
+assigned +=
+    1
+
+negative: number = -
+    5
+
+grouped: number = (
+    10 +
+    5
+)
+
+logical: boolean =
+    false or
+    true and
+    not
+    false
+
+print(value)
+print(assigned)
+print(negative)
+print(grouped)
+
+if logical and
+    endsWith("Beacon", "con") then
+    print("multiline")
+end
+
+print(
+    20 +
+    22
+)

@@ -235,6 +235,7 @@ parseDeclaration: fn(state: record) = [
         else
             typeName: string = parseTypeAnnotation(state)
             consumeToken(state, "equal", "Expected '=' in declaration")
+            skipNewLines(state)
             result = [symbol("def"), symbol(nameToken.text), symbol(typeName), parseExpression(state)]
         end
     end,
@@ -386,9 +387,11 @@ parseAssignment: fn(state: record) = [
     left: atom | list | record = parseOr(state),
     result: atom | list | record = left,
     if matchToken(state, "pluseq") then
+        skipNewLines(state)
         result = [symbol("+="), left, parseAssignment(state)]
     else
         if matchToken(state, "equal") then
+            skipNewLines(state)
             result = [symbol("="), left, parseAssignment(state)]
         end
     end,
@@ -398,6 +401,7 @@ parseAssignment: fn(state: record) = [
 parseOr: fn(state: record) = [
     expression: atom | list | record = parseAnd(state),
     for [more: boolean = matchIdentifier(state, "or"), more, more = matchIdentifier(state, "or")]
+        skipNewLines(state)
         expression = [symbol("or"), expression, parseAnd(state)]
     loop,
     expression
@@ -406,6 +410,7 @@ parseOr: fn(state: record) = [
 parseAnd: fn(state: record) = [
     expression: atom | list | record = parseComparison(state),
     for [more: boolean = matchIdentifier(state, "and"), more, more = matchIdentifier(state, "and")]
+        skipNewLines(state)
         expression = [symbol("and"), expression, parseComparison(state)]
     loop,
     expression
@@ -442,6 +447,7 @@ parseComparison: fn(state: record) = [
             end
         end
         if active then
+            skipNewLines(state)
             expression = [symbol(operator), expression, parseAdditive(state)]
         end
     loop,
@@ -463,6 +469,7 @@ parseAdditive: fn(state: record) = [
             end
         end
         if active then
+            skipNewLines(state)
             expression = [symbol(operator), expression, parseMultiplicative(state)]
         end
     loop,
@@ -484,6 +491,7 @@ parseMultiplicative: fn(state: record) = [
             end
         end
         if active then
+            skipNewLines(state)
             expression = [symbol(operator), expression, parseUnary(state)]
         end
     loop,
@@ -493,9 +501,11 @@ parseMultiplicative: fn(state: record) = [
 parseUnary: fn(state: record) = [
     result: atom | list | record = null,
     if matchIdentifier(state, "not") then
+        skipNewLines(state)
         result = [symbol("not"), parseUnary(state)]
     else
         if matchToken(state, "minus") then
+            skipNewLines(state)
             result = [symbol("neg"), parseUnary(state)]
         else
             result = parsePostfix(state)
@@ -514,6 +524,7 @@ parsePostfix: fn(state: record) = [
             expression = [symbol("get"), expression, member.text]
         else
             if matchToken(state, "at") then
+                skipNewLines(state)
                 expression = [symbol("index"), expression, parsePrimary(state)]
             else
                 if matchToken(state, "lparen") then
@@ -530,6 +541,7 @@ parsePostfix: fn(state: record) = [
                             end
                         loop
                     end
+                    skipNewLines(state)
                     consumeToken(state, "rparen", "Expected ')' after arguments")
                     expression = call
                 else
@@ -572,7 +584,9 @@ parsePrimary: fn(state: record) = [
                     result = [symbol("get"), symbol("self"), member.text]
                 else
                     if matchToken(state, "lparen") then
+                        skipNewLines(state)
                         result = parseExpression(state)
+                        skipNewLines(state)
                         consumeToken(state, "rparen", "Expected ')'")
                     else
                         if matchToken(state, "lbracket") then

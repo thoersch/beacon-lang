@@ -138,6 +138,23 @@ for [i: number = 0, i < ages.length(), i += 1]
 loop
 ```
 
+## Multiline expressions
+
+A newline may follow an operator when the expression clearly continues. This keeps long expressions readable without introducing a continuation token:
+
+```beacon
+endsWith: fn(str: string, search: string) =
+    search.length() <= str.length() and
+    str.slice(str.length() - search.length(), search.length()) == search
+
+result: number =
+    1 +
+    2 *
+    3
+```
+
+The operator stays on the preceding line. A newline before an operator still ends the expression, preserving Beacon's statement boundaries.
+
 ## Typing
 
 Beacon requires explicit types. There is no `any` type.
