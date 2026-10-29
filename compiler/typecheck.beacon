@@ -1,0 +1,325 @@
+// Contextual type validation for compiler diagnostics.
+//
+// This is intentionally conservative: it reports errors only when the compiler
+// can prove a mismatch from literal/Core structure. Dynamic expressions continue
+// to be enforced by the runtime type system.
+
+collectTypeDefinitions: fn(program: list) = [
+    types: record = {},
+
+    for [i: number = 1, i < program.length(), i += 1]
+        node: atom | list | record = program@i
+        if isForm(node, "def") then
+            name: symbol = node@1
+            declaredType: symbol = node@2
+            if declaredType.name == "type" then
+                types@(name.name) = node@3
+            end
+        end
+    loop,
+
+    types
+]
+
+splitTypeNames: fn(typeName: string) = [
+    result: list = [],
+    current: string = "",
+
+    for [i: number = 0, i < typeName.length(), i += 1]
+        character: string = typeName@i
+        if character == "|" then
+            if current != "" then
+                result.append(current)
+                current = ""
+            end
+        else
+            current += character
+        end
+    loop,
+
+    if current != "" then
+        result.append(current)
+    end,
+
+    result
+]
+
+staticTypeName: fn(value: atom | list | record) = [
+    valueKind: string = kind(value),
+    result: string = "",
+
+    if valueKind == "number" or valueKind == "string" or valueKind == "boolean" or valueKind == "null" or valueKind == "symbol" or valueKind == "record" then
+        result = valueKind
+    else
+        if valueKind == "list" then
+            if isForm(value, "list") then
+                result = "list"
+            else
+                if isForm(value, "fn") then
+                    result = "fn"
+                end
+            end
+        end
+    end,
+
+    result
+]
+
+primitiveTypeMatches: fn(expected: string, actual: string) = [
+    result: boolean = expected == actual,
+
+    if expected == "atom" then
+        result = actual == "number" or actual == "string" or actual == "boolean" or actual == "null" or actual == "symbol"
+    end,
+
+    result
+]
+
+commonPrefixLength: fn(left: string, right: string) = [
+    limit: number = left.length(),
+    if right.length() < limit then
+        limit = right.length()
+    end,
+
+    score: number = 0,
+    active: boolean = true,
+    for [i: number = 0, i < limit and active, i += 1]
+        if left@i == right@i then
+            score += 1
+        else
+            active = false
+        end
+    loop,
+
+    score
+]
+
+fieldNames: fn(members: record) = [
+    result: list = [],
+    keys: list = members.keys(),
+
+    for [i: number = 0, i < keys.length(), i += 1]
+        key: string = keys@i
+        if kind(members@key) == "symbol" then
+            result.append(key)
+        end
+    loop,
+
+    result
+]
+
+suggestField: fn(members: record, actual: string) = [
+    names: list = fieldNames(members),
+    best: string = "",
+    bestScore: number = 0,
+
+    for [i: number = 0, i < names.length(), i += 1]
+        candidate: string = names@i
+        score: number = commonPrefixLength(actual, candidate)
+        if score > bestScore then
+            bestScore = score
+            best = candidate
+        end
+    loop,
+
+    if bestScore < 3 then
+        best = ""
+    end,
+
+    best
+]
+
+validFieldsText: fn(members: record) = [
+    names: list = fieldNames(members),
+    result: string = "Valid fields: ",
+
+    for [i: number = 0, i < names.length(), i += 1]
+        if i > 0 then
+            result += ", "
+        end
+        result += names@i
+    loop,
+
+    result
+]
+
+namedTypeMembers: fn(types: record, typeName: string) = [
+    result: atom | list | record | null = null,
+    if types.has(typeName) then
+        typeNode: atom | list | record = types@typeName
+        if isForm(typeNode, "type") then
+            result = typeNode@1
+        end
+    end,
+    result
+]
+
+appendTypeMismatch: fn(diagnostics: list, sources: list, path: list, expectedType: string, actualType: string) = [
+    source: atom | list | record | null = findPathSpan(sources, path),
+    diagnostics.append(makeDiagnostic(
+        "B1004",
+        "typecheck",
+        "Type mismatch for '" + pathText(path) + "': expected " + expectedType + ", got " + actualType,
+        source,
+        path,
+        { type: expectedType },
+        { type: actualType },
+        [],
+        []
+    )),
+    diagnostics
+]
+
+validateValueAgainstType: fn(value: atom | list | record, expectedType: string, path: list, types: record, sources: list, diagnostics: list) = [
+    options: list = splitTypeNames(expectedType),
+    actual: string = staticTypeName(value),
+    namedMembers: atom | list | record | null = null,
+
+    if options.length() == 1 then
+        namedMembers = namedTypeMembers(types, expectedType)
+
+        if kind(namedMembers) == "record" then
+            if kind(value) == "record" then
+                validateRecordAgainstType(value, expectedType, namedMembers, path, types, sources, diagnostics)
+            else
+                if actual != "" then
+                    appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
+                end
+            end
+        else
+            if actual != "" then
+                matched: boolean = primitiveTypeMatches(expectedType, actual)
+                if not matched then
+                    appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
+                end
+            end
+        end
+    else
+        // Union validation remains conservative. If the static type matches any
+        // primitive option, the value is valid. Named-record unions are deferred.
+        if actual != "" then
+            matched: boolean = false
+            for [i: number = 0, i < options.length(), i += 1]
+                if primitiveTypeMatches(options@i, actual) then
+                    matched = true
+                else
+                    if types.has(options@i) and actual == "record" then
+                        matched = true
+                    end
+                end
+            loop
+            if not matched then
+                appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
+            end
+        end
+    end,
+
+    diagnostics
+]
+
+validateRecordAgainstType: fn(value: record, typeName: string, members: record, path: list, types: record, sources: list, diagnostics: list) = [
+    keys: list = value.keys(),
+    suggestedFields: list = [],
+
+    // Validate fields that were actually supplied.
+    for [i: number = 0, i < keys.length(), i += 1]
+        key: string = keys@i
+        fieldPath: list = path.concat([key])
+
+        if members.has(key) and kind(members@key) == "symbol" then
+            expectedFieldType: symbol = members@key
+            validateValueAgainstType(value@key, expectedFieldType.name, fieldPath, types, sources, diagnostics)
+        else
+            suggestion: string = suggestField(members, key)
+            hints: list = []
+            notes: list = []
+            expected: atom | list | record | null = { owner: typeName }
+
+            if suggestion != "" then
+                expectedSymbol: symbol = members@suggestion
+                expected = { owner: typeName, field: suggestion, type: expectedSymbol.name }
+                hints.append("Did you mean '" + suggestion + "'?")
+                suggestedFields.append(suggestion)
+            else
+                notes.append(validFieldsText(members))
+            end
+
+            source: atom | list | record | null = findPathSpan(sources, fieldPath)
+            diagnostics.append(makeDiagnostic(
+                "B1002",
+                "typecheck",
+                "Unknown field '" + key + "' in " + typeName,
+                source,
+                fieldPath,
+                expected,
+                { field: key, type: staticTypeName(value@key) },
+                notes,
+                hints
+            ))
+        end
+    loop,
+
+    // Report required fields that were omitted. If an unknown field strongly
+    // resembles a missing field, the typo diagnostic above is enough.
+    memberKeys: list = members.keys(),
+    for [i: number = 0, i < memberKeys.length(), i += 1]
+        key: string = memberKeys@i
+        member: atom | list | record = members@key
+
+        if kind(member) == "symbol" and not value.has(key) and not listContainsString(suggestedFields, key) then
+            missingPath: list = path.concat([key])
+            parent: list = parentPath(missingPath)
+            source: atom | list | record | null = findPathSpan(sources, parent)
+            fieldType: symbol = member
+
+            diagnostics.append(makeDiagnostic(
+                "B1003",
+                "typecheck",
+                "Missing required field '" + key + "' in " + typeName,
+                source,
+                missingPath,
+                { field: key, type: fieldType.name },
+                null,
+                [],
+                []
+            ))
+        end
+    loop,
+
+    diagnostics
+]
+
+validateProgram: fn(program: list, sources: list) = [
+    diagnostics: list = [],
+    types: record = collectTypeDefinitions(program),
+
+    for [i: number = 1, i < program.length(), i += 1]
+        node: atom | list | record = program@i
+
+        if isForm(node, "def") then
+            name: symbol = node@1
+            declaredType: symbol = node@2
+
+            if declaredType.name != "type" and declaredType.name != "fn" then
+                validateValueAgainstType(node@3, declaredType.name, [name.name], types, sources, diagnostics)
+            end
+        end
+    loop,
+
+    diagnostics
+]
+
+compileProgramResult: fn(program: list, sources: list) = [
+    diagnostics: list = validateProgram(program, sources),
+    result: record = {
+        ok: diagnostics.length() == 0
+        plan: null
+        diagnostics: diagnostics
+    },
+
+    if result@"ok" then
+        result@"plan" = compile(program)
+    end,
+
+    result
+]
