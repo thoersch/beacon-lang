@@ -20,7 +20,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Verify self-hosting
-        run: ./beacon.sh self-host
+        run: bash ./beacon.sh self-host
 
       - name: Verify structured nested-field diagnostic
         shell: bash
@@ -50,7 +50,7 @@ jobs:
           BEACON
 
           set +e
-          output="$(./beacon.sh /tmp/beacon-diagnostic-test.beacon 2>&1)"
+          output="$(bash ./beacon.sh /tmp/beacon-diagnostic-test.beacon 2>&1)"
           status=$?
           set -e
 
