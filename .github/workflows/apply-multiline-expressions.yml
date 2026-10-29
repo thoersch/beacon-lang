@@ -1,0 +1,48 @@
+name: Apply multiline expressions
+
+on:
+  push:
+    branches:
+      - feature/multiline-expressions
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/multiline-expressions
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Apply parser migration
+        run: python3 tools/apply-multiline-expressions.py
+
+      - name: Verify self-hosting
+        run: bash ./beacon.sh self-host
+
+      - name: Verify multiline expressions
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/multiline-expressions.beacon)"
+          printf '%s\n' "$output"
+          expected=$'7\n43\n-5\n15\nmultiline\n42'
+          [[ "$output" == "$expected" ]]
+
+      - name: Commit verified changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add compiler/parser.beacon examples/multiline-expressions.beacon README.md .github/workflows/compiler.yml
+          git commit -m "Add multiline expression continuation"
+          git push origin HEAD:feature/multiline-expressions
