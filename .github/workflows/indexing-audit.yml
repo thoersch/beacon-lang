@@ -1,4 +1,4 @@
-name: Indexing audit
+name: List-only indexing migration
 
 on:
   push:
@@ -6,23 +6,265 @@ on:
       - feature/list-only-indexing
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  migrate-and-verify:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
+          ref: feature/list-only-indexing
           fetch-depth: 0
-      - name: Show all Beacon @ usage
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Refactor Beacon source semantics
         shell: bash
         run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          beacon_files = list((root / 'compiler').glob('*.beacon'))
+          beacon_files.append(root / 'examples' / 'bootstrap-primitives.beacon')
+
+          # A quoted literal after @ is always a statically named Record field in
+          # the current tree. Named Record access is dot syntax.
+          for path in beacon_files:
+              text = path.read_text()
+              text = re.sub(r'@"([A-Za-z_][A-Za-z0-9_]*)"', r'.\1', text)
+              path.write_text(text)
+
+          replacements = {
+              'compiler/core.beacon': [
+                  ('character: string = name@i', 'character: string = name.slice(i, 1)'),
+                  ('children@part = newNamespaceNode()', 'children.set(part, newNamespaceNode())'),
+                  ('node = children@part', 'node = children.get(part)'),
+                  ('childExpressions@key = namespaceNodeExpression(children@key)', 'childExpressions.set(key, namespaceNodeExpression(children.get(key)))'),
+                  ('namespaceNodeExpression(root@name)', 'namespaceNodeExpression(root.get(name))'),
+              ],
+              'compiler/emitter.beacon': [
+                  ('value: emit(node@key)', 'value: emit(node.get(key))'),
+                  ('value: emit(children@key)', 'value: emit(children.get(key))'),
+                  ('member: atom | list | record = members@key', 'member: atom | list | record = members.get(key)'),
+              ],
+              'compiler/lexer.beacon': [
+                  ('result = source@index', 'result = source.slice(index, 1)'),
+                  ('if characters@i == character then', 'if characters.slice(i, 1) == character then'),
+              ],
+              'compiler/diagnostics.beacon': [
+                  ('character: string = source@i', 'character: string = source.slice(i, 1)'),
+              ],
+              'compiler/parser.beacon': [
+                  ('members@(nameToken.text) = parseFunctionAfterFn(state)', 'members.set(nameToken.text, parseFunctionAfterFn(state))'),
+                  ('members@(nameToken.text) = symbol(parseTypeAnnotation(state))', 'members.set(nameToken.text, symbol(parseTypeAnnotation(state)))'),
+                  ('result@(key.text) = parseExpression(state)', 'result.set(key.text, parseExpression(state))'),
+              ],
+              'compiler/typecheck.beacon': [
+                  ('types@(name.name) = node@3', 'types.set(name.name, node@3)'),
+                  ('character: string = typeName@i', 'character: string = typeName.slice(i, 1)'),
+                  ('if left@i == right@i then', 'if left.slice(i, 1) == right.slice(i, 1) then'),
+                  ('kind(members@key)', 'kind(members.get(key))'),
+                  ('typeNode: atom | list | record = types@typeName', 'typeNode: atom | list | record = types.get(typeName)'),
+                  ('expectedFieldType: symbol = members@key', 'expectedFieldType: symbol = members.get(key)'),
+                  ('validateValueAgainstType(value@key,', 'validateValueAgainstType(value.get(key),'),
+                  ('expectedSymbol: symbol = members@suggestion', 'expectedSymbol: symbol = members.get(suggestion)'),
+                  ('{ field: key, type: staticTypeName(value@key) }', '{ field: key, type: staticTypeName(value.get(key)) }'),
+                  ('member: atom | list | record = members@key', 'member: atom | list | record = members.get(key)'),
+              ],
+              'examples/bootstrap-primitives.beacon': [
+                  ('print(source@0)', 'print(source.slice(0, 1))'),
+                  ('print(node.text)\nprint(node.has("kind"))', 'print(node.text)\nfield: string = "text"\nprint(node.get(field))\nnode.set(field, "name")\nprint(node.text)\nprint(node.has("kind"))'),
+              ],
+          }
+
+          for filename, changes in replacements.items():
+              path = root / filename
+              text = path.read_text()
+              for old, new in changes:
+                  if old not in text:
+                      raise SystemExit(f'Expected migration pattern not found in {filename}: {old}')
+                  text = text.replace(old, new)
+              path.write_text(text)
+
+          # Document the semantic distinction explicitly.
+          readme = root / 'README.md'
+          text = readme.read_text()
+          old = '''Member access uses `.`:\n\n```beacon\nperson.name\n```\n'''
+          new = '''Member access uses `.`:\n\n```beacon\nperson.name\n```\n\n`@` is exclusively positional List access. Records are named structures and Strings are not Lists, so neither supports `@`. When a Record key is data rather than a statically known name, use the explicit Record methods:\n\n```beacon\nfield: string = "name"\nprint(person.get(field))\nperson.set(field, "Grace")\n```\n'''
+          if old not in text:
+              raise SystemExit('README member-access section was not found')
+          readme.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Audit migrated Beacon source
+        shell: bash
+        run: |
+          if grep -R -n --include='*.beacon' '@"' compiler std examples; then
+            echo 'Quoted Record @ access remains.' >&2
+            exit 1
+          fi
+
+          for pattern in \
+            'source@index' \
+            'source@i' \
+            'characters@i' \
+            'typeName@i' \
+            'left@i' \
+            'right@i' \
+            'children@part' \
+            'children@key' \
+            'root@name' \
+            'members@key' \
+            'members@(' \
+            'types@typeName' \
+            'types@(' \
+            'value@key'; do
+            if grep -R -n --include='*.beacon' -F "$pattern" compiler std examples; then
+              echo "Legacy non-List @ usage remains: $pattern" >&2
+              exit 1
+            fi
+          done
+
+          echo 'Remaining @ syntax (expected to be List positions):'
           grep -R -n --include='*.beacon' '@' compiler std examples || true
-      - name: Inspect historical seed refresh payload
+
+      - name: Restore one-time seed source
         shell: bash
         run: |
-          git fetch origin feature/includes-and-split-compiler
-          git show origin/feature/includes-and-split-compiler:tools/seed-refresh/payload.zip > /tmp/payload.zip
-          file /tmp/payload.zip
-          unzip -l /tmp/payload.zip
+          rm -rf tools/seed-refresh
+          mkdir -p tools/seed-refresh
+          unzip -q tools/seed-refresh-source.zip -d tools/seed-refresh
+
+      - name: Build refreshed Stage-0 seed
+        shell: bash
+        run: |
+          rm -rf /tmp/beacon-stage0
+          dotnet publish tools/seed-refresh/Beacon.Compiler/Beacon.Compiler.csproj \
+            -c Release \
+            -o /tmp/beacon-stage0 \
+            -p:UseAppHost=false
+          rm -f /tmp/beacon-stage0/*.pdb
+
+      - name: Verify refreshed seed and language semantics
+        shell: bash
+        run: |
+          SEED=/tmp/beacon-stage0/Beacon.Compiler.dll
+          COMPILER=compiler/compiler.beacon
+          export BEACON_HOME="$PWD"
+
+          dotnet "$SEED" "$COMPILER" --self-host
+
+          output="$(dotnet "$SEED" "$COMPILER" --stage1-run examples/bootstrap-primitives.beacon)"
+          printf '%s\n' "$output"
+          grep -F 'changed' <<<"$output"
+          grep -F 'name' <<<"$output"
+
+          include_output="$(dotnet "$SEED" "$COMPILER" --stage1-run examples/includes/main.beacon)"
+          printf '%s\n' "$include_output"
+          grep -F "Hello, I'm Ada" <<<"$include_output"
+          grep -F 'Boston' <<<"$include_output"
+          grep -F '42' <<<"$include_output"
+
+          cat > /tmp/list-index.beacon <<'BEACON'
+          values: list = [10, 20, 30]
+          print(values@1)
+          values@1 = 42
+          print(values@1)
+          BEACON
+          list_output="$(dotnet "$SEED" "$COMPILER" --stage1-run /tmp/list-index.beacon)"
+          printf '%s\n' "$list_output"
+          grep -Fx '20' <<<"$list_output"
+          grep -Fx '42' <<<"$list_output"
+
+          cat > /tmp/record-index.beacon <<'BEACON'
+          value: record = { name: "Ada" }
+          print(value@0)
+          BEACON
+          set +e
+          record_output="$(dotnet "$SEED" "$COMPILER" --stage1-run /tmp/record-index.beacon 2>&1)"
+          record_status=$?
+          set -e
+          printf '%s\n' "$record_output"
+          [[ $record_status -ne 0 ]]
+          grep -F '@ requires a List on the left' <<<"$record_output"
+
+          cat > /tmp/string-index.beacon <<'BEACON'
+          value: string = "Beacon"
+          print(value@0)
+          BEACON
+          set +e
+          string_output="$(dotnet "$SEED" "$COMPILER" --stage1-run /tmp/string-index.beacon 2>&1)"
+          string_status=$?
+          set -e
+          printf '%s\n' "$string_output"
+          [[ $string_status -ne 0 ]]
+          grep -F '@ requires a List on the left' <<<"$string_output"
+
+          cat > /tmp/record-methods.beacon <<'BEACON'
+          value: record = { name: "Ada" }
+          key: string = "name"
+          print(value.get(key))
+          value.set(key, "Grace")
+          print(value.name)
+          BEACON
+          record_method_output="$(dotnet "$SEED" "$COMPILER" --stage1-run /tmp/record-methods.beacon)"
+          printf '%s\n' "$record_method_output"
+          grep -Fx 'Ada' <<<"$record_method_output"
+          grep -Fx 'Grace' <<<"$record_method_output"
+
+      - name: Install refreshed seed
+        shell: bash
+        run: |
+          rm -rf bootstrap/stage0
+          mkdir -p bootstrap/stage0
+          cp /tmp/beacon-stage0/Beacon.Compiler.dll bootstrap/stage0/
+          cp /tmp/beacon-stage0/Beacon.Compiler.deps.json bootstrap/stage0/
+          cp /tmp/beacon-stage0/Beacon.Compiler.runtimeconfig.json bootstrap/stage0/
+
+          cat > bootstrap/stage0/PROVENANCE.txt <<EOF
+          Beacon Stage-0 bootstrap seed
+          =============================
+
+          Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
+          Seed refresh: List-only positional @ indexing, explicit Record get()/set(), filesystem/path primitives, seed-only local include composition, and generic namespace plan assembly.
+          Historical implementation language: C#
+          Source branch: feature/list-only-indexing
+          .NET SDK: $(dotnet --version)
+
+          The one-time C# refresh source was removed after this seed was built and verified.
+          The canonical compiler implementation remains Beacon source under compiler/.
+          EOF
+
+          (
+            cd bootstrap/stage0
+            sha256sum Beacon.Compiler.dll Beacon.Compiler.deps.json Beacon.Compiler.runtimeconfig.json PROVENANCE.txt > SHA256SUMS
+          )
+
+          dotnet bootstrap/stage0/Beacon.Compiler.dll compiler/compiler.beacon --self-host
+
+      - name: Remove temporary refresh material and commit
+        shell: bash
+        run: |
+          rm -rf tools/seed-refresh
+          rm -f tools/seed-refresh-source.zip
+          rm -f .github/workflows/indexing-audit.yml
+
+          if find . -path './.git' -prune -o \( -name '*.cs' -o -name '*.csproj' \) -print | grep -q .; then
+            echo 'C# source remains after refresh:' >&2
+            find . -path './.git' -prune -o \( -name '*.cs' -o -name '*.csproj' \) -print >&2
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Make @ indexing List-only'
+          git push origin HEAD:feature/list-only-indexing
