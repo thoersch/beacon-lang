@@ -1,0 +1,8 @@
+// Compiled by compiler/compiler.beacon through the Stage-1 plan assembler.
+
+x: number = 1
+y: number = x + 2
+ages: list = [24, 55]
+
+print(y)
+print(ages@1 > 40)

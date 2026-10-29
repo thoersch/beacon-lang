@@ -1,0 +1,31 @@
+// Runtime features added specifically to make a self-hosted compiler practical.
+
+values: list = ["a", "b"]
+values.append("c")
+more: list = values.concat(["d", "e"])
+print(more)
+print(more@2)
+more@2 = "changed"
+print(more)
+
+source: string = "Beacon"
+print(source.length())
+print(source@0)
+print(source.slice(1, 3))
+print(source.startsWith("Bea"))
+
+node: record = {
+    kind: "identifier"
+    text: "age"
+}
+
+print(node@"text")
+print(node.has("kind"))
+print(node.keys())
+
+print(kind(values))
+print(kind(node))
+print(kind(source))
+
+print(true and not false)
+print(false or true)

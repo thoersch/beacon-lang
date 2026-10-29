@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Beacon.Compiler")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a482fcd15cc32cb138a5f1fc9700b8b50fc95d0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Beacon.Compiler")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Beacon.Compiler")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

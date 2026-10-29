@@ -45,7 +45,7 @@ enum TokenKind
 {
     Identifier, Number, String, NewLine,
     Colon, Equal, EqualEqual, BangEqual, PlusEqual, Plus, Minus, Star, Slash,
-    Less, LessEqual, Greater, GreaterEqual, At,
+    Less, LessEqual, Greater, GreaterEqual, At, Pipe,
     LParen, RParen, LBracket, RBracket, LBrace, RBrace,
     Dot, Comma,
     End
@@ -155,6 +155,7 @@ sealed class Lexer
                     else { kind = TokenKind.Greater; text = ">"; Advance(); }
                     break;
                 case '@': kind = TokenKind.At; text = "@"; Advance(); break;
+                case '|': kind = TokenKind.Pipe; text = "|"; Advance(); break;
                 case '(': kind = TokenKind.LParen; text = "("; Advance(); break;
                 case ')': kind = TokenKind.RParen; text = ")"; Advance(); break;
                 case '[': kind = TokenKind.LBracket; text = "["; Advance(); break;
@@ -290,10 +291,24 @@ sealed class Parser
             return CoreForms.Form("def", Atom.Symbol(name), Atom.Symbol("type"), type);
         }
 
-        var typeName = Consume(TokenKind.Identifier, "Expected type name").Text;
+        var typeName = ParseTypeAnnotation();
         Consume(TokenKind.Equal, "Expected '=' in declaration");
         var value = ParseExpression();
         return CoreForms.Form("def", Atom.Symbol(name), Atom.Symbol(typeName), value);
+    }
+
+    private string ParseTypeAnnotation()
+    {
+        var types = new List<string>();
+        while (true)
+        {
+            var token = Consume(TokenKind.Identifier, "Expected type name");
+            if (token.Text == "any")
+                throw Error(token, "Beacon has no 'any' type; use an explicit type or union");
+            types.Add(token.Text);
+            if (!Match(TokenKind.Pipe)) break;
+        }
+        return string.Join("|", types);
     }
 
     private Core ParseFunctionAfterFn()
@@ -307,7 +322,7 @@ sealed class Parser
             {
                 var pName = Consume(TokenKind.Identifier, "Expected parameter name").Text;
                 Consume(TokenKind.Colon, "Expected ':' after parameter name");
-                var pType = Consume(TokenKind.Identifier, "Expected parameter type").Text;
+                var pType = ParseTypeAnnotation();
                 var p = new RecordCore();
                 p.Add("name", Atom.Symbol(pName));
                 p.Add("type", Atom.Symbol(pType));
@@ -359,7 +374,7 @@ sealed class Parser
             if (MatchIdentifier("fn"))
                 members.Add(name, ParseFunctionAfterFn());
             else
-                members.Add(name, Atom.Symbol(Consume(TokenKind.Identifier, "Expected member type").Text));
+                members.Add(name, Atom.Symbol(ParseTypeAnnotation()));
 
             if (Match(TokenKind.Comma)) SkipNewLines();
             else if (!Check(TokenKind.RBrace)) RequireNewLine("Expected newline or ',' between Record members");
@@ -374,12 +389,27 @@ sealed class Parser
 
     private Core ParseAssignment()
     {
-        var left = ParseComparison();
+        var left = ParseOr();
         if (Match(TokenKind.PlusEqual))
             return CoreForms.Form("+=", left, ParseAssignment());
         if (Match(TokenKind.Equal))
             return CoreForms.Form("=", left, ParseAssignment());
         return left;
+    }
+
+
+    private Core ParseOr()
+    {
+        var expr = ParseAnd();
+        while (MatchIdentifier("or")) expr = CoreForms.Form("or", expr, ParseAnd());
+        return expr;
+    }
+
+    private Core ParseAnd()
+    {
+        var expr = ParseComparison();
+        while (MatchIdentifier("and")) expr = CoreForms.Form("and", expr, ParseComparison());
+        return expr;
     }
 
     private Core ParseComparison()
@@ -412,14 +442,20 @@ sealed class Parser
 
     private Core ParseMultiplicative()
     {
-        var expr = ParsePostfix();
+        var expr = ParseUnary();
         while (true)
         {
-            if (Match(TokenKind.Star)) expr = CoreForms.Form("*", expr, ParsePostfix());
-            else if (Match(TokenKind.Slash)) expr = CoreForms.Form("/", expr, ParsePostfix());
+            if (Match(TokenKind.Star)) expr = CoreForms.Form("*", expr, ParseUnary());
+            else if (Match(TokenKind.Slash)) expr = CoreForms.Form("/", expr, ParseUnary());
             else break;
         }
         return expr;
+    }
+
+    private Core ParseUnary()
+    {
+        if (MatchIdentifier("not")) return CoreForms.Form("not", ParseUnary());
+        return ParsePostfix();
     }
 
     private Core ParsePostfix()
@@ -623,6 +659,10 @@ public sealed class BFn
 
 public sealed class BRecord : Dictionary<string, object?> { }
 
+// Runtime representation of a Beacon symbol when compiler Core is exposed to Beacon.
+// Symbols are Atoms, but remain distinct from string literals.
+public sealed record BSymbol(string Name);
+
 public sealed class BType
 {
     public string Name { get; }
@@ -670,12 +710,63 @@ static class FunctionRegistry
 public static class Runtime
 {
     private static readonly BEnv NativeEnv = new();
-    private static readonly BFn ListLength = new(
+
+    private static readonly BFn ListLength = NativeMethod(0, (self, _) =>
+        self is List<object?> list ? (double)list.Count : throw new Exception("length() requires a List receiver"));
+
+    private static readonly BFn ListAppend = NativeMethod(1, (self, args) =>
+    {
+        if (self is not List<object?> list) throw new Exception("append() requires a List receiver");
+        list.Add(args[0]);
+        return list;
+    });
+
+    private static readonly BFn ListConcat = NativeMethod(1, (self, args) =>
+    {
+        if (self is not List<object?> left || args[0] is not List<object?> right)
+            throw new Exception("concat() requires Lists");
+        return left.Concat(right).ToList();
+    });
+
+    private static readonly BFn StringLength = NativeMethod(0, (self, _) =>
+        self is string text ? (double)text.Length : throw new Exception("length() requires a String receiver"));
+
+    private static readonly BFn StringSlice = new(
         (_, self, args) =>
         {
-            if (args.Length != 0) throw new Exception("length() takes no arguments");
-            if (self is not List<object?> list) throw new Exception("length() requires a List receiver");
-            return (double)list.Count;
+            if (self is not string text) throw new Exception("slice() requires a String receiver");
+            if (args.Length is not (1 or 2)) throw new Exception("slice() expects start or start, length");
+            var start = WholeIndex(args[0], "slice start");
+            if (start < 0 || start > text.Length) throw new Exception("slice start is out of range");
+            if (args.Length == 1) return text[start..];
+            var length = WholeIndex(args[1], "slice length");
+            if (length < 0 || start + length > text.Length) throw new Exception("slice length is out of range");
+            return text.Substring(start, length);
+        },
+        NativeEnv);
+
+    private static readonly BFn StringStartsWith = NativeMethod(1, (self, args) =>
+    {
+        if (self is not string text || args[0] is not string prefix)
+            throw new Exception("startsWith() requires a String receiver and String prefix");
+        return text.StartsWith(prefix, StringComparison.Ordinal);
+    });
+
+    private static readonly BFn RecordKeys = NativeMethod(0, (self, _) =>
+        self is BRecord record ? record.Keys.Cast<object?>().ToList() : throw new Exception("keys() requires a Record receiver"));
+
+    private static readonly BFn RecordHas = NativeMethod(1, (self, args) =>
+    {
+        if (self is not BRecord record || args[0] is not string key)
+            throw new Exception("has() requires a Record receiver and String key");
+        return record.ContainsKey(key);
+    });
+
+    private static BFn NativeMethod(int arity, Func<object?, object?[], object?> body) => new(
+        (_, self, args) =>
+        {
+            if (args.Length != arity) throw new Exception($"Native method expected {arity} argument(s), got {args.Length}");
+            return body(self, args);
         },
         NativeEnv);
 
@@ -691,33 +782,51 @@ public static class Runtime
 
     public static object? CheckType(BEnv env, string type, object? value)
     {
-        var ok = type switch
-        {
-            "any" => true,
-            "number" => value is double,
-            "string" => value is string,
-            "boolean" => value is bool,
-            "list" => value is List<object?>,
-            "fn" => value is BFn,
-            "type" => value is BType,
-            _ => false
-        };
+        if (type == "any")
+            throw new Exception("Beacon has no 'any' type; declarations must be explicitly typed");
 
-        if (ok) return value;
+        var alternatives = type.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (alternatives.Length == 0) throw new Exception("Empty type annotation");
 
-        if (type != "any" && type != "number" && type != "string" && type != "boolean" &&
-            type != "list" && type != "fn" && type != "type")
+        foreach (var alternative in alternatives)
         {
-            var typeValue = env.Get(type);
-            if (typeValue is not BType beaconType)
-                throw new Exception($"'{type}' is not a type");
-            if (value is not BRecord record)
-                throw new Exception($"Expected {type}, got {value?.GetType().Name ?? "null"}");
-            return beaconType.Create(env, record);
+            if (BuiltinTypeMatches(alternative, value)) return value;
+
+            if (!IsBuiltinTypeName(alternative))
+            {
+                object? typeValue;
+                try { typeValue = env.Get(alternative); }
+                catch { continue; }
+
+                if (typeValue is BType beaconType && value is BRecord record)
+                {
+                    try { return beaconType.Create(env, record); }
+                    catch { /* This alternative did not match; try the next union member. */ }
+                }
+            }
         }
 
-        throw new Exception($"Expected {type}, got {value?.GetType().Name ?? "null"}");
+        throw new Exception($"Expected {type}, got {Kind(value)}");
     }
+
+    private static bool IsBuiltinTypeName(string type) => type is
+        "number" or "string" or "boolean" or "list" or "record" or
+        "symbol" or "atom" or "null" or "fn" or "type";
+
+    private static bool BuiltinTypeMatches(string type, object? value) => type switch
+    {
+        "number" => value is double,
+        "string" => value is string,
+        "boolean" => value is bool,
+        "list" => value is List<object?>,
+        "record" => value is BRecord,
+        "symbol" => value is BSymbol,
+        "atom" => value is null or BSymbol or double or string or bool,
+        "null" => value is null,
+        "fn" => value is BFn,
+        "type" => value is BType,
+        _ => false
+    };
 
     public static BFn MakeFunction(int id, BEnv closure) => new(FunctionRegistry.Get(id), closure);
 
@@ -734,6 +843,23 @@ public static class Runtime
         Console.WriteLine(string.Join(" ", values.Select(Display)));
         return null;
     }
+
+    public static string Kind(object? value) => value switch
+    {
+        null => "null",
+        BSymbol => "symbol",
+        double => "number",
+        string => "string",
+        bool => "boolean",
+        List<object?> => "list",
+        BRecord => "record",
+        BFn => "fn",
+        BType => "type",
+        _ => "unknown"
+    };
+
+    public static object? Fail(object? message) =>
+        throw new Exception(Display(message));
 
     public static BRecord MakeRecord(string[] keys, object?[] values)
     {
@@ -758,10 +884,31 @@ public static class Runtime
     {
         if (target is BRecord record)
         {
-            if (!record.TryGetValue(member, out var value)) throw new Exception($"Record has no member '{member}'");
-            return value;
+            if (record.TryGetValue(member, out var value)) return value;
+            return member switch
+            {
+                "keys" => RecordKeys,
+                "has" => RecordHas,
+                _ => throw new Exception($"Record has no member '{member}'")
+            };
         }
-        if (target is List<object?> && member == "length") return ListLength;
+        if (target is List<object?>)
+            return member switch
+            {
+                "length" => ListLength,
+                "append" => ListAppend,
+                "concat" => ListConcat,
+                _ => throw new Exception($"List has no member '{member}'")
+            };
+        if (target is string)
+            return member switch
+            {
+                "length" => StringLength,
+                "slice" => StringSlice,
+                "startsWith" => StringStartsWith,
+                _ => throw new Exception($"String has no member '{member}'")
+            };
+        if (target is BSymbol symbol && member == "name") return symbol.Name;
         throw new Exception($"Cannot access .{member} on this value");
     }
 
@@ -774,11 +921,49 @@ public static class Runtime
 
     public static object? Index(object? target, object? index)
     {
-        if (target is not List<object?> list) throw new Exception("@ requires a List on the left");
-        if (index is not double n || Math.Abs(n % 1) > double.Epsilon) throw new Exception("List index must be an integer number");
-        var i = checked((int)n);
-        if (i < 0 || i >= list.Count) throw new Exception($"List index {i} is out of range");
-        return list[i];
+        if (target is List<object?> list)
+        {
+            var i = WholeIndex(index, "List index");
+            if (i < 0 || i >= list.Count) throw new Exception($"List index {i} is out of range");
+            return list[i];
+        }
+        if (target is string text)
+        {
+            var i = WholeIndex(index, "String index");
+            if (i < 0 || i >= text.Length) throw new Exception($"String index {i} is out of range");
+            return text[i].ToString();
+        }
+        if (target is BRecord record)
+        {
+            if (index is not string key) throw new Exception("Record @ access requires a String key");
+            if (!record.TryGetValue(key, out var value)) throw new Exception($"Record has no key '{key}'");
+            return value;
+        }
+        throw new Exception("@ requires a List, String, or Record on the left");
+    }
+
+    public static object? SetIndex(object? target, object? index, object? value)
+    {
+        if (target is List<object?> list)
+        {
+            var i = WholeIndex(index, "List index");
+            if (i < 0 || i >= list.Count) throw new Exception($"List index {i} is out of range");
+            list[i] = value;
+            return value;
+        }
+        if (target is BRecord record)
+        {
+            if (index is not string key) throw new Exception("Record @ assignment requires a String key");
+            record[key] = value;
+            return value;
+        }
+        throw new Exception("@ assignment requires a List or Record on the left");
+    }
+
+    private static int WholeIndex(object? value, string label)
+    {
+        if (value is not double n || Math.Abs(n % 1) > double.Epsilon) throw new Exception($"{label} must be an integer number");
+        return checked((int)n);
     }
 
     public static bool Bool(object? value) =>
@@ -854,15 +1039,251 @@ public static class Runtime
         double n => n.ToString(CultureInfo.InvariantCulture),
         bool b => b ? "true" : "false",
         string s => s,
+        BSymbol symbol => symbol.Name,
         BRecord r => "{" + string.Join(", ", r.Where(x => x.Value is not BFn).Select(x => $"{x.Key}: {Display(x.Value)}")) + "}",
         List<object?> l => "[" + string.Join(", ", l.Select(Display)) + "]",
         _ => value.ToString() ?? "null"
     };
 }
 
+// ---------- Core bridge: compiler Core -> Beacon runtime values ----------
+
+static class CoreBridge
+{
+    public static object? ToValue(Core core) => core switch
+    {
+        Atom { Kind: AtomKind.Symbol } a => new BSymbol(a.Text),
+        Atom { Kind: AtomKind.Number } a => (double)a.Value!,
+        Atom { Kind: AtomKind.String } a => (string)a.Value!,
+        Atom { Kind: AtomKind.Boolean } a => (bool)a.Value!,
+        Atom { Kind: AtomKind.Null } => null,
+        ListCore list => list.Items.Select(ToValue).ToList(),
+        RecordCore record => ToRecord(record),
+        _ => throw new Exception("Unknown Core value")
+    };
+
+    private static BRecord ToRecord(RecordCore record)
+    {
+        var result = new BRecord();
+        foreach (var field in record.Fields) result[field.Key] = ToValue(field.Value);
+        return result;
+    }
+}
+
+// ---------- Stage-1 symbolic plan assembler ----------
+//
+// compiler/compiler.beacon decides how Core is lowered. This class deliberately
+// knows nothing about Beacon Core forms; it only translates Beacon-produced
+// instruction Records into CLR IL.
+
+sealed class PlanAssembler
+{
+    private static readonly MethodInfo GetVarMethod = Method(nameof(Runtime.GetVar), typeof(BEnv), typeof(string));
+    private static readonly MethodInfo DeclareMethod = Method(nameof(Runtime.Declare), typeof(BEnv), typeof(string), typeof(string), typeof(object));
+    private static readonly MethodInfo AddMethod = Method(nameof(Runtime.Add), typeof(object), typeof(object));
+    private static readonly MethodInfo SubMethod = Method(nameof(Runtime.Sub), typeof(object), typeof(object));
+    private static readonly MethodInfo MulMethod = Method(nameof(Runtime.Mul), typeof(object), typeof(object));
+    private static readonly MethodInfo DivMethod = Method(nameof(Runtime.Div), typeof(object), typeof(object));
+    private static readonly MethodInfo EqualMethod = Method(nameof(Runtime.Equal), typeof(object), typeof(object));
+    private static readonly MethodInfo CompareMethod = Method(nameof(Runtime.Compare), typeof(object), typeof(object), typeof(string));
+    private static readonly MethodInfo GetMethod = Method(nameof(Runtime.Get), typeof(object), typeof(string));
+    private static readonly MethodInfo IndexMethod = Method(nameof(Runtime.Index), typeof(object), typeof(object));
+    private static readonly MethodInfo PrintMethod = Method(nameof(Runtime.Print), typeof(object[]));
+    private static readonly MethodInfo MakeRecordMethod = Method(nameof(Runtime.MakeRecord), typeof(string[]), typeof(object[]));
+    private static readonly MethodInfo MakeListMethod = Method(nameof(Runtime.MakeList), typeof(object[]));
+
+    public CompiledProgram Compile(object? value)
+    {
+        if (value is not List<object?> plan)
+            throw new Exception("Stage-1 compiler must return a List instruction plan");
+
+        var method = new DynamicMethod(
+            "Beacon_Stage1_Main",
+            typeof(BEnv),
+            Type.EmptyTypes,
+            typeof(PlanAssembler).Module,
+            true);
+
+        var il = method.GetILGenerator();
+        var env = il.DeclareLocal(typeof(BEnv));
+        il.Emit(OpCodes.Newobj, typeof(BEnv).GetConstructor(Type.EmptyTypes)!);
+        il.Emit(OpCodes.Stloc, env);
+
+        EmitPlan(plan, il, env);
+
+        il.Emit(OpCodes.Ldloc, env);
+        il.Emit(OpCodes.Ret);
+
+        return new CompiledProgram((Func<BEnv>)method.CreateDelegate(typeof(Func<BEnv>)));
+    }
+
+    private static void EmitPlan(List<object?> plan, ILGenerator il, LocalBuilder env)
+    {
+        foreach (var value in plan)
+        {
+            if (value is not BRecord instruction)
+                throw new Exception("Stage-1 instruction plan entries must be Records");
+            EmitInstruction(instruction, il, env);
+        }
+    }
+
+    private static void EmitInstruction(BRecord instruction, ILGenerator il, LocalBuilder env)
+    {
+        var op = StringField(instruction, "op");
+        switch (op)
+        {
+            case "ldenv":
+                il.Emit(OpCodes.Ldloc, env);
+                return;
+            case "ldstr":
+                il.Emit(OpCodes.Ldstr, StringField(instruction, "arg"));
+                return;
+            case "ldc.r8":
+                il.Emit(OpCodes.Ldc_R8, NumberField(instruction, "arg"));
+                return;
+            case "ldbool":
+                il.Emit(BoolField(instruction, "arg") ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+                return;
+            case "ldnull":
+                il.Emit(OpCodes.Ldnull);
+                return;
+            case "not.bool":
+                il.Emit(OpCodes.Ldc_I4_0);
+                il.Emit(OpCodes.Ceq);
+                return;
+            case "box":
+                var boxType = StringField(instruction, "arg") switch
+                {
+                    "number" => typeof(double),
+                    "boolean" => typeof(bool),
+                    var type => throw new Exception($"Stage-1 cannot box '{type}'")
+                };
+                il.Emit(OpCodes.Box, boxType);
+                return;
+            case "call":
+                il.Emit(OpCodes.Call, ResolveRuntimeCall(StringField(instruction, "arg")));
+                return;
+            case "pop":
+                il.Emit(OpCodes.Pop);
+                return;
+            case "print":
+                EmitPrint(instruction, il, env);
+                return;
+            case "record":
+                EmitRecord(instruction, il, env);
+                return;
+            case "list":
+                EmitList(instruction, il, env);
+                return;
+            default:
+                throw new Exception($"Unknown Stage-1 plan operation '{op}'");
+        }
+    }
+
+    private static void EmitPrint(BRecord instruction, ILGenerator il, LocalBuilder env)
+    {
+        var args = ListField(instruction, "args");
+        EmitPlanArray(args, il, env);
+        il.Emit(OpCodes.Call, PrintMethod);
+    }
+
+    private static void EmitRecord(BRecord instruction, ILGenerator il, LocalBuilder env)
+    {
+        var fields = ListField(instruction, "fields");
+
+        il.Emit(OpCodes.Ldc_I4, fields.Count);
+        il.Emit(OpCodes.Newarr, typeof(string));
+        for (var i = 0; i < fields.Count; i++)
+        {
+            var field = fields[i] as BRecord ?? throw new Exception("Record plan field must be a Record");
+            il.Emit(OpCodes.Dup);
+            il.Emit(OpCodes.Ldc_I4, i);
+            il.Emit(OpCodes.Ldstr, StringField(field, "name"));
+            il.Emit(OpCodes.Stelem_Ref);
+        }
+
+        il.Emit(OpCodes.Ldc_I4, fields.Count);
+        il.Emit(OpCodes.Newarr, typeof(object));
+        for (var i = 0; i < fields.Count; i++)
+        {
+            var field = (BRecord)fields[i]!;
+            il.Emit(OpCodes.Dup);
+            il.Emit(OpCodes.Ldc_I4, i);
+            EmitPlan(ListField(field, "value"), il, env);
+            il.Emit(OpCodes.Stelem_Ref);
+        }
+
+        il.Emit(OpCodes.Call, MakeRecordMethod);
+    }
+
+    private static void EmitList(BRecord instruction, ILGenerator il, LocalBuilder env)
+    {
+        var items = ListField(instruction, "items");
+        EmitPlanArray(items, il, env);
+        il.Emit(OpCodes.Call, MakeListMethod);
+    }
+
+    private static void EmitPlanArray(List<object?> plans, ILGenerator il, LocalBuilder env)
+    {
+        il.Emit(OpCodes.Ldc_I4, plans.Count);
+        il.Emit(OpCodes.Newarr, typeof(object));
+        for (var i = 0; i < plans.Count; i++)
+        {
+            if (plans[i] is not List<object?> argPlan)
+                throw new Exception("Stage-1 argument must contain an instruction List");
+            il.Emit(OpCodes.Dup);
+            il.Emit(OpCodes.Ldc_I4, i);
+            EmitPlan(argPlan, il, env);
+            il.Emit(OpCodes.Stelem_Ref);
+        }
+    }
+
+    private static MethodInfo ResolveRuntimeCall(string name) => name switch
+    {
+        "Runtime.GetVar" => GetVarMethod,
+        "Runtime.Declare" => DeclareMethod,
+        "Runtime.Add" => AddMethod,
+        "Runtime.Sub" => SubMethod,
+        "Runtime.Mul" => MulMethod,
+        "Runtime.Div" => DivMethod,
+        "Runtime.Equal" => EqualMethod,
+        "Runtime.Compare" => CompareMethod,
+        "Runtime.Get" => GetMethod,
+        "Runtime.Index" => IndexMethod,
+        _ => throw new Exception($"Stage-1 plan references unsupported runtime call '{name}'")
+    };
+
+    private static string StringField(BRecord record, string key) =>
+        record.TryGetValue(key, out var value) && value is string text
+            ? text
+            : throw new Exception($"Stage-1 instruction field '{key}' must be string");
+
+    private static double NumberField(BRecord record, string key) =>
+        record.TryGetValue(key, out var value) && value is double number
+            ? number
+            : throw new Exception($"Stage-1 instruction field '{key}' must be number");
+
+    private static bool BoolField(BRecord record, string key) =>
+        record.TryGetValue(key, out var value) && value is bool boolean
+            ? boolean
+            : throw new Exception($"Stage-1 instruction field '{key}' must be boolean");
+
+    private static List<object?> ListField(BRecord record, string key) =>
+        record.TryGetValue(key, out var value) && value is List<object?> list
+            ? list
+            : throw new Exception($"Stage-1 instruction field '{key}' must be List");
+
+    private static MethodInfo Method(string name, params Type[] args) =>
+        typeof(Runtime).GetMethod(name, BindingFlags.Public | BindingFlags.Static, null, args, null)
+        ?? throw new Exception($"Runtime method {name} not found");
+}
+
 // ---------- Direct CLR IL compiler ----------
 
-sealed record CompiledProgram(Action Run);
+sealed record CompiledProgram(Func<BEnv> Execute)
+{
+    public void Run() => _ = Execute();
+}
 
 sealed class IlCompiler
 {
@@ -879,6 +1300,9 @@ sealed class IlCompiler
     private static readonly System.Reflection.MethodInfo GetMethod = Method(nameof(Runtime.Get), typeof(object), typeof(string));
     private static readonly System.Reflection.MethodInfo SetMemberMethod = Method(nameof(Runtime.SetMember), typeof(object), typeof(string), typeof(object));
     private static readonly System.Reflection.MethodInfo IndexMethod = Method(nameof(Runtime.Index), typeof(object), typeof(object));
+    private static readonly System.Reflection.MethodInfo SetIndexMethod = Method(nameof(Runtime.SetIndex), typeof(object), typeof(object), typeof(object));
+    private static readonly System.Reflection.MethodInfo KindMethod = Method(nameof(Runtime.Kind), typeof(object));
+    private static readonly System.Reflection.MethodInfo FailMethod = Method(nameof(Runtime.Fail), typeof(object));
     private static readonly System.Reflection.MethodInfo BoolMethod = Method(nameof(Runtime.Bool), typeof(object));
     private static readonly System.Reflection.MethodInfo EqualMethod = Method(nameof(Runtime.Equal), typeof(object), typeof(object));
     private static readonly System.Reflection.MethodInfo CompareMethod = Method(nameof(Runtime.Compare), typeof(object), typeof(object), typeof(string));
@@ -898,7 +1322,7 @@ sealed class IlCompiler
 
         var method = new System.Reflection.Emit.DynamicMethod(
             "Beacon_Main",
-            typeof(void),
+            typeof(BEnv),
             Type.EmptyTypes,
             typeof(IlCompiler).Module,
             true);
@@ -908,11 +1332,12 @@ sealed class IlCompiler
         il.Emit(System.Reflection.Emit.OpCodes.Newobj, typeof(BEnv).GetConstructor(Type.EmptyTypes)!);
         il.Emit(System.Reflection.Emit.OpCodes.Stloc, env);
 
-        var ctx = new EmitContext(il, env, hasSelf: false);
+        var ctx = new EmitContext(il, env, HasSelf: false);
         foreach (var expression in body.Items.Skip(1)) EmitStatement(expression, ctx);
+        il.Emit(System.Reflection.Emit.OpCodes.Ldloc, env);
         il.Emit(System.Reflection.Emit.OpCodes.Ret);
 
-        return new CompiledProgram((Action)method.CreateDelegate(typeof(Action)));
+        return new CompiledProgram((Func<BEnv>)method.CreateDelegate(typeof(Func<BEnv>)));
     }
 
     private void EmitStatement(Core core, EmitContext ctx)
@@ -988,6 +1413,9 @@ sealed class IlCompiler
             case "call": EmitCall(list, ctx); return;
             case "get": EmitGet(list, ctx); return;
             case "index": EmitExpr(list.Items[1], ctx); EmitExpr(list.Items[2], ctx); ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, IndexMethod); return;
+            case "and": EmitLogicalAnd(list, ctx); return;
+            case "or": EmitLogicalOr(list, ctx); return;
+            case "not": EmitLogicalNot(list, ctx); return;
             case "+=": EmitPlusAssign(list, ctx); return;
             case "=": EmitAssign(list, ctx); return;
             case "==": EmitExpr(list.Items[1], ctx); EmitExpr(list.Items[2], ctx); ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, EqualMethod); BoxBool(ctx.IL); return;
@@ -1040,7 +1468,15 @@ sealed class IlCompiler
             ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, SetMemberMethod);
             return;
         }
-        throw new Exception("Left side of = must be a variable or member");
+        if (IsForm(target, "index", out var index))
+        {
+            EmitExpr(index[1], ctx);
+            EmitExpr(index[2], ctx);
+            EmitExpr(value, ctx);
+            ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, SetIndexMethod);
+            return;
+        }
+        throw new Exception("Left side of = must be a variable, member, or indexed value");
     }
 
     private void EmitPlusAssign(ListCore list, EmitContext ctx)
@@ -1096,6 +1532,22 @@ sealed class IlCompiler
             return;
         }
 
+        if (callee is Atom { Kind: AtomKind.Symbol } kindAtom && kindAtom.Text == "kind")
+        {
+            if (args.Length != 1) throw new Exception("kind() expects one argument");
+            EmitExpr(args[0], ctx);
+            ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, KindMethod);
+            return;
+        }
+
+        if (callee is Atom { Kind: AtomKind.Symbol } failAtom && failAtom.Text == "fail")
+        {
+            if (args.Length != 1) throw new Exception("fail() expects one argument");
+            EmitExpr(args[0], ctx);
+            ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, FailMethod);
+            return;
+        }
+
         if (IsForm(callee, "get", out var get))
         {
             var receiver = ctx.IL.DeclareLocal(typeof(object));
@@ -1114,6 +1566,47 @@ sealed class IlCompiler
         ctx.IL.Emit(System.Reflection.Emit.OpCodes.Ldnull);
         EmitObjectArray(args, ctx);
         ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, CallMethod);
+    }
+
+    private void EmitLogicalAnd(ListCore list, EmitContext ctx)
+    {
+        var falseLabel = ctx.IL.DefineLabel();
+        var endLabel = ctx.IL.DefineLabel();
+        EmitExpr(list.Items[1], ctx);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, BoolMethod);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Brfalse, falseLabel);
+        EmitExpr(list.Items[2], ctx);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, BoolMethod);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Br, endLabel);
+        ctx.IL.MarkLabel(falseLabel);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Ldc_I4_0);
+        ctx.IL.MarkLabel(endLabel);
+        BoxBool(ctx.IL);
+    }
+
+    private void EmitLogicalOr(ListCore list, EmitContext ctx)
+    {
+        var trueLabel = ctx.IL.DefineLabel();
+        var endLabel = ctx.IL.DefineLabel();
+        EmitExpr(list.Items[1], ctx);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, BoolMethod);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Brtrue, trueLabel);
+        EmitExpr(list.Items[2], ctx);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, BoolMethod);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Br, endLabel);
+        ctx.IL.MarkLabel(trueLabel);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Ldc_I4_1);
+        ctx.IL.MarkLabel(endLabel);
+        BoxBool(ctx.IL);
+    }
+
+    private void EmitLogicalNot(ListCore list, EmitContext ctx)
+    {
+        EmitExpr(list.Items[1], ctx);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, BoolMethod);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Ldc_I4_0);
+        ctx.IL.Emit(System.Reflection.Emit.OpCodes.Ceq);
+        BoxBool(ctx.IL);
     }
 
     private void EmitBinary(ListCore list, EmitContext ctx, System.Reflection.MethodInfo method)
@@ -1200,7 +1693,7 @@ sealed class IlCompiler
         il.Emit(System.Reflection.Emit.OpCodes.Newobj, typeof(BEnv).GetConstructor(new[] { typeof(BEnv) })!);
         il.Emit(System.Reflection.Emit.OpCodes.Stloc, env);
 
-        var ctx = new EmitContext(il, env, hasSelf: true);
+        var ctx = new EmitContext(il, env, HasSelf: true);
         for (var i = 0; i < parameters.Items.Count; i++)
         {
             var p = (RecordCore)parameters.Items[i];
@@ -1336,7 +1829,7 @@ static class Program
         {
             if (args.Length == 0)
             {
-                Console.Error.WriteLine("Usage: beacon <file.beacon> [--core | --run]");
+                Console.Error.WriteLine("Usage: beacon <file.beacon> [--core | --run | --stage1 <target.beacon> | --stage1-run <target.beacon>]");
                 return 2;
             }
 
@@ -1351,6 +1844,32 @@ static class Program
             }
 
             var compiled = new IlCompiler().Compile(core);
+
+            var stage1Index = Array.IndexOf(args, "--stage1");
+            var stage1RunIndex = Array.IndexOf(args, "--stage1-run");
+            if (stage1Index >= 0 || stage1RunIndex >= 0)
+            {
+                var optionIndex = stage1RunIndex >= 0 ? stage1RunIndex : stage1Index;
+                if (optionIndex + 1 >= args.Length) throw new Exception("Stage-1 mode requires a target .beacon file");
+
+                // Stage 0 only compiles compiler.beacon itself. The target's lowering decisions
+                // are made by compile() in Beacon and returned as a symbolic IL plan.
+                var compilerEnv = compiled.Execute();
+                var compilerFn = compilerEnv.Get("compile");
+                var targetSource = File.ReadAllText(Path.GetFullPath(args[optionIndex + 1]));
+                var targetCore = new Parser(new Lexer(targetSource).Lex()).ParseProgram();
+                var plan = Runtime.Call(compilerFn, null, new[] { CoreBridge.ToValue(targetCore) });
+
+                if (stage1RunIndex >= 0)
+                {
+                    new PlanAssembler().Compile(plan).Run();
+                    return 0;
+                }
+
+                Console.WriteLine(Runtime.Display(plan));
+                return 0;
+            }
+
             if (args.Contains("--run"))
             {
                 compiled.Run();

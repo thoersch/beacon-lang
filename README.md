@@ -38,7 +38,7 @@ ada: person = {
 ages: list = [24, 55, 9, 17, 49]
 
 if ada.age > 40 then
-    print("{ada.age} is old!")
+    print(ada.age, "is old!")
 else
     print("Young!")
 end
@@ -120,6 +120,22 @@ Beacon currently compiles programs to in-memory CLR IL and executes that IL thro
 
 It does **not yet** write standalone `.dll` or `.exe` files.
 
+### Try the Stage-1 bootstrap
+
+Beacon can now use compiler logic written in Beacon to lower another Beacon program into a symbolic CLR plan:
+
+```bash
+dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./compiler/compiler.beacon --stage1 ./examples/stage1-target.beacon
+```
+
+To assemble and execute that Beacon-produced plan:
+
+```bash
+dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./compiler/compiler.beacon --stage1-run ./examples/stage1-target.beacon
+```
+
+The target's lowering decisions are made by `compiler/compiler.beacon`; C# only assembles the returned instruction Records into CLR IL. The included Stage-1 target prints `3` and `true`. See [BOOTSTRAP.md](BOOTSTRAP.md) for the self-hosting roadmap.
+
 ---
 
 ## Inspect Beacon's core representation
@@ -200,6 +216,15 @@ Common escapes are supported:
 message: string = "hello\nworld"
 ```
 
+Strings support indexed access and a small set of compiler-friendly operations:
+
+```beacon
+first: string = name@0
+size: number = name.length()
+part: string = name.slice(1, 3)
+starts: boolean = name.startsWith("Bea")
+```
+
 ### Booleans
 
 ```beacon
@@ -210,7 +235,7 @@ finished: boolean = false
 ### Null
 
 ```beacon
-value: any = null
+value: null = null
 ```
 
 ---
@@ -243,6 +268,32 @@ Compound addition assignment is supported:
 ```beacon
 age += 1
 ```
+
+### Explicit typing
+
+Beacon has no `any` type. Every declaration and function parameter must name the type of value it accepts.
+
+When a value legitimately accepts more than one shape, use an explicit union:
+
+```beacon
+display: fn(value: number | string) = print(value)
+
+inspectCore: fn(node: atom | list | record) = kind(node)
+```
+
+Useful structural types include:
+
+```text
+atom      number, string, boolean, null, or symbol
+symbol    a Beacon symbol Atom
+list      ordered structure
+record    named structure
+null      the null Atom
+fn        function
+type      Beacon type value
+```
+
+A union is checked left-to-right at runtime by the current bootstrap compiler. Static compile-time type analysis is planned as the compiler becomes self-hosting.
 
 ---
 
@@ -291,6 +342,15 @@ a >= b
 ```
 
 Equality for ordinary Beacon Lists and Records is structural rather than CLR reference equality.
+
+
+Logical expressions use `and`, `or`, and `not`:
+
+```beacon
+if active and not finished then
+    print("working")
+end
+```
 
 ---
 
@@ -342,6 +402,14 @@ Lists expose `length()`:
 count: number = ages.length()
 ```
 
+Lists also support the bootstrap-oriented collection operations `append()` and `concat()`:
+
+```beacon
+ages.append(61)
+more: list = ages.concat([72, 80])
+ages@0 = 25
+```
+
 ---
 
 ## Records
@@ -349,7 +417,7 @@ count: number = ages.length()
 Records represent named structure:
 
 ```beacon
-person: any = {
+person: record = {
     name: "Ada"
     age: 42
 }
@@ -362,10 +430,20 @@ print(person.name)
 print(person.age)
 ```
 
+Dynamic keys use `@`:
+
+```beacon
+field: string = "name"
+print(person@field)
+person@field = "Grace"
+print(person.has("age"))
+print(person.keys())
+```
+
 Records may also use commas:
 
 ```beacon
-person: any = {
+person: record = {
     name: "Ada",
     age: 42
 }
@@ -693,7 +771,7 @@ A small C# runtime currently provides dynamic Beacon operations such as value ch
 
 # Project status
 
-Beacon is a language experiment and should currently be considered **pre-alpha**.
+Beacon is a language experiment and should currently be considered **pre-alpha**. The current bootstrap work is moving compiler policy from C# into Beacon itself.
 
 The goal of the compiler today is to validate the language model and syntax before committing to broader language and tooling features.
 
@@ -701,8 +779,10 @@ The goal of the compiler today is to validate the language model and syntax befo
 
 - Atom / List / Record canonical representation
 - direct CLR IL compilation
+- Stage-1 Beacon compiler planning plus host plan assembly
 - numbers, strings, booleans, and null
-- typed variable declarations
+- typed variable declarations with no untyped escape hatch
+- explicit union types such as `atom | list | record`
 - reassignment and `+=`
 - arithmetic
 - equality and comparison
@@ -718,6 +798,12 @@ The goal of the compiler today is to validate the language model and syntax befo
 - `if / else / end`
 - `for [...] / loop`
 - `print()`
+- `kind()` and `fail()` bootstrap primitives
+- `and`, `or`, and `not`
+- List `append()` / `concat()` and indexed assignment
+- String indexing / `slice()` / `startsWith()`
+- Record keyed access / `keys()` / `has()`
+- Stage-1 compiler execution over canonical Atom/List/Record Core
 
 ## Not implemented yet
 
@@ -730,7 +816,6 @@ The goal of the compiler today is to validate the language model and syntax befo
 - generics
 - inheritance
 - pattern matching
-- List-element assignment such as `ages@i = 10`
 - macros / code transformation
 - `quote` / runtime code evaluation
 - language server / editor tooling
@@ -744,10 +829,16 @@ Beacon.Compiler/
     Beacon.Compiler.csproj
     Program.cs
 
+compiler/
+    compiler.beacon
+
 examples/
     hello.beacon
     control-flow.beacon
+    bootstrap-primitives.beacon
+    stage1-target.beacon
 
+BOOTSTRAP.md
 README.md
 ```
 

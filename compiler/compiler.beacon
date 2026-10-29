@@ -1,0 +1,251 @@
+// Beacon Stage 1 compiler bootstrap.
+//
+// Stage 0 still tokenizes/parses this compiler and exposes a target program's
+// canonical Atom/List/Record Core to compile(). Compilation decisions for the
+// target below this boundary are made by Beacon.
+//
+// compile() returns a symbolic CLR plan: a List of Records. The C# side only
+// assembles those records into Reflection.Emit instructions.
+
+compile: fn(program: list) = [
+    head: symbol = program@0,
+    ops: list = [],
+
+    if head.name != "do" then
+        fail("Program Core must begin with do")
+    end,
+
+    for [i: number = 1, i < program.length(), i += 1]
+        ops = ops.concat(emit(program@i)),
+        ops.append({ op: "pop" })
+    loop,
+
+    ops
+]
+
+emit: fn(node: atom | list | record) = [
+    nodeKind: string = kind(node),
+    result: list = [],
+
+    if nodeKind == "list" then
+        result = emitForm(node)
+    else
+        if nodeKind == "record" then
+            result = emitRecord(node)
+        else
+            result = emitAtom(node)
+        end
+    end,
+
+    result
+]
+
+emitAtom: fn(node: atom) = [
+    nodeKind: string = kind(node),
+    result: list = [],
+
+    if nodeKind == "number" then
+        result = [
+            { op: "ldc.r8", arg: node },
+            { op: "box", arg: "number" }
+        ]
+    else
+        if nodeKind == "string" then
+            result = [
+                { op: "ldstr", arg: node }
+            ]
+        else
+            if nodeKind == "boolean" then
+                result = [
+                    { op: "ldbool", arg: node },
+                    { op: "box", arg: "boolean" }
+                ]
+            else
+                if nodeKind == "null" then
+                    result = [
+                        { op: "ldnull" }
+                    ]
+                else
+                    if nodeKind == "symbol" then
+                        result = [
+                            { op: "ldenv" },
+                            { op: "ldstr", arg: node.name },
+                            { op: "call", arg: "Runtime.GetVar" }
+                        ]
+                    else
+                        fail("Unsupported Atom kind: {nodeKind}")
+                    end
+                end
+            end
+        end
+    end,
+
+    result
+]
+
+emitRecord: fn(node: record) = [
+    keys: list = node.keys(),
+    fields: list = [],
+
+    for [i: number = 0, i < keys.length(), i += 1]
+        key: string = keys@i,
+        fields.append({
+            name: key,
+            value: emit(node@key)
+        })
+    loop,
+
+    [
+        { op: "record", fields: fields }
+    ]
+]
+
+emitForm: fn(node: list) = [
+    head: symbol = node@0,
+    form: string = head.name,
+    result: list = [],
+
+    if form == "+" then
+        result = emitBinary(node, "Runtime.Add")
+    else
+        if form == "-" then
+            result = emitBinary(node, "Runtime.Sub")
+        else
+            if form == "*" then
+                result = emitBinary(node, "Runtime.Mul")
+            else
+                if form == "/" then
+                    result = emitBinary(node, "Runtime.Div")
+                else
+                    if form == "==" then
+                        result = emitEquality(node)
+                    else
+                        if form == "!=" then
+                            result = emitNotEqual(node)
+                        else
+                            if form == "<" or form == "<=" or form == ">" or form == ">=" then
+                                result = emitComparison(node, form)
+                            else
+                                if form == "list" then
+                                    result = emitList(node)
+                                else
+                                    if form == "get" then
+                                        result = emitGet(node)
+                                    else
+                                        if form == "index" then
+                                            result = emitIndex(node)
+                                        else
+                                            if form == "def" then
+                                                result = emitDefinition(node)
+                                            else
+                                                if form == "call" then
+                                                    result = emitCall(node)
+                                                else
+                                                    fail("Stage 1 does not yet emit Core form: {form}")
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end,
+
+    result
+]
+
+emitBinary: fn(node: list, runtimeMethod: string) = [
+    ops: list = emit(node@1),
+    ops = ops.concat(emit(node@2)),
+    ops.append({ op: "call", arg: runtimeMethod }),
+    ops
+]
+
+emitEquality: fn(node: list) = [
+    ops: list = emit(node@1),
+    ops = ops.concat(emit(node@2)),
+    ops.append({ op: "call", arg: "Runtime.Equal" }),
+    ops.append({ op: "box", arg: "boolean" }),
+    ops
+]
+
+
+emitNotEqual: fn(node: list) = [
+    ops: list = emit(node@1),
+    ops = ops.concat(emit(node@2)),
+    ops.append({ op: "call", arg: "Runtime.Equal" }),
+    ops.append({ op: "not.bool" }),
+    ops.append({ op: "box", arg: "boolean" }),
+    ops
+]
+
+emitComparison: fn(node: list, operator: string) = [
+    ops: list = emit(node@1),
+    ops = ops.concat(emit(node@2)),
+    ops.append({ op: "ldstr", arg: operator }),
+    ops.append({ op: "call", arg: "Runtime.Compare" }),
+    ops.append({ op: "box", arg: "boolean" }),
+    ops
+]
+
+emitList: fn(node: list) = [
+    items: list = [],
+    for [i: number = 1, i < node.length(), i += 1]
+        items.append(emit(node@i))
+    loop,
+    [
+        { op: "list", items: items }
+    ]
+]
+
+emitGet: fn(node: list) = [
+    ops: list = emit(node@1),
+    member: string = node@2,
+    ops.append({ op: "ldstr", arg: member }),
+    ops.append({ op: "call", arg: "Runtime.Get" }),
+    ops
+]
+
+emitIndex: fn(node: list) = [
+    ops: list = emit(node@1),
+    ops = ops.concat(emit(node@2)),
+    ops.append({ op: "call", arg: "Runtime.Index" }),
+    ops
+]
+
+emitDefinition: fn(node: list) = [
+    name: symbol = node@1,
+    declaredType: symbol = node@2,
+    ops: list = [
+        { op: "ldenv" },
+        { op: "ldstr", arg: name.name },
+        { op: "ldstr", arg: declaredType.name }
+    ],
+    ops = ops.concat(emit(node@3)),
+    ops.append({ op: "call", arg: "Runtime.Declare" }),
+    ops
+]
+
+emitCall: fn(node: list) = [
+    callee: atom | list | record = node@1,
+    calleeKind: string = kind(callee),
+    result: list = [],
+
+    if calleeKind == "symbol" and callee.name == "print" then
+        args: list = [],
+        for [i: number = 2, i < node.length(), i += 1]
+            args.append(emit(node@i))
+        loop,
+        result = [
+            { op: "print", args: args }
+        ]
+    else
+        fail("Stage 1 currently supports print() as its first call target")
+    end,
+
+    result
+]
