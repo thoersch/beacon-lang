@@ -118,6 +118,49 @@ jobs:
           grep -Fx 'Ada' <<<"$record_output"
           grep -Fx 'Grace' <<<"$record_output"
 
+      - name: Verify List push/pop semantics
+        shell: bash
+        run: |
+          cat > /tmp/list-stack.beacon <<'BEACON'
+          values: list = [1, 2]
+          values.push(3)
+          print(values)
+          print(values.pop())
+          print(values)
+          BEACON
+
+          output="$(bash ./beacon.sh /tmp/list-stack.beacon)"
+          printf '%s\n' "$output"
+          expected=$'[1, 2, 3]\n3\n[1, 2]'
+          [[ "$output" == "$expected" ]]
+
+          cat > /tmp/append-removed.beacon <<'BEACON'
+          values: list = [1]
+          values.append(2)
+          BEACON
+          set +e
+          append_output="$(bash ./beacon.sh /tmp/append-removed.beacon 2>&1)"
+          append_status=$?
+          set -e
+          [[ $append_status -ne 0 ]]
+          grep -F "List has no member 'append'" <<<"$append_output"
+
+          cat > /tmp/pop-empty.beacon <<'BEACON'
+          values: list = []
+          values.pop()
+          BEACON
+          set +e
+          pop_output="$(bash ./beacon.sh /tmp/pop-empty.beacon 2>&1)"
+          pop_status=$?
+          set -e
+          [[ $pop_status -ne 0 ]]
+          grep -F 'pop() cannot remove from an empty List' <<<"$pop_output"
+
+          if grep -R '\.append(' compiler examples std --include='*.beacon'; then
+            echo 'Beacon source still uses append().' >&2
+            exit 1
+          fi
+
       - name: Verify ordered function clauses
         shell: bash
         run: |
