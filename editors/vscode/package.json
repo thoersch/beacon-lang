@@ -2,7 +2,7 @@
   "name": "beacon-lang",
   "displayName": "Beacon Language",
   "description": "Syntax highlighting and language configuration for Beacon.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "beacon-lang",
   "repository": {
     "type": "git",

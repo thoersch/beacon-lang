@@ -8,7 +8,7 @@ ada: person = {
     name: "Ada"
     age: 42
     home: {
-        street: "1 Beacon St"
+        strqeet: "1 Beacon St"
         city: "Boston"
         state: "MA"
     }

@@ -1,0 +1,27 @@
+indexOf: fn(str: string, find: string) = [
+    index: number = -1,
+    findLength: number = find.length(),
+    strLength: number = str.length(),
+
+    if findLength == 0 then
+        index = 0
+    else
+        for [i: number = 0, i <= strLength - findLength, i += 1]
+            matches: boolean = true
+
+            for [j: number = 0, j < findLength, j += 1]
+                if str.slice(i + j, 1) != find.slice(j, 1) then
+                    matches = false
+                    break
+                end
+            loop
+
+            if matches then
+                index = i
+                break
+            end
+        loop
+    end,
+
+    index
+]
