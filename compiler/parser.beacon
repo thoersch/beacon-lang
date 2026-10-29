@@ -125,10 +125,18 @@ parseStatement: fn(state: record) = [
             if checkIdentifier(state, "for") then
                 result = parseFor(state)
             else
-                if checkToken(state, "identifier") and checkNextToken(state, "colon") then
-                    result = parseDeclaration(state)
+                if matchIdentifier(state, "break") then
+                    result = [symbol("break")]
                 else
-                    result = parseExpression(state)
+                    if matchIdentifier(state, "continue") then
+                        result = [symbol("continue")]
+                    else
+                        if checkToken(state, "identifier") and checkNextToken(state, "colon") then
+                            result = parseDeclaration(state)
+                        else
+                            result = parseExpression(state)
+                        end
+                    end
                 end
             end
         end
@@ -418,8 +426,7 @@ parseComparison: fn(state: record) = [
                     operator = "<"
                 else
                     if matchToken(state, "lesseq") then
-                        operator = "<="
-                    else
+                        operator = "<="n                    else
                         if matchToken(state, "greater") then
                             operator = ">"
                         else
@@ -487,7 +494,11 @@ parseUnary: fn(state: record) = [
     if matchIdentifier(state, "not") then
         result = [symbol("not"), parseUnary(state)]
     else
-        result = parsePostfix(state)
+        if matchToken(state, "minus") then
+            result = [symbol("neg"), parseUnary(state)]
+        else
+            result = parsePostfix(state)
+        end
     end,
     result
 ]
