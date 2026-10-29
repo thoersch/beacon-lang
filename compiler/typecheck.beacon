@@ -165,8 +165,7 @@ appendTypeMismatch: fn(diagnostics: list, sources: list, path: list, expectedTyp
         { type: expectedType },
         { type: actualType },
         [],
-        []
-    )),
+        [])),
     diagnostics
 ]
 
@@ -254,8 +253,7 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
                 expected,
                 { field: key, type: staticTypeName(value@key) },
                 notes,
-                hints
-            ))
+                hints))
         end
     loop,
 
@@ -281,8 +279,7 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
                 { field: key, type: fieldType.name },
                 null,
                 [],
-                []
-            ))
+                []))
         end
     loop,
 
