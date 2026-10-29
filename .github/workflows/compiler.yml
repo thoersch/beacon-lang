@@ -67,3 +67,53 @@ jobs:
           grep -F "hint: Did you mean 'street'?" <<<"$output"
           grep -F "strqeet: \"1 Beacon St\"" <<<"$output"
           grep -F "^^^^^^^" <<<"$output"
+
+      - name: Verify List-only indexing semantics
+        shell: bash
+        run: |
+          cat > /tmp/list-index.beacon <<'BEACON'
+          values: list = [10, 20, 30]
+          print(values@1)
+          values@1 = 42
+          print(values@1)
+          BEACON
+
+          list_output="$(bash ./beacon.sh /tmp/list-index.beacon)"
+          grep -Fx '20' <<<"$list_output"
+          grep -Fx '42' <<<"$list_output"
+
+          cat > /tmp/record-index.beacon <<'BEACON'
+          value: record = { name: "Ada" }
+          print(value@"name")
+          BEACON
+
+          set +e
+          record_output="$(bash ./beacon.sh /tmp/record-index.beacon 2>&1)"
+          record_status=$?
+          set -e
+          [[ $record_status -ne 0 ]]
+          grep -F '@ requires a List on the left' <<<"$record_output"
+
+          cat > /tmp/string-index.beacon <<'BEACON'
+          value: string = "Beacon"
+          print(value@0)
+          BEACON
+
+          set +e
+          string_output="$(bash ./beacon.sh /tmp/string-index.beacon 2>&1)"
+          string_status=$?
+          set -e
+          [[ $string_status -ne 0 ]]
+          grep -F '@ requires a List on the left' <<<"$string_output"
+
+          cat > /tmp/record-methods.beacon <<'BEACON'
+          value: record = { name: "Ada" }
+          key: string = "name"
+          print(value.get(key))
+          value.set(key, "Grace")
+          print(value.name)
+          BEACON
+
+          record_output="$(bash ./beacon.sh /tmp/record-methods.beacon)"
+          grep -Fx 'Ada' <<<"$record_output"
+          grep -Fx 'Grace' <<<"$record_output"
