@@ -1,0 +1,69 @@
+name: Beacon compiler
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  compiler:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify self-hosting
+        run: ./beacon.sh self-host
+
+      - name: Verify structured nested-field diagnostic
+        shell: bash
+        run: |
+          cat > /tmp/beacon-diagnostic-test.beacon <<'BEACON'
+          address: type = {
+              street: string
+              city: string
+              state: string
+          }
+
+          person: type = {
+              name: string
+              age: number
+              home: address
+          }
+
+          ada: person = {
+              name: "Ada"
+              age: 42
+              home: {
+                  strqeet: "1 Beacon St"
+                  city: "Boston"
+                  state: "MA"
+              }
+          }
+          BEACON
+
+          set +e
+          output="$(./beacon.sh /tmp/beacon-diagnostic-test.beacon 2>&1)"
+          status=$?
+          set -e
+
+          printf '%s\n' "$output"
+
+          if [[ $status -eq 0 ]]; then
+            echo "Expected invalid Beacon program to fail compilation." >&2
+            exit 1
+          fi
+
+          grep -F "[B1002]" <<<"$output"
+          grep -F "Unknown field 'strqeet' in address" <<<"$output"
+          grep -F "while checking: ada.home.strqeet" <<<"$output"
+          grep -F "hint: Did you mean 'street'?" <<<"$output"
+          grep -F "strqeet: \"1 Beacon St\"" <<<"$output"
+          grep -F "^^^^^^^" <<<"$output"
