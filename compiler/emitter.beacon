@@ -7,6 +7,31 @@
 // plan generation in Beacon itself.
 
 labelCounter: number = 0
+loopContexts: list = []
+loopDepth: number = 0
+
+pushLoopContext: fn(breakLabel: string, continueLabel: string) = [
+    context: record = { breakLabel: breakLabel, continueLabel: continueLabel },
+    if loopDepth < loopContexts.length() then
+        loopContexts@loopDepth = context
+    else
+        loopContexts.append(context)
+    end,
+    loopDepth += 1,
+    null
+]
+
+popLoopContext: fn() = [
+    loopDepth = loopDepth - 1,
+    null
+]
+
+currentLoopContext: fn(keyword: string) = [
+    if loopDepth == 0 then
+        fail("'" + keyword + "' can only be used inside a loop")
+    end,
+    loopContexts@(loopDepth - 1)
+]
 
 nextLabel: fn(prefix: string) = [
     labelCounter += 1,
@@ -16,7 +41,7 @@ nextLabel: fn(prefix: string) = [
 
 isStatementForm: fn(node: atom | list | record) = [
     result: boolean = false,
-    if isForm(node, "if") or isForm(node, "for") then
+    if isForm(node, "if") or isForm(node, "for") or isForm(node, "break") or isForm(node, "continue") then
         result = true
     end,
     result
@@ -34,6 +59,8 @@ emitTarget: fn(node: atom | list | record) = [
 
 compile: fn(program: list) = [
     labelCounter = 0,
+    loopContexts = [],
+    loopDepth = 0,
     head: symbol = program@0,
     ops: list = [],
 
@@ -56,8 +83,16 @@ emitStatement: fn(node: atom | list | record) = [
         if isForm(node, "for") then
             result = emitFor(node)
         else
-            result = emit(node)
-            result.append({ op: "pop" })
+            if isForm(node, "break") then
+                result = emitBreak()
+            else
+                if isForm(node, "continue") then
+                    result = emitContinue()
+                else
+                    result = emit(node)
+                    result.append({ op: "pop" })
+                end
+            end
         end
     end,
     result
@@ -217,6 +252,10 @@ emitForm: fn(node: list) = [
         result = emitLogicalNot(node)
         handled = true
     end,
+    if form == "neg" then
+        result = emitNegate(node)
+        handled = true
+    end,
     if form == "list" then
         result = emitList(node)
         handled = true
@@ -271,6 +310,16 @@ emitBinary: fn(node: list, runtimeMethod: string) = [
     ops: list = emit(node@1),
     ops = ops.concat(emit(node@2)),
     ops.append({ op: "call", arg: runtimeMethod }),
+    ops
+]
+
+emitNegate: fn(node: list) = [
+    ops: list = [
+        { op: "ldc.r8", arg: 0 },
+        { op: "box", arg: "number" }
+    ],
+    ops = ops.concat(emit(node@1)),
+    ops.append({ op: "call", arg: "Runtime.Sub" }),
     ops
 ]
 
@@ -596,10 +645,15 @@ emitFunction: fn(node: list) = [
             params.append({ name: paramName.name, type: paramType.name })
         loop
 
+        savedLoopDepth: number = loopDepth
+        loopDepth = 0
+        bodyPlan: list = emitFunctionBody(node@2)
+        loopDepth = savedLoopDepth
+
         result = [{
             op: "fn",
             params: params,
-            body: emitFunctionBody(node@2)
+            body: bodyPlan
         }]
     end,
 
@@ -643,15 +697,32 @@ emitIf: fn(node: list) = [
     ops
 ]
 
+emitBreak: fn() = [
+    context: record = currentLoopContext("break"),
+    [{ op: "br", label: context.breakLabel }]
+]
+
+emitContinue: fn() = [
+    context: record = currentLoopContext("continue"),
+    [{ op: "br", label: context.continueLabel }]
+]
+
 emitFor: fn(node: list) = [
     conditionLabel: string = nextLabel("for_condition_"),
+    continueLabel: string = nextLabel("for_continue_"),
     endLabel: string = nextLabel("for_end_"),
     ops: list = emitStatement(node@1),
     ops.append({ op: "label", name: conditionLabel }),
     ops = ops.concat(emit(node@2)),
     ops.append({ op: "call", arg: "Runtime.Bool" }),
     ops.append({ op: "brfalse", label: endLabel }),
-    ops = ops.concat(emitDoStatements(node@4)),
+
+    pushLoopContext(endLabel, continueLabel),
+    bodyOps: list = emitDoStatements(node@4),
+    popLoopContext(),
+
+    ops = ops.concat(bodyOps),
+    ops.append({ op: "label", name: continueLabel }),
     ops = ops.concat(emit(node@3)),
     ops.append({ op: "pop" }),
     ops.append({ op: "br", label: conditionLabel }),
