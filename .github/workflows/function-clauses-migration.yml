@@ -125,12 +125,16 @@ jobs:
           bash ./beacon.sh self-host
           [[ "$(bash ./beacon.sh examples/function-clauses.beacon)" == $'fn\nstring\nnumber\natom\nacon\neac\nvalue:Ada\nvalue:number\nperson\nscalar' ]]
 
-      - name: Commit clean migration
+      - name: Commit verified source and seed
         shell: bash
         run: |
           rm -rf tools/seed-refresh
           rm -f tools/migrate-function-clauses.py
-          rm -f .github/workflows/function-clauses-migration.yml
+
+          # The migration script stages permanent compiler CI coverage, but this
+          # Actions token cannot push workflow-file changes. Restore workflow
+          # files here; they are finalized separately through the GitHub app.
+          git checkout HEAD -- .github/workflows/compiler.yml
 
           if find . -path './.git' -prune -o \( -name '*.cs' -o -name '*.csproj' \) -print | grep -q .; then
             echo 'C# source remains after seed refresh.' >&2
@@ -141,5 +145,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'Add ordered function clauses'
+          git commit -m 'Add ordered function clauses [skip ci]'
           git push origin HEAD:feature/function-clauses
