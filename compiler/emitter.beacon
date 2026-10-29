@@ -553,22 +553,57 @@ emitCall: fn(node: list) = [
     result
 ]
 
-emitFunction: fn(node: list) = [
-    rawParams: list = node@1,
-    params: list = [],
+emitFunctionClauses: fn(node: list) = [
+    clauseValues: list = node@1,
+    clauses: list = [],
 
-    for [i: number = 0, i < rawParams.length(), i += 1]
-        parameter: record = rawParams@i
-        paramName: symbol = parameter.name
-        paramType: symbol = parameter.type
-        params.append({ name: paramName.name, type: paramType.name })
+    for [i: number = 1, i < clauseValues.length(), i += 1]
+        clause: list = clauseValues@i
+        if not isForm(clause, "fn") or clause.length() != 3 then
+            fail("Function clause must be a function")
+        end
+
+        rawParams: list = clause@1
+        parameterTypes: list = []
+        for [p: number = 0, p < rawParams.length(), p += 1]
+            parameter: record = rawParams@p
+            paramType: symbol = parameter.type
+            parameterTypes.append(paramType.name)
+        loop
+
+        clauses.append({
+            value: emitFunction(clause)
+            types: parameterTypes
+        })
     loop,
 
-    [{
-        op: "fn",
-        params: params,
-        body: emitFunctionBody(node@2)
-    }]
+    [{ op: "fn.clauses", clauses: clauses }]
+]
+
+emitFunction: fn(node: list) = [
+    result: list = [],
+
+    if node.length() == 2 then
+        result = emitFunctionClauses(node)
+    else
+        rawParams: list = node@1
+        params: list = []
+
+        for [i: number = 0, i < rawParams.length(), i += 1]
+            parameter: record = rawParams@i
+            paramName: symbol = parameter.name
+            paramType: symbol = parameter.type
+            params.append({ name: paramName.name, type: paramType.name })
+        loop
+
+        result = [{
+            op: "fn",
+            params: params,
+            body: emitFunctionBody(node@2)
+        }]
+    end,
+
+    result
 ]
 
 emitType: fn(typeName: string, node: list) = [
