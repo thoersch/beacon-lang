@@ -426,7 +426,8 @@ parseComparison: fn(state: record) = [
                     operator = "<"
                 else
                     if matchToken(state, "lesseq") then
-                        operator = "<="n                    else
+                        operator = "<="
+                    else
                         if matchToken(state, "greater") then
                             operator = ">"
                         else
