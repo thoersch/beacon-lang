@@ -1,48 +1,9 @@
-# .NET build output
-bin/
-obj/
-
-# User-specific IDE files
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# VS Code
-.vscode/
-
-# Visual Studio
+# IDE / OS
 .vs/
-
-# JetBrains Rider / IntelliJ
+.vscode/
 .idea/
-*.sln.iml
-
-# Build artifacts
-artifacts/
-dist/
-out/
-
-# Test results / coverage
-TestResults/
-coverage/
-coverage.*
-*.coverage
-*.coveragexml
-
-# NuGet
-*.nupkg
-*.snupkg
-packages/
-.nuget/
-
-# Logs
-*.log
-
-# OS files
 .DS_Store
 Thumbs.db
-Desktop.ini
 
 # Temporary files
 *.tmp
@@ -51,7 +12,10 @@ Desktop.ini
 *.bak
 *~
 
-# Beacon-generated artifacts
-*.beacon.core
-*.beacon.il
-*.beacon.generated.*
+# Historical .NET build output (the active tree contains no C# project)
+bin/
+obj/
+
+# The frozen bootstrap seed is intentionally versioned.
+!bootstrap/stage0/
+!bootstrap/stage0/**

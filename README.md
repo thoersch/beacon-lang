@@ -1,20 +1,81 @@
 # Beacon Lang
 
-**Beacon** is an experimental programming language built around one small idea:
+Beacon is a self-hosting programming language targeting the CLR.
 
-> Programs and data should share the same structural vocabulary.
+Its compiler is written in Beacon, and its canonical program representation has only three structural shapes:
 
-Beacon has three canonical shapes:
-
-- **Atom** — a single value or symbol
+- **Atom** — a literal or symbol
 - **List** — ordered structure
 - **Record** — named structure
 
-The surface syntax is designed to remain explicit and readable as programs grow, while the compiler lowers Beacon source into Atom/List/Record structures and compiles them directly to **CLR Common Intermediate Language (CIL)**.
+Beacon keeps a small frozen Stage-0 CLR seed in `bootstrap/stage0/` so a clean checkout can compile `compiler/compiler.beacon`. There is **no C# source in the project**.
 
-Beacon is currently a pre-alpha language prototype. The bootstrap compiler is written in C# and targets .NET 8.
+## Quick start
 
-## A first Beacon program
+Requirements:
+
+- .NET 8 runtime or newer compatible runtime
+
+Verify .NET:
+
+```bash
+dotnet --info
+```
+
+Run a Beacon program on Windows:
+
+```bat
+beacon.cmd examples\control-flow.beacon
+```
+
+PowerShell:
+
+```powershell
+./beacon.ps1 examples/control-flow.beacon
+```
+
+macOS / Linux / Git Bash:
+
+```bash
+./beacon.sh examples/control-flow.beacon
+```
+
+Expected output:
+
+```text
+42 is old!
+Age check passed
+I'm younger than 55
+I'm younger than 49
+42
+```
+
+## Verify self-hosting
+
+Beacon can compile its own compiler to a fixed point:
+
+```bat
+beacon.cmd self-host
+```
+
+or:
+
+```bash
+./beacon.sh self-host
+```
+
+A successful run verifies:
+
+```text
+Stage 0 seed -> compiler.beacon
+compiler.beacon -> Stage 1 plan
+Stage 1 compiler -> Stage 2 plan
+Stage 2 compiler -> Stage 3 verification plan
+```
+
+The normalized Stage 1, Stage 2, and Stage 3 compiler plans must reproduce one another.
+
+## Language example
 
 ```beacon
 person: type = {
@@ -48,373 +109,33 @@ for [i: number = 0, i < ages.length(), i += 1]
         print("Ada is younger than", ages@i)
     end
 loop
-
-print(ada.greet("Hello"))
-print(ada.birthday())
 ```
 
-Beacon intentionally uses different delimiters for different kinds of structure:
+## Typing
 
-```text
-[...]   ordered structure
-{...}   named structure
-.       member access
-@       list indexing
-```
-
-Lists require commas. Records may use newlines between fields.
-
----
-
-## Requirements
-
-Beacon currently requires the **.NET 8 SDK** on Windows, macOS, or Linux.
-
-Verify your SDK installation:
-
-```bash
-dotnet --version
-```
-
-You should see an 8.x SDK or a newer compatible SDK.
-
-Download .NET from:
-
-https://dotnet.microsoft.com/download/dotnet/8.0
-
----
-
-## Build Beacon
-
-Open a terminal in the repository root. The directory should contain:
-
-```text
-Beacon.Compiler/
-examples/
-README.md
-```
-
-Build the compiler:
-
-```bash
-dotnet build ./Beacon.Compiler/Beacon.Compiler.csproj
-```
-
----
-
-## Run a Beacon program
-
-Run the included control-flow example:
-
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./examples/control-flow.beacon --run
-```
-
-Run your own Beacon source file:
-
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./path/to/program.beacon --run
-```
-
-Beacon currently compiles programs to in-memory CLR IL and executes that IL through the .NET JIT.
-
-It does **not yet** write standalone `.dll` or `.exe` files.
-
-### Try the Stage-1 bootstrap
-
-Beacon can now use compiler logic written in Beacon to lower another Beacon program into a symbolic CLR plan:
-
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./compiler/compiler.beacon --stage1 ./examples/stage1-target.beacon
-```
-
-To assemble and execute that Beacon-produced plan:
-
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./compiler/compiler.beacon --stage1-run ./examples/stage1-target.beacon
-```
-
-The target's lowering decisions are made by `compiler/compiler.beacon`; C# only assembles the returned instruction Records into CLR IL. The included Stage-1 target prints `3` and `true`. See [BOOTSTRAP.md](BOOTSTRAP.md) for the self-hosting roadmap.
-
----
-
-## Inspect Beacon's core representation
-
-Beacon source is lowered into a canonical representation made only from Atom, List, and Record.
-
-To inspect that representation:
-
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./examples/control-flow.beacon --core
-```
-
-For example:
-
-```beacon
-ages@i
-```
-
-lowers conceptually to:
-
-```text
-[index ages i]
-```
-
-And:
-
-```beacon
-if age > 40 then
-    print("old")
-else
-    print("young")
-end
-```
-
-lowers conceptually to:
-
-```text
-[if [> age 40] [do [call print "old"]] [do [call print "young"]]]
-```
-
-The surface syntax can evolve while the structural core remains deliberately small.
-
----
-
-# Language tour
-
-## Comments
-
-Beacon uses `//` for single-line comments.
-
-```beacon
-// A comment
-age: number = 42 // comments can follow code
-```
-
----
-
-## Values
-
-### Numbers
-
-```beacon
-count: number = 10
-price: number = 19.95
-```
-
-Beacon currently represents numbers as .NET `double` values.
-
-### Strings
-
-```beacon
-name: string = "Beacon"
-```
-
-Common escapes are supported:
-
-```beacon
-message: string = "hello\nworld"
-```
-
-Strings support indexed access and a small set of compiler-friendly operations:
-
-```beacon
-first: string = name@0
-size: number = name.length()
-part: string = name.slice(1, 3)
-starts: boolean = name.startsWith("Bea")
-```
-
-### Booleans
-
-```beacon
-enabled: boolean = true
-finished: boolean = false
-```
-
-### Null
-
-```beacon
-value: null = null
-```
-
----
-
-## Variables
-
-Declarations use one consistent form:
-
-```text
-name: type = value
-```
-
-Examples:
+Beacon requires explicit types. There is no `any` type.
 
 ```beacon
 age: number = 42
 name: string = "Ada"
-active: boolean = true
-ages: list = [24, 55, 9, 17, 49]
+values: list = [1, 2, 3]
 ```
 
-Variables can be reassigned:
+Compiler code uses explicit unions when a value can have more than one structural shape:
 
 ```beacon
-age = 43
+emit: fn(node: atom | list | record) = ...
 ```
 
-Compound addition assignment is supported:
+## Lists and Records
+
+Lists are ordered and require commas:
 
 ```beacon
-age += 1
+values: list = [1, 2, 3]
 ```
 
-### Explicit typing
-
-Beacon has no `any` type. Every declaration and function parameter must name the type of value it accepts.
-
-When a value legitimately accepts more than one shape, use an explicit union:
-
-```beacon
-display: fn(value: number | string) = print(value)
-
-inspectCore: fn(node: atom | list | record) = kind(node)
-```
-
-Useful structural types include:
-
-```text
-atom      number, string, boolean, null, or symbol
-symbol    a Beacon symbol Atom
-list      ordered structure
-record    named structure
-null      the null Atom
-fn        function
-type      Beacon type value
-```
-
-A union is checked left-to-right at runtime by the current bootstrap compiler. Static compile-time type analysis is planned as the compiler becomes self-hosting.
-
----
-
-## Arithmetic
-
-Beacon supports:
-
-```beacon
-a + b
-a - b
-a * b
-a / b
-```
-
-Normal arithmetic precedence applies:
-
-```beacon
-a + b * c
-```
-
-is equivalent to:
-
-```beacon
-a + (b * c)
-```
-
-Parentheses can be used explicitly:
-
-```beacon
-(a + b) * c
-```
-
----
-
-## Equality and comparison
-
-Beacon supports:
-
-```beacon
-a == b
-a != b
-a < b
-a <= b
-a > b
-a >= b
-```
-
-Equality for ordinary Beacon Lists and Records is structural rather than CLR reference equality.
-
-
-Logical expressions use `and`, `or`, and `not`:
-
-```beacon
-if active and not finished then
-    print("working")
-end
-```
-
----
-
-## Lists
-
-Lists represent ordered values and require commas:
-
-```beacon
-ages: list = [24, 55, 9, 17, 49]
-```
-
-Multiline Lists use the same rule:
-
-```beacon
-values: list = [
-    10,
-    20,
-    30
-]
-```
-
-### List access
-
-Beacon uses `@` for zero-based indexing:
-
-```beacon
-first: number = ages@0
-current: number = ages@i
-next: number = ages@(i + 1)
-```
-
-`@` binds tightly, so:
-
-```beacon
-ages@i + 1
-```
-
-means:
-
-```text
-(ages@i) + 1
-```
-
-### List length
-
-Lists expose `length()`:
-
-```beacon
-count: number = ages.length()
-```
-
-Lists also support the bootstrap-oriented collection operations `append()` and `concat()`:
-
-```beacon
-ages.append(61)
-more: list = ages.concat([72, 80])
-ages@0 = 25
-```
-
----
-
-## Records
-
-Records represent named structure:
+Records are named structures:
 
 ```beacon
 person: record = {
@@ -423,143 +144,21 @@ person: record = {
 }
 ```
 
-Access fields with `.`:
+List indexing uses `@`:
 
 ```beacon
-print(person.name)
-print(person.age)
+values@0
+values@i
+values@(i + 1)
 ```
 
-Dynamic keys use `@`:
+Member access uses `.`:
 
 ```beacon
-field: string = "name"
-print(person@field)
-person@field = "Grace"
-print(person.has("age"))
-print(person.keys())
+person.name
 ```
 
-Records may also use commas:
-
-```beacon
-person: record = {
-    name: "Ada",
-    age: 42
-}
-```
-
----
-
-## Functions
-
-Functions are declared with `fn`:
-
-```beacon
-square: fn(x: number) = x * x
-```
-
-Parameters are typed:
-
-```beacon
-add: fn(a: number, b: number) = a + b
-```
-
-Call them normally:
-
-```beacon
-print(square(12))
-print(add(10, 20))
-```
-
-### Multi-expression functions
-
-A List can be used as an ordered function body:
-
-```beacon
-incrementTwice: fn(value: number) = [
-    value += 1,
-    value += 1,
-    value
-]
-```
-
-The final expression is the function's result.
-
-```beacon
-incrementTwice(1)
-```
-
-returns:
-
-```text
-3
-```
-
-Beacon does not need a separate fundamental `Block` structure. A function body is an ordered List evaluated as code.
-
----
-
-## Types
-
-A type is declared using the same declaration model:
-
-```beacon
-person: type = {
-    name: string
-    age: number
-}
-```
-
-Types may contain both data and behavior:
-
-```beacon
-person: type = {
-    name: string
-    age: number
-
-    greet: fn(greeting: string) =
-        "{greeting}, I'm {.name}"
-
-    birthday: fn() = [
-        .age += 1,
-        .age
-    ]
-}
-```
-
-There is intentionally no separate `properties` or `methods` section.
-
-Functions are values, so behavior can live alongside data in the same named structure.
-
-### Creating a typed value
-
-```beacon
-ada: person = {
-    name: "Ada"
-    age: 42
-}
-```
-
-Then:
-
-```beacon
-print(ada.name)
-print(ada.greet("Hello"))
-```
-
----
-
-## Receiver-relative members
-
-Inside behavior defined on a type, a leading `.` refers to the current receiver:
-
-```beacon
-.age
-.name
-```
-
-For example:
+Inside type behavior, a leading `.` refers to the current receiver:
 
 ```beacon
 birthday: fn() = [
@@ -568,334 +167,163 @@ birthday: fn() = [
 ]
 ```
 
-When called as:
+## Functions
+
+Single-expression function:
 
 ```beacon
-ada.birthday()
+square: fn(x: number) = x * x
 ```
 
-`.age` refers to `ada.age`.
-
-This provides concise receiver-aware behavior without requiring an explicit `self` parameter in source code.
-
----
-
-## String interpolation
-
-Strings may interpolate variables:
+Multiple expressions use a List; the final expression is the result:
 
 ```beacon
-name: string = "Ada"
-print("Hello, {name}")
+incrementTwice: fn(x: number) = [
+    x += 1,
+    x += 1,
+    x
+]
 ```
-
-Inside receiver behavior:
-
-```beacon
-greet: fn() = "Hello, I'm {.name}"
-```
-
-Current interpolation supports identifiers and receiver-relative members.
-
----
 
 ## Conditionals
 
-Beacon conditionals use explicit boundaries:
-
 ```beacon
-if age > 40 then
-    print("{age} is old!")
+if age >= 18 then
+    print("adult")
 else
-    print("Young!")
+    print("minor")
 end
 ```
-
-`else` is optional:
-
-```beacon
-if age == 42 then
-    print("The answer.")
-end
-```
-
-Beacon uses `then` and `end` deliberately so control-flow structure remains obvious even when the body becomes large or deeply nested.
-
----
 
 ## Iteration
 
-Beacon currently provides a three-part `for` loop:
-
 ```beacon
-for [i: number = 0, i < ages.length(), i += 1]
-    print(ages@i)
+for [i: number = 0, i < values.length(), i += 1]
+    print(values@i)
 loop
 ```
 
-The three List elements are:
+## Operators
+
+Arithmetic:
 
 ```text
-[initializer, condition, step]
++  -  *  /
 ```
 
-For example:
-
-```beacon
-for [i: number = 0, i < 10, i += 1]
-    print(i)
-loop
-```
-
-Loops can contain conditionals:
-
-```beacon
-for [i: number = 0, i < ages.length(), i += 1]
-    if ages@i >= 18 then
-        print(ages@i, "is an adult age")
-    end
-loop
-```
-
----
-
-## Printing
-
-`print()` writes values to standard output:
-
-```beacon
-print("Hello, Beacon")
-print("Age:", 42)
-```
-
----
-
-# Why Atom / List / Record?
-
-Beacon's central design constraint is that the language should have a very small structural vocabulary.
-
-An Atom represents a value or symbol:
+Comparison:
 
 ```text
-42
-"Beacon"
-true
-age
+==  !=  <  <=  >  >=
 ```
 
-A List represents ordered structure:
+Logical:
 
 ```text
-[1 2 3]
+and  or  not
 ```
 
-A Record represents named structure:
+Assignment:
 
 ```text
-{name: "Ada" age: 42}
+=  +=
 ```
 
-Compiler forms use those same structures.
+## Compiler architecture
 
-A call:
-
-```beacon
-square(12)
-```
-
-can be represented as:
+The canonical compiler lives at:
 
 ```text
-[call square 12]
+compiler/compiler.beacon
 ```
 
-A comparison:
+It owns:
 
-```beacon
-age > 40
-```
+- tokenization
+- parsing
+- Atom/List/Record Core construction
+- explicit type annotation parsing
+- control-flow lowering
+- function/type lowering
+- symbolic CLR instruction planning
 
-can be represented as:
-
-```text
-[> age 40]
-```
-
-A conditional can be represented as:
-
-```text
-[if condition [do ...] [do ...]]
-```
-
-This is inspired by the structural simplicity of Lisp while allowing Beacon to use a more conventional, object-friendly surface syntax.
-
-The long-term goal is for code itself to remain naturally inspectable and transformable without forcing programmers to write raw S-expressions.
-
----
-
-# How Beacon compiles
-
-Beacon currently uses this pipeline:
+The pipeline is:
 
 ```text
 Beacon source
-    |
-    v
-Lexer / Parser
-    |
-    v
-Atom / List / Record core
-    |
-    v
-IL compiler
-    |
-    v
-CLR Common Intermediate Language
-    |
-    v
-.NET JIT
-    |
-    v
-execution
+    -> Beacon lexer
+    -> Beacon parser
+    -> Atom / List / Record Core
+    -> Beacon IL planner
+    -> List<Record> CLR plan
+    -> frozen Stage-0 CLR assembler/runtime
+    -> CLR CIL
+    -> JIT execution
 ```
 
-The compiler is currently bootstrapped in C#.
+The Stage-0 seed does not decide what Beacon syntax means. It is the trusted machine boundary that turns the already-decided symbolic instruction plan into CLR instructions and provides the small runtime ABI.
 
-Beacon **does not generate C# source code**. The compiler emits CLR instructions directly using `System.Reflection.Emit`.
+## Inspect a compiler plan
 
-The emitted IL handles program control flow, declarations, calls, loops, branching, List and Record construction, indexing, and other language operations.
+Windows:
 
-A small C# runtime currently provides dynamic Beacon operations such as value checking, structural equality, member lookup, indexing, interpolation, and arithmetic dispatch.
+```bat
+beacon.cmd plan examples\control-flow.beacon
+```
 
----
+Unix / Git Bash:
 
-# Project status
+```bash
+./beacon.sh plan examples/control-flow.beacon
+```
 
-Beacon is a language experiment and should currently be considered **pre-alpha**. The current bootstrap work is moving compiler policy from C# into Beacon itself.
-
-The goal of the compiler today is to validate the language model and syntax before committing to broader language and tooling features.
-
-## Implemented
-
-- Atom / List / Record canonical representation
-- direct CLR IL compilation
-- Stage-1 Beacon compiler planning plus host plan assembly
-- numbers, strings, booleans, and null
-- typed variable declarations with no untyped escape hatch
-- explicit union types such as `atom | list | record`
-- reassignment and `+=`
-- arithmetic
-- equality and comparison
-- Lists
-- zero-based List access with `@`
-- `length()` on Lists
-- Records
-- functions
-- multi-expression function bodies
-- custom types
-- receiver-relative behavior
-- string interpolation
-- `if / else / end`
-- `for [...] / loop`
-- `print()`
-- `kind()` and `fail()` bootstrap primitives
-- `and`, `or`, and `not`
-- List `append()` / `concat()` and indexed assignment
-- String indexing / `slice()` / `startsWith()`
-- Record keyed access / `keys()` / `has()`
-- Stage-1 compiler execution over canonical Atom/List/Record Core
-
-## Not implemented yet
-
-- standalone `.dll` / `.exe` output
-- modules and imports
-- package management
-- compile-time static type checking
-- exceptions in Beacon syntax
-- async / concurrency
-- generics
-- inheritance
-- pattern matching
-- macros / code transformation
-- `quote` / runtime code evaluation
-- language server / editor tooling
-
----
-
-# Repository layout
+## Repository layout
 
 ```text
-Beacon.Compiler/
-    Beacon.Compiler.csproj
-    Program.cs
+bootstrap/
+    stage0/                 frozen CLR seed + provenance/hashes
 
 compiler/
-    compiler.beacon
+    compiler.beacon         canonical Beacon compiler source
 
 examples/
-    hello.beacon
-    control-flow.beacon
-    bootstrap-primitives.beacon
-    stage1-target.beacon
+    *.beacon
 
-BOOTSTRAP.md
+beacon.cmd                  Windows launcher
+beacon.ps1                  PowerShell launcher
+beacon.sh                   macOS/Linux/Git Bash launcher
+
 README.md
 ```
 
-The compiler is intentionally kept small while the language is still evolving.
+There is no active C# source project.
 
----
+## Why is there a binary seed?
 
-# Compiler commands
+A self-hosted compiler has a bootstrap problem: source code cannot compile itself before a compiler already exists.
 
-Build:
+Beacon therefore keeps one immutable Stage-0 CLR binary. That binary was produced by the final historical C# seed compiler and verified against the self-hosted compiler before the C# source was removed from the active tree.
 
-```bash
-dotnet build ./Beacon.Compiler/Beacon.Compiler.csproj
+Its provenance and SHA-256 hashes are stored beside it in:
+
+```text
+bootstrap/stage0/PROVENANCE.txt
+bootstrap/stage0/SHA256SUMS
 ```
 
-Run a program:
+The canonical compiler implementation is Beacon source. The binary seed exists only to start from a clean checkout.
 
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./examples/control-flow.beacon --run
-```
+## Project status
 
-Inspect the canonical Atom/List/Record representation:
+Beacon is experimental and pre-alpha.
 
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./examples/control-flow.beacon --core
-```
+Current focus:
 
-Compile to in-memory IL without invoking the generated program:
+- small semantic core
+- explicit typing
+- self-hosting
+- direct CLR targeting
+- code/data structural duality
+- moving standard-library functionality into Beacon
 
-```bash
-dotnet run --project ./Beacon.Compiler/Beacon.Compiler.csproj -- ./examples/control-flow.beacon
-```
-
----
-
-# Direction
-
-Beacon is exploring a language that combines:
-
-- Lisp-like structural simplicity
-- explicit, readable syntax
-- first-class ordered and named data
-- object-friendly behavior
-- a small semantic core
-- direct CLR compilation
-- eventual self-hosting
-
-A guiding rule for the language is:
-
-> If Atom, List, or Record can already express a concept cleanly, Beacon should avoid inventing another fundamental structure for it.
-
-Beacon should grow through composition before it grows through new primitives.
-
----
-
-## License
-
-No license has been selected yet.
-
-If you intend to redistribute, publish, or accept external contributions to Beacon, add a license before doing so.
+Future work includes modules, file/network capabilities, persistent executable output, richer type checking, package tooling, and editor support.
