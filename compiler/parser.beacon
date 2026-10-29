@@ -1,0 +1,585 @@
+// Beacon parser: surface syntax -> Atom / List / Record Core.
+
+currentToken: fn(state: record) = [
+    tokens: list = state@"tokens",
+    tokens@(state@"pos")
+]
+
+checkToken: fn(state: record, tokenKind: string) = currentToken(state)@"kind" == tokenKind
+
+checkNextToken: fn(state: record, tokenKind: string) = [
+    tokens: list = state@"tokens",
+    position: number = state@"pos" + 1,
+    result: boolean = false,
+    if position < tokens.length() then
+        result = tokens@position@"kind" == tokenKind
+    end,
+    result
+]
+
+checkIdentifier: fn(state: record, text: string) = [
+    token: record = currentToken(state),
+    token@"kind" == "identifier" and token@"text" == text
+]
+
+advanceToken: fn(state: record) = [
+    tokens: list = state@"tokens",
+    token: record = currentToken(state),
+    if state@"pos" < tokens.length() - 1 then
+        state@"pos" = state@"pos" + 1
+    end,
+    token
+]
+
+matchToken: fn(state: record, tokenKind: string) = [
+    matched: boolean = checkToken(state, tokenKind),
+    if matched then
+        advanceToken(state)
+    end,
+    matched
+]
+
+matchIdentifier: fn(state: record, text: string) = [
+    matched: boolean = checkIdentifier(state, text),
+    if matched then
+        advanceToken(state)
+    end,
+    matched
+]
+
+consumeToken: fn(state: record, tokenKind: string, message: string) = [
+    token: record = currentToken(state),
+    if token@"kind" != tokenKind then
+        fail(message + " at " + token@"line" + ":" + token@"column")
+    end,
+    advanceToken(state)
+]
+
+consumeIdentifier: fn(state: record, text: string, message: string) = [
+    token: record = currentToken(state),
+    if token@"kind" != "identifier" or token@"text" != text then
+        fail(message + " at " + token@"line" + ":" + token@"column")
+    end,
+    advanceToken(state)
+]
+
+skipNewLines: fn(state: record) = [
+    for [more: boolean = checkToken(state, "newline"), more, more = checkToken(state, "newline")]
+        advanceToken(state)
+    loop,
+    null
+]
+
+requireNewLine: fn(state: record, message: string) = [
+    if not matchToken(state, "newline") then
+        token: record = currentToken(state)
+        fail(message + " at " + token@"line" + ":" + token@"column")
+    end,
+    skipNewLines(state)
+]
+
+requireStatementBoundary: fn(state: record) = [
+    valid: boolean = checkToken(state, "end") or checkToken(state, "rbrace") or checkToken(state, "rbracket") or checkToken(state, "newline"),
+    if not valid then
+        token: record = currentToken(state)
+        fail("Expected newline between expressions at " + token@"line" + ":" + token@"column")
+    end,
+    null
+]
+
+atTerminator: fn(state: record, terminators: list) = [
+    found: boolean = false,
+    token: record = currentToken(state),
+    if token@"kind" == "identifier" then
+        for [i: number = 0, i < terminators.length(), i += 1]
+            if token@"text" == terminators@i then
+                found = true
+            end
+        loop
+    end,
+    found
+]
+
+parseProgram: fn(tokens: list) = [
+    state: record = { tokens: tokens, pos: 0 },
+    expressions: list = [symbol("do")],
+    skipNewLines(state),
+
+    for [tick: number = 0, not checkToken(state, "end"), tick += 1]
+        expressions.append(parseStatement(state))
+        requireStatementBoundary(state)
+        skipNewLines(state)
+    loop,
+
+    expressions
+]
+
+parseStatement: fn(state: record) = [
+    result: atom | list | record = null,
+    if checkIdentifier(state, "include") then
+        result = parseInclude(state)
+    else
+        if checkIdentifier(state, "if") then
+            result = parseIf(state)
+        else
+            if checkIdentifier(state, "for") then
+                result = parseFor(state)
+            else
+                if checkToken(state, "identifier") and checkNextToken(state, "colon") then
+                    result = parseDeclaration(state)
+                else
+                    result = parseExpression(state)
+                end
+            end
+        end
+    end,
+    result
+]
+
+parseInclude: fn(state: record) = [
+    consumeIdentifier(state, "include", "Expected 'include'"),
+    token: record = currentToken(state),
+    spec: record = { kind: "", name: "" },
+
+    if token@"kind" == "string" then
+        advanceToken(state)
+        if token@"text" == "" then
+            fail("Local include path cannot be empty")
+        end
+        spec = { kind: "local", name: token@"text" }
+    else
+        first: record = consumeToken(state, "identifier", "Expected quoted local path or named include after 'include'")
+        name: string = first@"text"
+        for [more: boolean = matchToken(state, "dot"), more, more = matchToken(state, "dot")]
+            part: record = consumeToken(state, "identifier", "Expected name after '.' in include")
+            name = name + "." + part@"text"
+        loop
+        spec = { kind: "named", name: name }
+    end,
+
+    [symbol("include"), spec]
+]
+
+parseIf: fn(state: record) = [
+    consumeIdentifier(state, "if", "Expected 'if'"),
+    condition: atom | list | record = parseExpression(state),
+    consumeIdentifier(state, "then", "Expected 'then' after if condition"),
+    requireNewLine(state, "Expected newline after 'then'"),
+    thenBody: list = parseStatementsUntil(state, ["else", "end"]),
+    elseBody: list = [symbol("do")],
+
+    if matchIdentifier(state, "else") then
+        requireNewLine(state, "Expected newline after 'else'")
+        elseBody = parseStatementsUntil(state, ["end"])
+    end,
+
+    consumeIdentifier(state, "end", "Expected 'end' to close if"),
+    [symbol("if"), condition, thenBody, elseBody]
+]
+
+parseFor: fn(state: record) = [
+    consumeIdentifier(state, "for", "Expected 'for'"),
+    consumeToken(state, "lbracket", "Expected '[' after 'for'"),
+    initializer: atom | list | record = null,
+
+    if checkToken(state, "identifier") and checkNextToken(state, "colon") then
+        initializer = parseDeclaration(state)
+    else
+        initializer = parseExpression(state)
+    end,
+
+    consumeToken(state, "comma", "Expected ',' after for initializer"),
+    condition: atom | list | record = parseExpression(state),
+    consumeToken(state, "comma", "Expected ',' after for condition"),
+    step: atom | list | record = parseExpression(state),
+    consumeToken(state, "rbracket", "Expected ']' after for header"),
+    requireNewLine(state, "Expected newline after for header"),
+    body: list = parseStatementsUntil(state, ["loop"]),
+    consumeIdentifier(state, "loop", "Expected 'loop' to close for"),
+    [symbol("for"), initializer, condition, step, body]
+]
+
+parseStatementsUntil: fn(state: record, terminators: list) = [
+    items: list = [symbol("do")],
+    skipNewLines(state),
+    for [tick: number = 0, not checkToken(state, "end") and not atTerminator(state, terminators), tick += 1]
+        items.append(parseStatement(state))
+        requireStatementBoundary(state)
+        skipNewLines(state)
+    loop,
+    if checkToken(state, "end") then
+        fail("Unexpected end of source while parsing block")
+    end,
+    items
+]
+
+parseDeclaration: fn(state: record) = [
+    nameToken: record = consumeToken(state, "identifier", "Expected declaration name"),
+    consumeToken(state, "colon", "Expected ':'"),
+    result: atom | list | record = null,
+
+    if matchIdentifier(state, "fn") then
+        result = [symbol("def"), symbol(nameToken@"text"), symbol("fn"), parseFunctionAfterFn(state)]
+    else
+        if matchIdentifier(state, "type") then
+            consumeToken(state, "equal", "Expected '=' after type declaration")
+            result = [symbol("def"), symbol(nameToken@"text"), symbol("type"), parseTypeDefinition(state)]
+        else
+            typeName: string = parseTypeAnnotation(state)
+            consumeToken(state, "equal", "Expected '=' in declaration")
+            result = [symbol("def"), symbol(nameToken@"text"), symbol(typeName), parseExpression(state)]
+        end
+    end,
+
+    result
+]
+
+parseTypeAnnotation: fn(state: record) = [
+    first: record = consumeToken(state, "identifier", "Expected type name"),
+    result: string = first@"text",
+    if result == "any" then
+        fail("Beacon has no 'any' type; use an explicit type or union")
+    end,
+
+    for [more: boolean = matchToken(state, "pipe"), more, more = matchToken(state, "pipe")]
+        nextType: record = consumeToken(state, "identifier", "Expected type name after '|'")
+        if nextType@"text" == "any" then
+            fail("Beacon has no 'any' type; use an explicit type or union")
+        end
+        result = result + "|" + nextType@"text"
+    loop,
+
+    result
+]
+
+parseFunctionAfterFn: fn(state: record) = [
+    consumeToken(state, "lparen", "Expected '(' after fn"),
+    parameters: list = [],
+    skipNewLines(state),
+
+    if not checkToken(state, "rparen") then
+        done: boolean = false
+        for [tick: number = 0, not done, tick += 1]
+            nameToken: record = consumeToken(state, "identifier", "Expected parameter name")
+            consumeToken(state, "colon", "Expected ':' after parameter name")
+            typeName: string = parseTypeAnnotation(state)
+            parameters.append({ name: symbol(nameToken@"text"), type: symbol(typeName) })
+            if matchToken(state, "comma") then
+                skipNewLines(state)
+            else
+                done = true
+            end
+        loop
+    end,
+
+    consumeToken(state, "rparen", "Expected ')' after parameters"),
+    consumeToken(state, "equal", "Expected '=' before function body"),
+    [symbol("fn"), parameters, parseBody(state)]
+]
+
+parseBody: fn(state: record) = [
+    skipNewLines(state),
+    result: atom | list | record = null,
+    if not matchToken(state, "lbracket") then
+        result = parseExpression(state)
+    else
+        items: list = [symbol("do")]
+        skipNewLines(state)
+        if matchToken(state, "rbracket") then
+            result = items
+        else
+            done: boolean = false
+            for [tick: number = 0, not done, tick += 1]
+                items.append(parseStatement(state))
+                skipNewLines(state)
+                if matchToken(state, "rbracket") then
+                    done = true
+                else
+                    consumeToken(state, "comma", "Beacon Lists require commas between elements")
+                    skipNewLines(state)
+                end
+            loop
+            result = items
+        end
+    end,
+    result
+]
+
+parseTypeDefinition: fn(state: record) = [
+    consumeToken(state, "lbrace", "Expected '{' after type ="),
+    members: record = {},
+    skipNewLines(state),
+
+    for [tick: number = 0, not checkToken(state, "rbrace"), tick += 1]
+        nameToken: record = consumeToken(state, "identifier", "Expected member name")
+        consumeToken(state, "colon", "Expected ':' after member name")
+        if matchIdentifier(state, "fn") then
+            members@(nameToken@"text") = parseFunctionAfterFn(state)
+        else
+            members@(nameToken@"text") = symbol(parseTypeAnnotation(state))
+        end
+
+        if matchToken(state, "comma") then
+            skipNewLines(state)
+        else
+            if not checkToken(state, "rbrace") then
+                requireNewLine(state, "Expected newline or ',' between Record members")
+            end
+        end
+        skipNewLines(state)
+    loop,
+
+    consumeToken(state, "rbrace", "Expected '}'"),
+    [symbol("type"), members]
+]
+
+parseExpression: fn(state: record) = parseAssignment(state)
+
+parseAssignment: fn(state: record) = [
+    left: atom | list | record = parseOr(state),
+    result: atom | list | record = left,
+    if matchToken(state, "pluseq") then
+        result = [symbol("+="), left, parseAssignment(state)]
+    else
+        if matchToken(state, "equal") then
+            result = [symbol("="), left, parseAssignment(state)]
+        end
+    end,
+    result
+]
+
+parseOr: fn(state: record) = [
+    expression: atom | list | record = parseAnd(state),
+    for [more: boolean = matchIdentifier(state, "or"), more, more = matchIdentifier(state, "or")]
+        expression = [symbol("or"), expression, parseAnd(state)]
+    loop,
+    expression
+]
+
+parseAnd: fn(state: record) = [
+    expression: atom | list | record = parseComparison(state),
+    for [more: boolean = matchIdentifier(state, "and"), more, more = matchIdentifier(state, "and")]
+        expression = [symbol("and"), expression, parseComparison(state)]
+    loop,
+    expression
+]
+
+parseComparison: fn(state: record) = [
+    expression: atom | list | record = parseAdditive(state),
+    active: boolean = true,
+    for [tick: number = 0, active, tick += 1]
+        operator: string = ""
+        if matchToken(state, "eqeq") then
+            operator = "=="
+        else
+            if matchToken(state, "bangeq") then
+                operator = "!="
+            else
+                if matchToken(state, "less") then
+                    operator = "<"
+                else
+                    if matchToken(state, "lesseq") then
+                        operator = "<="
+                    else
+                        if matchToken(state, "greater") then
+                            operator = ">"
+                        else
+                            if matchToken(state, "greatereq") then
+                                operator = ">="
+                            else
+                                active = false
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if active then
+            expression = [symbol(operator), expression, parseAdditive(state)]
+        end
+    loop,
+    expression
+]
+
+parseAdditive: fn(state: record) = [
+    expression: atom | list | record = parseMultiplicative(state),
+    active: boolean = true,
+    for [tick: number = 0, active, tick += 1]
+        operator: string = ""
+        if matchToken(state, "plus") then
+            operator = "+"
+        else
+            if matchToken(state, "minus") then
+                operator = "-"
+            else
+                active = false
+            end
+        end
+        if active then
+            expression = [symbol(operator), expression, parseMultiplicative(state)]
+        end
+    loop,
+    expression
+]
+
+parseMultiplicative: fn(state: record) = [
+    expression: atom | list | record = parseUnary(state),
+    active: boolean = true,
+    for [tick: number = 0, active, tick += 1]
+        operator: string = ""
+        if matchToken(state, "star") then
+            operator = "*"
+        else
+            if matchToken(state, "slash") then
+                operator = "/"
+            else
+                active = false
+            end
+        end
+        if active then
+            expression = [symbol(operator), expression, parseUnary(state)]
+        end
+    loop,
+    expression
+]
+
+parseUnary: fn(state: record) = [
+    result: atom | list | record = null,
+    if matchIdentifier(state, "not") then
+        result = [symbol("not"), parseUnary(state)]
+    else
+        result = parsePostfix(state)
+    end,
+    result
+]
+
+parsePostfix: fn(state: record) = [
+    expression: atom | list | record = parsePrimary(state),
+    active: boolean = true,
+
+    for [tick: number = 0, active, tick += 1]
+        if matchToken(state, "dot") then
+            member: record = consumeToken(state, "identifier", "Expected member name after '.'")
+            expression = [symbol("get"), expression, member@"text"]
+        else
+            if matchToken(state, "at") then
+                expression = [symbol("index"), expression, parsePrimary(state)]
+            else
+                if matchToken(state, "lparen") then
+                    call: list = [symbol("call"), expression]
+                    skipNewLines(state)
+                    if not checkToken(state, "rparen") then
+                        done: boolean = false
+                        for [argIndex: number = 0, not done, argIndex += 1]
+                            call.append(parseExpression(state))
+                            if matchToken(state, "comma") then
+                                skipNewLines(state)
+                            else
+                                done = true
+                            end
+                        loop
+                    end
+                    consumeToken(state, "rparen", "Expected ')' after arguments")
+                    expression = call
+                else
+                    active = false
+                end
+            end
+        end
+    loop,
+
+    expression
+]
+
+parsePrimary: fn(state: record) = [
+    result: atom | list | record = null,
+    token: record = currentToken(state),
+
+    if matchToken(state, "number") then
+        result = number(token@"text")
+    else
+        if matchToken(state, "string") then
+            result = token@"text"
+        else
+            if matchToken(state, "identifier") then
+                if token@"text" == "true" then
+                    result = true
+                else
+                    if token@"text" == "false" then
+                        result = false
+                    else
+                        if token@"text" == "null" then
+                            result = null
+                        else
+                            result = symbol(token@"text")
+                        end
+                    end
+                end
+            else
+                if matchToken(state, "dot") then
+                    member: record = consumeToken(state, "identifier", "Expected member after '.'")
+                    result = [symbol("get"), symbol("self"), member@"text"]
+                else
+                    if matchToken(state, "lparen") then
+                        result = parseExpression(state)
+                        consumeToken(state, "rparen", "Expected ')'")
+                    else
+                        if matchToken(state, "lbracket") then
+                            result = parseListLiteralAfterOpen(state)
+                        else
+                            if matchToken(state, "lbrace") then
+                                result = parseRecordLiteralAfterOpen(state)
+                            else
+                                fail("Expected expression at " + token@"line" + ":" + token@"column")
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end,
+
+    result
+]
+
+parseListLiteralAfterOpen: fn(state: record) = [
+    items: list = [symbol("list")],
+    skipNewLines(state),
+    done: boolean = matchToken(state, "rbracket"),
+
+    for [tick: number = 0, not done, tick += 1]
+        items.append(parseExpression(state))
+        skipNewLines(state)
+        if matchToken(state, "rbracket") then
+            done = true
+        else
+            consumeToken(state, "comma", "Beacon Lists require commas between elements")
+            skipNewLines(state)
+        end
+    loop,
+
+    items
+]
+
+parseRecordLiteralAfterOpen: fn(state: record) = [
+    result: record = {},
+    skipNewLines(state),
+
+    for [tick: number = 0, not checkToken(state, "rbrace"), tick += 1]
+        key: record = consumeToken(state, "identifier", "Expected Record field name")
+        consumeToken(state, "colon", "Expected ':' after field name")
+        result@(key@"text") = parseExpression(state)
+
+        if matchToken(state, "comma") then
+            skipNewLines(state)
+        else
+            if not checkToken(state, "rbrace") then
+                requireNewLine(state, "Expected newline or ',' between Record fields")
+            end
+        end
+        skipNewLines(state)
+    loop,
+
+    consumeToken(state, "rbrace", "Expected '}'"),
+    result
+]

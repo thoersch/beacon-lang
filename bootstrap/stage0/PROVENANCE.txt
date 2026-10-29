@@ -1,13 +1,12 @@
-Beacon Stage-0 bootstrap seed
-Generated: 2026-10-29T01:01:45Z
-Git source commit: 5852820aafa904eb59b8988da59e79ad370f7266
+﻿Beacon Stage-0 bootstrap seed
+=============================
+
+Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
+Seed refresh: filesystem/path primitives plus seed-only include composition used to bootstrap the split compiler.
+Historical implementation language: C#
+Source commit before refresh: 29724a79652c1fbe78145e227fc69dbb3be96fe4
 .NET SDK: 10.0.102
-Beacon.Compiler/Program.cs SHA256: 612ddb903c7aabfa858b9e8188f9befee501fb65c99bc858f7a457ca7839823e
-Beacon.Compiler/Beacon.Compiler.csproj SHA256: 031da6a6f6d810b9f23ffe7818f3acefb7b0ff54b0eb8c6752735ad58d254904
+Generated (UTC): 2026-10-29T02:08:29Z
 
-The seed was verified by:
-  1. compiler.beacon reaching the Stage-1/Stage-2/Stage-3 normalized-plan fixed point
-  2. examples/control-flow.beacon compiling and executing through compiler.beacon
-
-The canonical compiler source is compiler/compiler.beacon.
-The Stage-0 binary is retained only to bootstrap a clean checkout.
+The canonical compiler implementation is Beacon source under compiler/.
+Stage 1+ resolves includes, lexes, parses, builds Core, and plans CLR IL in Beacon.

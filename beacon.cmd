@@ -3,6 +3,7 @@ setlocal
 set "ROOT=%~dp0"
 set "HOST=%ROOT%bootstrap\stage0\Beacon.Compiler.dll"
 set "COMPILER=%ROOT%compiler\compiler.beacon"
+set "BEACON_HOME=%ROOT%"
 
 if not exist "%HOST%" (
   echo Beacon bootstrap seed not found: %HOST% 1>&2

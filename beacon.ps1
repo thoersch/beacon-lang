@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $HostAssembly = Join-Path $Root "bootstrap/stage0/Beacon.Compiler.dll"
 $Compiler = Join-Path $Root "compiler/compiler.beacon"
+$env:BEACON_HOME = $Root
 
 if (-not (Test-Path $HostAssembly)) {
     throw "Beacon bootstrap seed not found: $HostAssembly. Run tools/finalize-bootstrap.ps1 first."

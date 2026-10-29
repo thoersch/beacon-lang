@@ -1,0 +1,19 @@
+// address is included directly and transitively through person.
+// Beacon composes it once.
+include "models/address"
+include "models/person"
+include std.math
+
+ada: person = {
+    name: "Ada"
+    age: 42
+    home: {
+        street: "1 Beacon St"
+        city: "Boston"
+        state: "MA"
+    }
+}
+
+print(ada.greet())
+print(ada.home.city)
+print(twice(21))

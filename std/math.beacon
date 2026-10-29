@@ -1,0 +1,4 @@
+// Minimal standard-library math example.
+// Named includes resolve from BEACON_HOME.
+
+twice: fn(value: number) = value * 2

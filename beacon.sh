@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOST="$ROOT/bootstrap/stage0/Beacon.Compiler.dll"
 COMPILER="$ROOT/compiler/compiler.beacon"
+export BEACON_HOME="$ROOT"
 
 if [[ ! -f "$HOST" ]]; then
   echo "Beacon bootstrap seed not found: $HOST" >&2

@@ -1,0 +1,136 @@
+// Beacon compiler Core helpers and source composition.
+// Includes are compile-time composition. They disappear before emission.
+
+isForm: fn(node: atom | list | record, name: string) = [
+    result: boolean = false,
+    if kind(node) == "list" then
+        if node.length() > 0 then
+            if kind(node@0) == "symbol" then
+                result = node@0.name == name
+            end
+        end
+    end,
+    result
+]
+
+listContainsString: fn(items: list, value: string) = [
+    found: boolean = false,
+    for [i: number = 0, i < items.length(), i += 1]
+        if items@i == value then
+            found = true
+        end
+    loop,
+    found
+]
+
+hasBeaconExtension: fn(name: string) = [
+    result: boolean = false,
+    suffix: string = ".beacon",
+    if name.length() >= suffix.length() then
+        result = name.slice(name.length() - suffix.length(), suffix.length()) == suffix
+    end,
+    result
+]
+
+namedIncludePath: fn(name: string) = [
+    path: string = "",
+    for [i: number = 0, i < name.length(), i += 1]
+        character: string = name@i
+        if character == "." then
+            path += "/"
+        else
+            path += character
+        end
+    loop,
+    path
+]
+
+formatIncludeCycle: fn(stack: list, repeated: string) = [
+    text: string = "",
+    for [i: number = 0, i < stack.length(), i += 1]
+        if i > 0 then
+            text += " -> "
+        end
+        text += stack@i
+    loop,
+    if text.length() > 0 then
+        text += " -> "
+    end,
+    text + repeated
+]
+
+resolveIncludePath: fn(currentFile: string, spec: record) = [
+    includeKind: string = spec@"kind",
+    includeName: string = spec@"name",
+    result: string = "",
+
+    if hasBeaconExtension(includeName) then
+        fail("Include paths omit the .beacon extension: " + includeName)
+    end,
+
+    if includeKind == "local" then
+        result = absolutePath(combinePath(directoryName(currentFile), includeName + ".beacon"))
+    else
+        if includeKind == "named" then
+            root: string = environment("BEACON_HOME")
+            if root == "" then
+                fail("Named includes require BEACON_HOME to be set")
+            end
+            result = absolutePath(combinePath(root, namedIncludePath(includeName) + ".beacon"))
+        else
+            fail("Unknown include kind: " + includeKind)
+        end
+    end,
+
+    result
+]
+
+appendProgramBody: fn(target: list, source: list) = [
+    for [i: number = 1, i < source.length(), i += 1]
+        target.append(source@i)
+    loop,
+    target
+]
+
+resolveProgramIncludes: fn(program: list, currentFile: string, seen: list, stack: list) = [
+    result: list = [symbol("do")],
+
+    for [i: number = 1, i < program.length(), i += 1]
+        node: atom | list | record = program@i
+        if isForm(node, "include") then
+            spec: record = node@1
+            includePath: string = resolveIncludePath(currentFile, spec)
+            included: list = loadProgramInternal(includePath, seen, stack)
+            appendProgramBody(result, included)
+        else
+            result.append(node)
+        end
+    loop,
+
+    result
+]
+
+loadProgramInternal: fn(path: string, seen: list, stack: list) = [
+    canonical: string = absolutePath(path),
+    result: list = [symbol("do")],
+
+    if listContainsString(stack, canonical) then
+        fail("Circular include detected: " + formatIncludeCycle(stack, canonical))
+    end,
+
+    if not listContainsString(seen, canonical) then
+        if not fileExists(canonical) then
+            fail("Beacon source not found: " + canonical)
+        end
+
+        seen.append(canonical)
+        nextStack: list = stack.concat([canonical])
+        source: string = readFile(canonical)
+        parsed: list = parseProgram(lex(source))
+        result = resolveProgramIncludes(parsed, canonical, seen, nextStack)
+    end,
+
+    result
+]
+
+loadProgram: fn(path: string) = loadProgramInternal(path, [], [])

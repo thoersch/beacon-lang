@@ -1,0 +1,5 @@
+address: type = {
+    street: string
+    city: string
+    state: string
+}

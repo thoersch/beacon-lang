@@ -1,6 +1,6 @@
 # Beacon Lang
 
-Beacon is a self-hosting programming language targeting the CLR.
+Beacon is a compiled, homoiconic-inspired self-hosting programming language targeting the CLR.
 
 Its compiler is written in Beacon, and its canonical program representation has only three structural shapes:
 

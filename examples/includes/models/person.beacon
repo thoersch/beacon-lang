@@ -1,0 +1,9 @@
+include "address"
+
+person: type = {
+    name: string
+    age: number
+    home: address
+
+    greet: fn() = "Hello, I'm {.name}"
+}
