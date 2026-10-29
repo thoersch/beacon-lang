@@ -3,15 +3,35 @@
 // Local includes are relative to this file and omit the .beacon extension.
 // The compiler itself is intentionally split into reusable compilation units.
 
+include "diagnostics"
 include "core"
 include "lexer"
 include "parser"
+include "source-map"
+include "typecheck"
 include "emitter"
 
-compileSource: fn(source: string) = [
+compileSourceResult: fn(source: string) = [
     tokens: list = lex(source),
     program: list = parseProgram(tokens),
-    compile(program)
+    sources: list = [{ file: "<source>", source: source }],
+    compileProgramResult(program, sources)
 ]
 
-compileFile: fn(path: string) = compile(loadProgram(path))
+compileSource: fn(source: string) = [
+    sources: list = [{ file: "<source>", source: source }],
+    result: record = compileSourceResult(source),
+    requireCompilationPlan(result, sources)
+]
+
+compileFileResult: fn(path: string) = [
+    program: list = loadProgram(path),
+    sources: list = collectSourceFiles(path),
+    compileProgramResult(program, sources)
+]
+
+compileFile: fn(path: string) = [
+    sources: list = collectSourceFiles(path),
+    result: record = compileFileResult(path),
+    requireCompilationPlan(result, sources)
+]
