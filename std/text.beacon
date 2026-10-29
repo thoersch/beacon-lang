@@ -3,7 +3,7 @@ length: fn(str: string) = str.length()
 slice: fn = [
     fn(value: string, start: number) = value.slice(start),
 
-    fn (value: string, start: number, length: number) = value.slice(start, length)
+    fn(value: string, start: number, length: number) = value.slice(start, length)
 ]
 
 contains: fn(str: string, find: string) = indexOf(str, find) != -1
@@ -13,24 +13,6 @@ startsWith: fn(str: string, search: string) = indexOf(str, search) == 0
 endsWith: fn(str: string, search: string) =
     search.length() <= str.length() and
     str.slice(str.length() - search.length(), search.length()) == search
-
-split: fn(str: string, delimiter: string) = [
-    splitList: list = [],
-    startingIndex: number = 0,
-    delimiterLength: number = delimiter.length(),
-
-    for [i: number = 0, i <= str.length() - delimiterLength, i += 1]
-        if str.slice(i, delimiterLength) == delimiter then
-            splitList.push(str.slice(startingIndex, i - startingIndex))
-            startingIndex = i + delimiterLength
-            i += delimiterLength - 1
-        end
-    loop,
-
-    splitList.push(str.slice(startingIndex)),
-
-    splitList
-]
 
 indexOf: fn(str: string, find: string) = [
     index: number = -1,
@@ -59,3 +41,139 @@ indexOf: fn(str: string, find: string) = [
 
     index
 ]
+
+lastIndexOf: fn(str: string, find: string) = [
+    index: number = -1,
+    findLength: number = find.length(),
+    strLength: number = str.length(),
+
+    for [i: number = strLength - findLength, i >= 0, i = i - 1]
+        matches: boolean = true
+
+        for [j: number = 0, j < findLength, j += 1]
+            if str.slice(i + j, 1) != find.slice(j, 1) then
+                matches = false
+                break
+            end
+        loop
+
+        if matches then
+            index = i
+            break
+        end
+    loop,
+
+    index
+]
+
+split: fn(str: string, delimiter: string) = [
+    splitList: list = [],
+    startingIndex: number = 0,
+    delimiterLength: number = delimiter.length(),
+
+    if delimiterLength == 0 then
+        splitList.push(str)
+    else
+        for [i: number = 0, i <= str.length() - delimiterLength, i += 1]
+            if str.slice(i, delimiterLength) == delimiter then
+                splitList.push(str.slice(startingIndex, i - startingIndex))
+                startingIndex = i + delimiterLength
+                i += delimiterLength - 1
+            end
+        loop
+
+        splitList.push(str.slice(startingIndex))
+    end,
+
+    splitList
+]
+
+replace: fn(str: string, find: string, replacement: string) = [
+    result: string = "",
+    startingIndex: number = 0,
+    findLength: number = find.length(),
+
+    if findLength == 0 then
+        result = str
+    else
+        for [i: number = 0, i <= str.length() - findLength, i += 1]
+            if str.slice(i, findLength) == find then
+                result += str.slice(startingIndex, i - startingIndex)
+                result += replacement
+                startingIndex = i + findLength
+                i += findLength - 1
+            end
+        loop
+
+        result += str.slice(startingIndex)
+    end,
+
+    result
+]
+
+trimStart: fn(str: string) = [
+    startingIndex: number = 0,
+    done: boolean = false,
+
+    for [i: number = 0, i < str.length() and not done, i += 1]
+        value: string = str.slice(i, 1)
+
+        if value == " " or value == "\t" or value == "\r" or value == "\n" then
+            startingIndex = i + 1
+        else
+            done = true
+        end
+    loop,
+
+    str.slice(startingIndex)
+]
+
+trimEnd: fn(str: string) = [
+    endingIndex: number = str.length(),
+    done: boolean = false,
+
+    for [i: number = str.length() - 1, i >= 0 and not done, i = i - 1]
+        value: string = str.slice(i, 1)
+
+        if value == " " or value == "\t" or value == "\r" or value == "\n" then
+            endingIndex = i
+        else
+            done = true
+        end
+    loop,
+
+    str.slice(0, endingIndex)
+]
+
+trim: fn(str: string) = trimEnd(trimStart(str))
+
+lines: fn(str: string) =
+    split(replace(replace(str, "\r\n", "\n"), "\r", "\n"), "\n")
+
+join: fn(values: list, separator: string) = [
+    result: string = "",
+
+    for [i: number = 0, i < values.length(), i += 1]
+        if i > 0 then
+            result += separator
+        end
+
+        result += values@i
+    loop,
+
+    result
+]
+
+repeat: fn(str: string, count: number) = [
+    result: string = "",
+
+    for [i: number = 0, i < count, i += 1]
+        result += str
+    loop,
+
+    result
+]
+
+isEmpty: fn(str: string) = str.length() == 0
+
+isBlank: fn(str: string) = trim(str).length() == 0
