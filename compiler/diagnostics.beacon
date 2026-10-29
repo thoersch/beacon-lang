@@ -1,0 +1,195 @@
+// Structured compiler diagnostics.
+//
+// Diagnostics are ordinary Beacon data: Atom / List / Record only.
+// Human-readable terminal output is a rendering of this data, not the data itself.
+
+sourcePosition: type = {
+    line: number
+    column: number
+}
+
+sourceSpan: type = {
+    file: string
+    start: sourcePosition
+    end: sourcePosition
+}
+
+diagnostic: type = {
+    code: string
+    severity: string
+    phase: string
+    message: string
+    source: record | null
+    path: list
+    expected: atom | list | record | null
+    actual: atom | list | record | null
+    notes: list
+    hints: list
+}
+
+compilationResult: type = {
+    ok: boolean
+    plan: list | null
+    diagnostics: list
+}
+
+makeSourceSpan: fn(file: string, line: number, column: number, width: number) = [
+    endColumn: number = column + width,
+    {
+        file: file
+        start: { line: line, column: column }
+        end: { line: line, column: endColumn }
+    }
+]
+
+makeDiagnostic: fn(code: string, phase: string, message: string, source: record | null, path: list, expected: atom | list | record | null, actual: atom | list | record | null, notes: list, hints: list) = {
+    code: code
+    severity: "error"
+    phase: phase
+    message: message
+    source: source
+    path: path
+    expected: expected
+    actual: actual
+    notes: notes
+    hints: hints
+}
+
+pathText: fn(path: list) = [
+    text: string = "",
+    for [i: number = 0, i < path.length(), i += 1]
+        if i > 0 then
+            text += "."
+        end
+        text += path@i
+    loop,
+    text
+]
+
+repeatText: fn(text: string, count: number) = [
+    result: string = "",
+    for [i: number = 0, i < count, i += 1]
+        result += text
+    loop,
+    result
+]
+
+sourceTextForFile: fn(sources: list, file: string) = [
+    result: string = "",
+    found: boolean = false,
+    for [i: number = 0, i < sources.length(), i += 1]
+        entry: record = sources@i
+        if not found and entry@"file" == file then
+            result = entry@"source"
+            found = true
+        end
+    loop,
+    result
+]
+
+sourceLineText: fn(source: string, requestedLine: number) = [
+    currentLine: number = 1,
+    result: string = "",
+    collecting: boolean = requestedLine == 1,
+    finished: boolean = false,
+
+    for [i: number = 0, i < source.length(), i += 1]
+        character: string = source@i
+        if not finished then
+            if character == "\n" then
+                if collecting then
+                    finished = true
+                else
+                    currentLine += 1
+                    if currentLine == requestedLine then
+                        collecting = true
+                    end
+                end
+            else
+                if collecting and character != "\r" then
+                    result += character
+                end
+            end
+        end
+    loop,
+
+    result
+]
+
+renderSourceExcerpt: fn(source: record, sources: list) = [
+    start: record = source@"start",
+    finish: record = source@"end",
+    line: number = start@"line",
+    column: number = start@"column",
+    width: number = finish@"column" - column,
+    text: string = sourceTextForFile(sources, source@"file"),
+    result: string = "",
+
+    if width < 1 then
+        width = 1
+    end,
+
+    if text != "" then
+        lineText: string = sourceLineText(text, line)
+        result = "\n\n" + line + " | " + lineText + "\n"
+        gutterWidth: number = (line + "").length() + 3
+        result += repeatText(" ", gutterWidth)
+        result += repeatText(" ", column - 1)
+        result += repeatText("^", width)
+    end,
+
+    result
+]
+
+renderDiagnostic: fn(item: record, sources: list) = [
+    result: string = "",
+    source: atom | list | record | null = item@"source",
+
+    if kind(source) == "record" then
+        start: record = source@"start"
+        result = source@"file" + ":" + start@"line" + ":" + start@"column" + " [" + item@"code" + "]\n"
+    else
+        result = "[" + item@"code" + "]\n"
+    end,
+
+    result += item@"message",
+
+    path: list = item@"path",
+    if path.length() > 0 then
+        result += "\nwhile checking: " + pathText(path)
+    end,
+
+    if kind(source) == "record" then
+        result += renderSourceExcerpt(source, sources)
+    end,
+
+    notes: list = item@"notes",
+    for [i: number = 0, i < notes.length(), i += 1]
+        result += "\n\nnote: " + notes@i
+    loop,
+
+    hints: list = item@"hints",
+    for [i: number = 0, i < hints.length(), i += 1]
+        result += "\n\nhint: " + hints@i
+    loop,
+
+    result
+]
+
+renderDiagnostics: fn(items: list, sources: list) = [
+    result: string = "",
+    for [i: number = 0, i < items.length(), i += 1]
+        if i > 0 then
+            result += "\n\n"
+        end
+        result += renderDiagnostic(items@i, sources)
+    loop,
+    result
+]
+
+requireCompilationPlan: fn(result: record, sources: list) = [
+    if not result@"ok" then
+        fail(renderDiagnostics(result@"diagnostics", sources))
+    end,
+    result@"plan"
+]

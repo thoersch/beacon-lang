@@ -1,0 +1,232 @@
+// Source metadata stays beside Core instead of being embedded into canonical Core.
+// This keeps Atom / List / Record program structure clean while diagnostics can
+// still recover exact file/line/column locations.
+
+collectSourceFilesInternal: fn(path: string, seen: list, files: list) = [
+    canonical: string = absolutePath(path),
+
+    if not listContainsString(seen, canonical) then
+        seen.append(canonical)
+
+        if fileExists(canonical) then
+            source: string = readFile(canonical)
+            files.append({ file: canonical, source: source })
+
+            program: list = parseProgram(lex(source))
+            for [i: number = 1, i < program.length(), i += 1]
+                node: atom | list | record = program@i
+                if isForm(node, "include") then
+                    spec: record = node@1
+                    includedPath: string = resolveIncludePath(canonical, spec)
+                    collectSourceFilesInternal(includedPath, seen, files)
+                end
+            loop
+        end
+    end,
+
+    files
+]
+
+collectSourceFiles: fn(path: string) = collectSourceFilesInternal(path, [], [])
+
+spanFromToken: fn(file: string, token: record) = makeSourceSpan(file, token@"line", token@"column", token@"text".length())
+
+nextNonNewlineTokenIndex: fn(tokens: list, start: number) = [
+    index: number = start,
+    for [i: number = start, i < tokens.length() and tokens@index@"kind" == "newline", i += 1]
+        index += 1
+    loop,
+    index
+]
+
+findTopLevelDeclaration: fn(tokens: list, name: string) = [
+    result: record = { found: false, index: 0 },
+    braceDepth: number = 0,
+    bracketDepth: number = 0,
+    parenDepth: number = 0,
+
+    for [i: number = 0, i < tokens.length(), i += 1]
+        token: record = tokens@i
+
+        if not result@"found" and braceDepth == 0 and bracketDepth == 0 and parenDepth == 0 then
+            if token@"kind" == "identifier" and token@"text" == name then
+                nextIndex: number = nextNonNewlineTokenIndex(tokens, i + 1)
+                if nextIndex < tokens.length() and tokens@nextIndex@"kind" == "colon" then
+                    result = { found: true, index: i }
+                end
+            end
+        end
+
+        if token@"kind" == "lbrace" then
+            braceDepth += 1
+        else
+            if token@"kind" == "rbrace" then
+                braceDepth = braceDepth - 1
+            else
+                if token@"kind" == "lbracket" then
+                    bracketDepth += 1
+                else
+                    if token@"kind" == "rbracket" then
+                        bracketDepth = bracketDepth - 1
+                    else
+                        if token@"kind" == "lparen" then
+                            parenDepth += 1
+                        else
+                            if token@"kind" == "rparen" then
+                                parenDepth = parenDepth - 1
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    loop,
+
+    result
+]
+
+findDeclarationRecordOpen: fn(tokens: list, declarationIndex: number) = [
+    result: record = { found: false, index: 0 },
+    sawEqual: boolean = false,
+
+    for [i: number = declarationIndex, i < tokens.length() and not result@"found", i += 1]
+        token: record = tokens@i
+        if token@"kind" == "equal" then
+            sawEqual = true
+        else
+            if sawEqual and token@"kind" == "lbrace" then
+                result = { found: true, index: i }
+            else
+                if sawEqual and token@"kind" == "newline" then
+                    // A record literal may begin on the following line; keep scanning.
+                    null
+                end
+            end
+        end
+    loop,
+
+    result
+]
+
+findFieldInRecord: fn(tokens: list, openIndex: number, fieldName: string) = [
+    result: record = { found: false, index: 0, colon: 0 },
+    depth: number = 0,
+    done: boolean = false,
+
+    for [i: number = openIndex + 1, i < tokens.length() and not done, i += 1]
+        token: record = tokens@i
+
+        if token@"kind" == "lbrace" then
+            depth += 1
+        else
+            if token@"kind" == "rbrace" then
+                if depth == 0 then
+                    done = true
+                else
+                    depth = depth - 1
+                end
+            else
+                if not result@"found" and depth == 0 and token@"kind" == "identifier" and token@"text" == fieldName then
+                    nextIndex: number = nextNonNewlineTokenIndex(tokens, i + 1)
+                    if nextIndex < tokens.length() and tokens@nextIndex@"kind" == "colon" then
+                        result = { found: true, index: i, colon: nextIndex }
+                    end
+                end
+            end
+        end
+    loop,
+
+    result
+]
+
+findNestedRecordOpen: fn(tokens: list, colonIndex: number) = [
+    result: record = { found: false, index: 0 },
+    done: boolean = false,
+
+    for [i: number = colonIndex + 1, i < tokens.length() and not done, i += 1]
+        token: record = tokens@i
+        if token@"kind" == "lbrace" then
+            result = { found: true, index: i }
+            done = true
+        else
+            if token@"kind" == "comma" or token@"kind" == "rbrace" then
+                done = true
+            else
+                if token@"kind" == "newline" then
+                    // Allow formatting where the opening brace is on the next line.
+                    null
+                end
+            end
+        end
+    loop,
+
+    result
+]
+
+findPathSpanInSource: fn(entry: record, path: list) = [
+    result: record = { found: false, source: null },
+
+    if path.length() > 0 then
+        tokens: list = lex(entry@"source")
+        declaration: record = findTopLevelDeclaration(tokens, path@0)
+
+        if declaration@"found" then
+            if path.length() == 1 then
+                result = { found: true, source: spanFromToken(entry@"file", tokens@(declaration@"index")) }
+            else
+                open: record = findDeclarationRecordOpen(tokens, declaration@"index")
+                if open@"found" then
+                    currentOpen: number = open@"index"
+                    active: boolean = true
+
+                    for [segment: number = 1, segment < path.length() and active, segment += 1]
+                        field: record = findFieldInRecord(tokens, currentOpen, path@segment)
+                        if not field@"found" then
+                            active = false
+                        else
+                            if segment == path.length() - 1 then
+                                result = { found: true, source: spanFromToken(entry@"file", tokens@(field@"index")) }
+                            else
+                                nested: record = findNestedRecordOpen(tokens, field@"colon")
+                                if nested@"found" then
+                                    currentOpen = nested@"index"
+                                else
+                                    active = false
+                                end
+                            end
+                        end
+                    loop
+                end
+            end
+        end
+    end,
+
+    result
+]
+
+findPathSpan: fn(sources: list, path: list) = [
+    result: atom | list | record | null = null,
+    found: boolean = false,
+
+    for [i: number = 0, i < sources.length(), i += 1]
+        if not found then
+            located: record = findPathSpanInSource(sources@i, path)
+            if located@"found" then
+                result = located@"source"
+                found = true
+            end
+        end
+    loop,
+
+    result
+]
+
+parentPath: fn(path: list) = [
+    result: list = [],
+    if path.length() > 0 then
+        for [i: number = 0, i < path.length() - 1, i += 1]
+            result.append(path@i)
+        loop
+    end,
+    result
+]
