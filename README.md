@@ -282,6 +282,32 @@ Logical:
 and  or  not
 ```
 
+Unary negation:
+
+```beacon
+x: number = -1
+y: number = -x
+z: number = -(x + 5)
+```
+
+Loop control uses `break` and `continue`. Both target the innermost loop; `continue` executes the `for` step before re-checking its condition:
+
+```beacon
+for [i: number = 0, i < values.length(), i += 1]
+    if values@i == 0 then
+        continue
+    end
+
+    if values@i < 0 then
+        break
+    end
+
+    print(values@i)
+loop
+```
+
+Using `break` or `continue` outside a loop is a compile error. Function bodies are separate control-flow scopes, so a function declared inside a loop cannot break or continue that enclosing loop.
+
 Assignment:
 
 ```text

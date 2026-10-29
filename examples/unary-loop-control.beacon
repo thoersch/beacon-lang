@@ -1,0 +1,41 @@
+negative: number = -1
+value: number = 4
+
+print(negative)
+print(-value)
+print(5 + -2)
+print(-2 * 3)
+print(-(-2))
+
+values: list = [1, 2, 3, 4, 5]
+total: number = 0
+
+for [i: number = 0, i < values.length(), i += 1]
+    if values@i == 2 then
+        continue
+    end
+
+    if values@i == 5 then
+        break
+    end
+
+    total += values@i
+loop
+
+print(total)
+
+outerCount: number = 0
+innerCount: number = 0
+
+for [i: number = 0, i < 3, i += 1]
+    for [j: number = 0, j < 3, j += 1]
+        if j == 1 then
+            break
+        end
+        innerCount += 1
+    loop
+    outerCount += 1
+loop
+
+print(outerCount)
+print(innerCount)

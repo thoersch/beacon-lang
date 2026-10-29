@@ -146,3 +146,45 @@ jobs:
           print(twice(21))
           BEACON
           [[ "$(bash ./beacon.sh /tmp/legacy-function.beacon)" == '42' ]]
+
+      - name: Verify unary minus and loop control
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/unary-loop-control.beacon)"
+          printf '%s\n' "$output"
+          expected=$'-1\n-4\n3\n-6\n2\n8\n3\n3'
+          [[ "$output" == "$expected" ]]
+
+          cat > /tmp/break-outside.beacon <<'BEACON'
+          break
+          BEACON
+          set +e
+          break_output="$(bash ./beacon.sh /tmp/break-outside.beacon 2>&1)"
+          break_status=$?
+          set -e
+          [[ $break_status -ne 0 ]]
+          grep -F "'break' can only be used inside a loop" <<<"$break_output"
+
+          cat > /tmp/continue-outside.beacon <<'BEACON'
+          continue
+          BEACON
+          set +e
+          continue_output="$(bash ./beacon.sh /tmp/continue-outside.beacon 2>&1)"
+          continue_status=$?
+          set -e
+          [[ $continue_status -ne 0 ]]
+          grep -F "'continue' can only be used inside a loop" <<<"$continue_output"
+
+          cat > /tmp/function-boundary.beacon <<'BEACON'
+          for [i: number = 0, i < 1, i += 1]
+              illegal: fn() = [
+                  break
+              ]
+          loop
+          BEACON
+          set +e
+          boundary_output="$(bash ./beacon.sh /tmp/function-boundary.beacon 2>&1)"
+          boundary_status=$?
+          set -e
+          [[ $boundary_status -ne 0 ]]
+          grep -F "'break' can only be used inside a loop" <<<"$boundary_output"
