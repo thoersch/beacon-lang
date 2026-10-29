@@ -1,3 +1,37 @@
+length: fn(str: string) = str.length()
+
+slice: fn = [
+    fn(value: string, start: number) = value.slice(start),
+
+    fn (value: string, start: number, length: number) = value.slice(start, length)
+]
+
+contains: fn(str: string, find: string) = indexOf(str, find) != -1
+
+startsWith: fn(str: string, search: string) = indexOf(str, search) == 0
+
+endsWith: fn(str: string, search: string) =
+    search.length() <= str.length() and
+    str.slice(str.length() - search.length(), search.length()) == search
+
+split: fn(str: string, delimiter: string) = [
+    splitList: list = [],
+    startingIndex: number = 0,
+    delimiterLength: number = delimiter.length(),
+
+    for [i: number = 0, i <= str.length() - delimiterLength, i += 1]
+        if str.slice(i, delimiterLength) == delimiter then
+            splitList.push(str.slice(startingIndex, i - startingIndex))
+            startingIndex = i + delimiterLength
+            i += delimiterLength - 1
+        end
+    loop,
+
+    splitList.push(str.slice(startingIndex)),
+
+    splitList
+]
+
 indexOf: fn(str: string, find: string) = [
     index: number = -1,
     findLength: number = find.length(),

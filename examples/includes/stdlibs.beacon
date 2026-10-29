@@ -3,3 +3,10 @@ include std.text
 testString: string = "This is my test string"
 
 print(text.indexOf(testString, "is"))
+print(text.length(testString))
+print(text.slice(testString, 5))
+print(text.slice(testString, 5, 1))
+print(text.contains(testString, "test"))
+print(text.startsWith(testString, "his"))
+print(text.endsWith(testString, "ing"))
+print(text.split(testString, " "))
