@@ -1,0 +1,80 @@
+name: Refresh Beacon Stage-0 seed
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-seed:
+    if: github.head_ref == 'feature/includes-and-split-compiler'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Expand one-time seed payload
+        run: unzip -oq tools/seed-refresh/payload.zip -d .
+
+      - name: Build refreshed Stage-0 seed
+        run: |
+          rm -rf .seed-out
+          dotnet publish .seed-src/Beacon.Compiler/Beacon.Compiler.csproj -c Release -o .seed-out
+          cp .seed-out/Beacon.Compiler.dll bootstrap/stage0/Beacon.Compiler.dll
+          cp .seed-out/Beacon.Compiler.deps.json bootstrap/stage0/Beacon.Compiler.deps.json
+          cp .seed-out/Beacon.Compiler.runtimeconfig.json bootstrap/stage0/Beacon.Compiler.runtimeconfig.json
+
+      - name: Verify self-hosting and multi-file includes
+        env:
+          BEACON_HOME: ${{ github.workspace }}
+        run: |
+          dotnet bootstrap/stage0/Beacon.Compiler.dll compiler/compiler.beacon --self-host
+          output="$(dotnet bootstrap/stage0/Beacon.Compiler.dll compiler/compiler.beacon --stage1-run examples/includes/main.beacon)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -F "Hello, I'm Ada"
+          printf '%s\n' "$output" | grep -F "Boston"
+
+      - name: Record refreshed seed provenance
+        run: |
+          cat > bootstrap/stage0/PROVENANCE.txt <<EOF2
+          Beacon Stage-0 bootstrap seed
+          =============================
+
+          Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
+          Seed refresh: filesystem/path primitives plus seed-only include composition used to bootstrap the split compiler.
+          Historical implementation language: C#
+          Refresh commit: $GITHUB_SHA
+          .NET SDK: $(dotnet --version)
+          Generated (UTC): $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          The canonical compiler implementation is Beacon source under compiler/.
+          Stage 1+ resolves includes, lexes, parses, builds Core, and plans CLR IL in Beacon.
+          EOF2
+          (
+            cd bootstrap/stage0
+            sha256sum Beacon.Compiler.dll Beacon.Compiler.deps.json Beacon.Compiler.runtimeconfig.json > SHA256SUMS
+          )
+
+      - name: Remove one-time seed sources
+        run: |
+          rm -rf .seed-src .seed-out tools/seed-refresh
+          rm -f .github/workflows/seed-refresh.yml
+
+      - name: Commit final no-C# implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add Beacon includes and split self-hosted compiler"
+          git push origin HEAD:${{ github.head_ref }}
