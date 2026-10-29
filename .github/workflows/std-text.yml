@@ -1,0 +1,29 @@
+name: std.text
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  std-text:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify std.text
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/std-text.beacon)"
+          printf '%s\n' "$output"
+
+          expected=$'6\nacon\neac\ntrue\ntrue\ntrue\n0\n3\n3\none|two||four|\n1\nbar bar bar\nBeacon\n[Beacon]\n[Beacon]\n[Beacon]\none|two|three|four\na,b,c\nhahaha\ntrue\nfalse\ntrue\nfalse'
+          [[ "$output" == "$expected" ]]
