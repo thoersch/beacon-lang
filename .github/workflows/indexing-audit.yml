@@ -94,7 +94,6 @@ jobs:
                   text = text.replace(old, new)
               path.write_text(text)
 
-          # Document the semantic distinction explicitly.
           readme = root / 'README.md'
           text = readme.read_text()
           old = '''Member access uses `.`:\n\n```beacon\nperson.name\n```\n'''
@@ -107,20 +106,31 @@ jobs:
       - name: Audit migrated Beacon source
         shell: bash
         run: |
-          # Match postfix quoted-key syntax such as entry@"file", but do not
-          # mistake the lexer's string literal "@" for an access expression.
           if grep -R -n -P --include='*.beacon' '[A-Za-z0-9_\)]@"[A-Za-z_]' compiler std examples; then
             echo 'Quoted Record @ access remains.' >&2
             exit 1
           fi
 
+          # These are known String expressions; scope the audit to their files so
+          # List variables that happen to be named source/left/right are allowed.
+          if grep -n -E 'source@index|characters@i' compiler/lexer.beacon; then
+            echo 'String @ access remains in lexer.' >&2
+            exit 1
+          fi
+          if grep -n -F 'source@i' compiler/diagnostics.beacon; then
+            echo 'String @ access remains in diagnostics.' >&2
+            exit 1
+          fi
+          if grep -n -E 'typeName@i|left@i|right@i' compiler/typecheck.beacon; then
+            echo 'String @ access remains in type checker.' >&2
+            exit 1
+          fi
+          if grep -n -F 'source@0' examples/bootstrap-primitives.beacon; then
+            echo 'String @ access remains in bootstrap example.' >&2
+            exit 1
+          fi
+
           for pattern in \
-            'source@index' \
-            'source@i' \
-            'characters@i' \
-            'typeName@i' \
-            'left@i' \
-            'right@i' \
             'children@part' \
             'children@key' \
             'root@name' \
@@ -130,12 +140,12 @@ jobs:
             'types@(' \
             'value@key'; do
             if grep -R -n --include='*.beacon' -F "$pattern" compiler std examples; then
-              echo "Legacy non-List @ usage remains: $pattern" >&2
+              echo "Legacy Record @ usage remains: $pattern" >&2
               exit 1
             fi
           done
 
-          echo 'Remaining @ syntax (expected to be List positions):'
+          echo 'Remaining @ syntax (expected to be List positions or the lexer token):'
           grep -R -n --include='*.beacon' '@' compiler std examples || true
 
       - name: Restore one-time seed source
