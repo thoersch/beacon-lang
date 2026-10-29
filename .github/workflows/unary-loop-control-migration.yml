@@ -21,7 +21,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Apply language migration
-        run: python3 tools/migrate-unary-loop-control.py
+        shell: bash
+        run: |
+          python3 tools/migrate-unary-loop-control.py
+          python3 tools/fix-unary-loop-migration.py
 
       - name: Verify self-hosting
         run: bash ./beacon.sh self-host
