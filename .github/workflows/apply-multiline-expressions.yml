@@ -41,11 +41,12 @@ jobs:
           expected=$'7\n43\n-5\n15\nmultiline\n42'
           [[ "$output" == "$expected" ]]
 
-      - name: Commit verified changes
+      - name: Commit verified source changes
         shell: bash
         run: |
+          git restore .github/workflows/compiler.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add compiler/parser.beacon examples/multiline-expressions.beacon README.md .github/workflows/compiler.yml
+          git add compiler/parser.beacon examples/multiline-expressions.beacon README.md
           git commit -m "Add multiline expression continuation"
           git push origin HEAD:feature/multiline-expressions
