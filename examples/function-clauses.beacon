@@ -1,0 +1,50 @@
+describe: fn = [
+    fn(value: string) = "string",
+    fn(value: number) = "number"
+]
+
+pick: fn = [
+    fn(value: atom) = "atom",
+    fn(value: string) = "string"
+]
+
+sliceText: fn = [
+    fn(value: string, start: number) = value.slice(start),
+    fn(value: string, start: number, length: number) = value.slice(start, length)
+]
+
+formatter: type = {
+    prefix: string
+    render: fn = [
+        fn(value: string) = "{.prefix}:{value}",
+        fn(value: number) = "{.prefix}:number"
+    ]
+}
+
+person: type = {
+    name: string
+}
+
+describePerson: fn = [
+    fn(value: person) = "person",
+    fn(value: record) = "record"
+]
+
+scalar: fn = [
+    fn(value: string | number) = "scalar",
+    fn(value: atom) = "atom"
+]
+
+f: formatter = { prefix: "value" }
+ada: person = { name: "Ada" }
+
+print(kind(describe))
+print(describe("Beacon"))
+print(describe(42))
+print(pick("Beacon"))
+print(sliceText("Beacon", 2))
+print(sliceText("Beacon", 1, 3))
+print(f.render("Ada"))
+print(f.render(42))
+print(describePerson(ada))
+print(scalar(42))

@@ -220,6 +220,30 @@ incrementTwice: fn(x: number) = [
 ]
 ```
 
+A function may also be defined as an ordered List of matching clauses:
+
+```beacon
+format: fn = [
+    fn(value: string) = "text: {value}",
+    fn(value: number) = "number: {value}"
+]
+```
+
+Function clauses are pattern matching, not ranked overload resolution. Beacon tries clauses from top to bottom and executes the first clause whose arity and parameter types match the arguments. Union and named types participate in the same type matching rules. Return types never participate in dispatch.
+
+Because clause order is semantic, broader patterns can deliberately precede narrower ones:
+
+```beacon
+classify: fn = [
+    fn(value: atom) = "atom",
+    fn(value: string) = "string"
+]
+
+print(classify("Beacon")) // atom
+```
+
+The declaration remains one binding named `format`; the clause List is part of the function's program structure rather than a set of repeated declarations.
+
 ## Conditionals
 
 ```beacon

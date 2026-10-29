@@ -219,7 +219,7 @@ parseDeclaration: fn(state: record) = [
     result: atom | list | record = null,
 
     if matchIdentifier(state, "fn") then
-        result = [symbol("def"), symbol(nameToken.text), symbol("fn"), parseFunctionAfterFn(state)]
+        result = [symbol("def"), symbol(nameToken.text), symbol("fn"), parseFunctionDeclarationAfterFn(state)]
     else
         if matchIdentifier(state, "type") then
             consumeToken(state, "equal", "Expected '=' after type declaration")
@@ -250,6 +250,45 @@ parseTypeAnnotation: fn(state: record) = [
     loop,
 
     result
+]
+
+parseFunctionDeclarationAfterFn: fn(state: record) = [
+    result: list = [],
+
+    if checkToken(state, "lparen") then
+        result = parseFunctionAfterFn(state)
+    else
+        consumeToken(state, "equal", "Expected '(' or '=' after fn")
+        result = parseFunctionClausesAfterEqual(state)
+    end,
+
+    result
+]
+
+parseFunctionClausesAfterEqual: fn(state: record) = [
+    consumeToken(state, "lbracket", "Expected '[' after 'fn ='") ,
+    clauses: list = [symbol("list")],
+    skipNewLines(state),
+
+    if checkToken(state, "rbracket") then
+        fail("Function clause list cannot be empty")
+    end,
+
+    done: boolean = false,
+    for [tick: number = 0, not done, tick += 1]
+        consumeIdentifier(state, "fn", "Expected fn clause")
+        clauses.append(parseFunctionAfterFn(state))
+        skipNewLines(state)
+
+        if matchToken(state, "rbracket") then
+            done = true
+        else
+            consumeToken(state, "comma", "Beacon function clauses require commas between clauses")
+            skipNewLines(state)
+        end
+    loop,
+
+    [symbol("fn"), clauses]
 ]
 
 parseFunctionAfterFn: fn(state: record) = [
@@ -314,7 +353,7 @@ parseTypeDefinition: fn(state: record) = [
         nameToken: record = consumeToken(state, "identifier", "Expected member name")
         consumeToken(state, "colon", "Expected ':' after member name")
         if matchIdentifier(state, "fn") then
-            members.set(nameToken.text, parseFunctionAfterFn(state))
+            members.set(nameToken.text, parseFunctionDeclarationAfterFn(state))
         else
             members.set(nameToken.text, symbol(parseTypeAnnotation(state)))
         end
