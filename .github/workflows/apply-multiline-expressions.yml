@@ -24,6 +24,9 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Fix migration anchor
+        run: python3 tools/fix-multiline-migration.py
+
       - name: Apply parser migration
         run: python3 tools/apply-multiline-expressions.py
 
