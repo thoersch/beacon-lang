@@ -61,19 +61,19 @@ findTopLevelDeclaration: fn(tokens: list, name: string) = [
             braceDepth += 1
         else
             if token@"kind" == "rbrace" then
-                braceDepth -= 1
+                braceDepth = braceDepth - 1
             else
                 if token@"kind" == "lbracket" then
                     bracketDepth += 1
                 else
                     if token@"kind" == "rbracket" then
-                        bracketDepth -= 1
+                        bracketDepth = bracketDepth - 1
                     else
                         if token@"kind" == "lparen" then
                             parenDepth += 1
                         else
                             if token@"kind" == "rparen" then
-                                parenDepth -= 1
+                                parenDepth = parenDepth - 1
                             end
                         end
                     end
@@ -123,7 +123,7 @@ findFieldInRecord: fn(tokens: list, openIndex: number, fieldName: string) = [
                 if depth == 0 then
                     done = true
                 else
-                    depth -= 1
+                    depth = depth - 1
                 end
             else
                 if not result@"found" and depth == 0 and token@"kind" == "identifier" and token@"text" == fieldName then
