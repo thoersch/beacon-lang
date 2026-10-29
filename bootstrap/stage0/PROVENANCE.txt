@@ -2,9 +2,9 @@ Beacon Stage-0 bootstrap seed
 =============================
 
 Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
-Seed refresh: List push()/pop() mutation primitives, ordered function-clause dispatch, List-only positional @ indexing, explicit Record get()/set(), filesystem/path primitives, seed-only local include composition, and generic namespace plan assembly.
+Seed refresh: Number floor()/ceil()/sqrt()/pow() primitives, List push()/pop() mutation primitives, ordered function-clause dispatch, List-only positional @ indexing, explicit Record get()/set(), filesystem/path primitives, seed-only local include composition, and generic namespace plan assembly.
 Historical implementation language: C#
-Source branch: feature/list-push-pop
+Source branch: feature/std-math-v1
 .NET SDK: 10.0.403
 
 The one-time C# refresh source was removed after this seed was built and verified.
