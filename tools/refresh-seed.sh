@@ -22,6 +22,7 @@ output="$(dotnet "$STAGE0/Beacon.Compiler.dll" "$COMPILER" --stage1-run "$EXAMPL
 printf '%s\n' "$output"
 grep -F "Hello, I'm Ada" <<<"$output" >/dev/null
 grep -F "Boston" <<<"$output" >/dev/null
+grep -F "42" <<<"$output" >/dev/null
 
 commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 {
@@ -29,7 +30,7 @@ commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
   echo "============================="
   echo
   echo "Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler."
-  echo "Seed refresh: filesystem/path primitives plus seed-only include composition used to bootstrap the split compiler."
+  echo "Seed refresh: filesystem/path primitives, seed-only local include composition, and the generic namespace plan operation used by Beacon standard-library namespaces."
   echo "Historical implementation language: C#"
   echo "Source commit before refresh: $commit"
   echo ".NET SDK: $(dotnet --version)"
@@ -43,6 +44,8 @@ commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
   sha256sum Beacon.Compiler.dll Beacon.Compiler.deps.json Beacon.Compiler.runtimeconfig.json > SHA256SUMS
 )
 
+dotnet build-server shutdown >/dev/null 2>&1 || true
+sleep 1
 rm -rf "$ROOT/tools/seed-refresh" "$OUT"
 if find "$ROOT" -type f \( -name '*.cs' -o -name '*.csproj' \) -print -quit | grep -q .; then
   echo "C# source remains after seed refresh:" >&2

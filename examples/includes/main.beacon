@@ -16,4 +16,4 @@ ada: person = {
 
 print(ada.greet())
 print(ada.home.city)
-print(twice(21))
+print(math.twice(21))

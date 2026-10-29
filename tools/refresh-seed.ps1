@@ -35,6 +35,7 @@ $output | ForEach-Object { Write-Host $_ }
 $text = ($output -join "`n")
 if (-not $text.Contains("Hello, I'm Ada")) { throw "Include example did not produce expected greeting" }
 if (-not $text.Contains("Boston")) { throw "Include example did not produce expected nested type output" }
+if (-not $text.Contains("42")) { throw "Standard-library namespace example did not produce expected math.twice output" }
 
 $dotnetVersion = (& dotnet --version).Trim()
 $commit = "unknown"
@@ -46,7 +47,7 @@ Beacon Stage-0 bootstrap seed
 =============================
 
 Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
-Seed refresh: filesystem/path primitives plus seed-only include composition used to bootstrap the split compiler.
+Seed refresh: filesystem/path primitives, seed-only local include composition, and the generic namespace plan operation used by Beacon standard-library namespaces.
 Historical implementation language: C#
 Source commit before refresh: $commit
 .NET SDK: $dotnetVersion
@@ -64,14 +65,12 @@ $hashLines = foreach ($name in $hashFiles) {
 }
 Set-Content -Path (Join-Path $Stage0 "SHA256SUMS") -Value $hashLines -Encoding ASCII
 
-Write-Host "Beacon: shutting down .NET build servers..."
+Write-Host "Beacon: shutting down .NET build servers before cleanup..."
 & dotnet build-server shutdown | Out-Null
 Start-Sleep -Milliseconds 750
 
 Write-Host "Beacon: removing one-time C# seed refresh source..."
-
 $seedRefresh = Join-Path $Root "tools/seed-refresh"
-
 for ($attempt = 1; $attempt -le 5; $attempt++) {
     try {
         Remove-Item $seedRefresh -Recurse -Force -ErrorAction Stop
@@ -79,12 +78,9 @@ for ($attempt = 1; $attempt -le 5; $attempt++) {
     }
     catch {
         if ($attempt -eq 5) { throw }
-
-        Write-Host "Cleanup retry $attempt..."
         Start-Sleep -Milliseconds 750
     }
 }
-
 Remove-Item $SeedOut -Recurse -Force -ErrorAction SilentlyContinue
 
 $cs = Get-ChildItem -Path $Root -Recurse -File | Where-Object { $_.Extension -in ".cs", ".csproj" }

@@ -1,0 +1,35 @@
+{
+  "name": "beacon-lang",
+  "displayName": "Beacon Language",
+  "description": "Syntax highlighting and language configuration for Beacon.",
+  "version": "0.1.0",
+  "publisher": "beacon-lang",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "beacon",
+        "aliases": [
+          "Beacon",
+          "beacon"
+        ],
+        "extensions": [
+          ".beacon"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "beacon",
+        "scopeName": "source.beacon",
+        "path": "./syntaxes/beacon.tmLanguage.json"
+      }
+    ]
+  }
+}

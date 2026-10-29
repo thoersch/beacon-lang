@@ -221,6 +221,10 @@ emitForm: fn(node: list) = [
         result = emitList(node)
         handled = true
     end,
+    if form == "namespace" then
+        result = emitNamespace(node)
+        handled = true
+    end,
     if form == "get" then
         result = emitGet(node)
         handled = true
@@ -342,6 +346,32 @@ emitList: fn(node: list) = [
         items.append(emit(node@i))
     loop,
     [{ op: "list", items: items }]
+]
+
+emitNamespace: fn(node: list) = [
+    body: list = node@1,
+    children: record = node@2,
+    names: list = namespaceExportNames(body),
+    childKeys: list = children.keys(),
+    childPlans: list = [],
+
+    for [i: number = 0, i < childKeys.length(), i += 1]
+        key: string = childKeys@i
+        if listContainsString(names, key) then
+            fail("Standard-library namespace member conflicts with child namespace: " + key)
+        end
+        childPlans.append({
+            name: key,
+            value: emit(children@key)
+        })
+    loop,
+
+    [{
+        op: "namespace",
+        names: names,
+        body: emitDoStatements(body),
+        children: childPlans
+    }]
 ]
 
 emitGet: fn(node: list) = [

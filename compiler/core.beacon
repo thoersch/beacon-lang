@@ -1,5 +1,8 @@
 // Beacon compiler Core helpers and source composition.
-// Includes are compile-time composition. They disappear before emission.
+//
+// Quoted includes compose declarations into the current namespace.
+// Standard-library includes (std.*) are isolated under their natural namespace.
+// Includes disappear before normal Core emission.
 
 isForm: fn(node: atom | list | record, name: string) = [
     result: boolean = false,
@@ -45,6 +48,30 @@ namedIncludePath: fn(name: string) = [
     path
 ]
 
+splitDottedName: fn(name: string) = [
+    parts: list = [],
+    current: string = "",
+
+    for [i: number = 0, i < name.length(), i += 1]
+        character: string = name@i
+        if character == "." then
+            if current == "" then
+                fail("Invalid named include: " + name)
+            end
+            parts.append(current)
+            current = ""
+        else
+            current += character
+        end
+    loop,
+
+    if current == "" then
+        fail("Invalid named include: " + name)
+    end,
+    parts.append(current),
+    parts
+]
+
 formatIncludeCycle: fn(stack: list, repeated: string) = [
     text: string = "",
     for [i: number = 0, i < stack.length(), i += 1]
@@ -72,9 +99,14 @@ resolveIncludePath: fn(currentFile: string, spec: record) = [
         result = absolutePath(combinePath(directoryName(currentFile), includeName + ".beacon"))
     else
         if includeKind == "named" then
+            parts: list = splitDottedName(includeName)
+            if parts.length() < 2 or parts@0 != "std" then
+                fail("Named includes are reserved for the standard library and must begin with 'std.': " + includeName)
+            end
+
             root: string = environment("BEACON_HOME")
             if root == "" then
-                fail("Named includes require BEACON_HOME to be set")
+                fail("Standard-library includes require BEACON_HOME to be set")
             end
             result = absolutePath(combinePath(root, namedIncludePath(includeName) + ".beacon"))
         else
@@ -85,32 +117,192 @@ resolveIncludePath: fn(currentFile: string, spec: record) = [
     result
 ]
 
+definitionName: fn(node: atom | list | record) = [
+    result: string = "",
+    if isForm(node, "def") then
+        name: symbol = node@1
+        result = name.name
+    end,
+    result
+]
+
+programHasDefinition: fn(program: list, name: string) = [
+    found: boolean = false,
+    for [i: number = 1, i < program.length(), i += 1]
+        if definitionName(program@i) == name then
+            found = true
+        end
+    loop,
+    found
+]
+
+appendProgramNode: fn(target: list, node: atom | list | record) = [
+    name: string = definitionName(node),
+    if name != "" and programHasDefinition(target, name) then
+        fail("Duplicate declaration while composing includes: " + name)
+    end,
+    target.append(node),
+    target
+]
+
 appendProgramBody: fn(target: list, source: list) = [
     for [i: number = 1, i < source.length(), i += 1]
-        target.append(source@i)
+        appendProgramNode(target, source@i)
     loop,
     target
 ]
 
-resolveProgramIncludes: fn(program: list, currentFile: string, seen: list, stack: list) = [
+newNamespaceNode: fn() = {
+    module: null
+    children: {}
+}
+
+standardNamespaceParts: fn(name: string) = [
+    parts: list = splitDottedName(name),
+    if parts.length() < 2 or parts@0 != "std" then
+        fail("Standard-library include must begin with 'std.': " + name)
+    end,
+
+    result: list = [],
+    for [i: number = 1, i < parts.length(), i += 1]
+        result.append(parts@i)
+    loop,
+    result
+]
+
+namespaceModuleRegistered: fn(tree: record, parts: list) = [
+    node: record = tree,
+    found: boolean = true,
+
+    for [i: number = 0, i < parts.length(), i += 1]
+        children: record = node@"children"
+        part: string = parts@i
+        if not children.has(part) then
+            found = false
+        else
+            node = children@part
+        end
+    loop,
+
+    if found then
+        found = kind(node@"module") == "list"
+    end,
+    found
+]
+
+registerNamespaceModule: fn(tree: record, parts: list, program: list) = [
+    node: record = tree,
+
+    for [i: number = 0, i < parts.length(), i += 1]
+        children: record = node@"children"
+        part: string = parts@i
+        if not children.has(part) then
+            children@part = newNamespaceNode()
+        end
+        node = children@part
+    loop,
+
+    if kind(node@"module") == "list" then
+        fail("Standard-library namespace included more than once: " + parts@(parts.length() - 1))
+    end,
+    node@"module" = program,
+    tree
+]
+
+namespaceExportNames: fn(program: list) = [
+    names: list = [],
+
+    for [i: number = 1, i < program.length(), i += 1]
+        node: atom | list | record = program@i
+        name: string = definitionName(node)
+        if name == "" then
+            fail("Standard-library namespaces may contain only top-level declarations")
+        end
+        if listContainsString(names, name) then
+            fail("Duplicate declaration in standard-library namespace: " + name)
+        end
+        names.append(name)
+    loop,
+
+    names
+]
+
+namespaceNodeExpression: fn(node: record) = [
+    module: atom | list | record | null = node@"module",
+    body: list = [symbol("do")],
+    if kind(module) == "list" then
+        body = module
+    end,
+
+    children: record = node@"children",
+    childKeys: list = children.keys(),
+    childExpressions: record = {},
+    exports: list = namespaceExportNames(body),
+
+    for [i: number = 0, i < childKeys.length(), i += 1]
+        key: string = childKeys@i
+        if listContainsString(exports, key) then
+            fail("Standard-library namespace member conflicts with child namespace: " + key)
+        end
+        childExpressions@key = namespaceNodeExpression(children@key)
+    loop,
+
+    [symbol("namespace"), body, childExpressions]
+]
+
+composeStandardNamespaces: fn(program: list, tree: record) = [
+    result: list = [symbol("do")],
+    root: record = tree@"children",
+    roots: list = root.keys(),
+
+    for [i: number = 0, i < roots.length(), i += 1]
+        name: string = roots@i
+        if programHasDefinition(program, name) then
+            fail("Standard-library namespace conflicts with declaration: " + name)
+        end
+        result.append([
+            symbol("def"),
+            symbol(name),
+            symbol("record"),
+            namespaceNodeExpression(root@name)
+        ])
+    loop,
+
+    appendProgramBody(result, program),
+    result
+]
+
+resolveProgramIncludes: fn(program: list, currentFile: string, seen: list, stack: list, standardNamespaces: record) = [
     result: list = [symbol("do")],
 
     for [i: number = 1, i < program.length(), i += 1]
         node: atom | list | record = program@i
         if isForm(node, "include") then
             spec: record = node@1
+            includeKind: string = spec@"kind"
             includePath: string = resolveIncludePath(currentFile, spec)
-            included: list = loadProgramInternal(includePath, seen, stack)
-            appendProgramBody(result, included)
+
+            if includeKind == "local" then
+                included: list = loadProgramInternal(includePath, seen, stack, standardNamespaces)
+                appendProgramBody(result, included)
+            else
+                parts: list = standardNamespaceParts(spec@"name")
+                if not namespaceModuleRegistered(standardNamespaces, parts) then
+                    moduleNamespaces: record = newNamespaceNode()
+                    included: list = loadProgramInternal(includePath, [], stack, moduleNamespaces)
+                    included = composeStandardNamespaces(included, moduleNamespaces)
+                    registerNamespaceModule(standardNamespaces, parts, included)
+                end
+            end
         else
-            result.append(node)
+            appendProgramNode(result, node)
         end
     loop,
 
     result
 ]
 
-loadProgramInternal: fn(path: string, seen: list, stack: list) = [
+loadProgramInternal: fn(path: string, seen: list, stack: list, standardNamespaces: record) = [
     canonical: string = absolutePath(path),
     result: list = [symbol("do")],
 
@@ -127,10 +319,14 @@ loadProgramInternal: fn(path: string, seen: list, stack: list) = [
         nextStack: list = stack.concat([canonical])
         source: string = readFile(canonical)
         parsed: list = parseProgram(lex(source))
-        result = resolveProgramIncludes(parsed, canonical, seen, nextStack)
+        result = resolveProgramIncludes(parsed, canonical, seen, nextStack, standardNamespaces)
     end,
 
     result
 ]
 
-loadProgram: fn(path: string) = loadProgramInternal(path, [], [])
+loadProgram: fn(path: string) = [
+    standardNamespaces: record = newNamespaceNode(),
+    program: list = loadProgramInternal(path, [], [], standardNamespaces),
+    composeStandardNamespaces(program, standardNamespaces)
+]

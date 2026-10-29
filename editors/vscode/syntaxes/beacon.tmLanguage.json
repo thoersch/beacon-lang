@@ -1,0 +1,213 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Beacon",
+  "scopeName": "source.beacon",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#includes" },
+    { "include": "#declarations" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#numbers" },
+    { "include": "#operators" },
+    { "include": "#member-access" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.beacon",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.beacon",
+          "begin": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.beacon" }
+          },
+          "end": "\"",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.beacon" }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.beacon",
+              "match": "\\\\(?:[nrt\"\\\\]|.)"
+            },
+            {
+              "name": "meta.interpolation.beacon",
+              "begin": "\\{",
+              "beginCaptures": {
+                "0": { "name": "punctuation.section.interpolation.begin.beacon" }
+              },
+              "end": "\\}",
+              "endCaptures": {
+                "0": { "name": "punctuation.section.interpolation.end.beacon" }
+              },
+              "patterns": [
+                {
+                  "name": "variable.other.readwrite.beacon",
+                  "match": "\\.?[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "includes": {
+      "patterns": [
+        {
+          "name": "meta.include.local.beacon",
+          "match": "\\b(include)\\s+(\"(?:[^\"\\\\]|\\\\.)*\")",
+          "captures": {
+            "1": { "name": "keyword.control.import.include.beacon" },
+            "2": { "name": "string.quoted.double.include.beacon" }
+          }
+        },
+        {
+          "name": "meta.include.std.beacon",
+          "match": "\\b(include)\\s+(std(?:\\.[A-Za-z_][A-Za-z0-9_]*)+)",
+          "captures": {
+            "1": { "name": "keyword.control.import.include.beacon" },
+            "2": { "name": "support.module.beacon" }
+          }
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "meta.function.declaration.beacon",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*(fn)\\b",
+          "captures": {
+            "1": { "name": "entity.name.function.beacon" },
+            "2": { "name": "storage.type.function.beacon" }
+          }
+        },
+        {
+          "name": "meta.type.declaration.beacon",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*(type)\\b",
+          "captures": {
+            "1": { "name": "entity.name.type.beacon" },
+            "2": { "name": "storage.type.beacon" }
+          }
+        },
+        {
+          "name": "meta.variable.declaration.beacon",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\s*\\|\\s*[A-Za-z_][A-Za-z0-9_]*)*)\\s*(?==)",
+          "captures": {
+            "1": { "name": "variable.other.readwrite.beacon" },
+            "2": { "name": "entity.name.type.beacon" }
+          }
+        },
+        {
+          "name": "meta.parameter.beacon",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\s*\\|\\s*[A-Za-z_][A-Za-z0-9_]*)*)",
+          "captures": {
+            "1": { "name": "variable.parameter.beacon" },
+            "2": { "name": "entity.name.type.beacon" }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.conditional.beacon",
+          "match": "\\b(if|then|else|end)\\b"
+        },
+        {
+          "name": "keyword.control.loop.beacon",
+          "match": "\\b(for|loop)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.beacon",
+          "match": "\\b(and|or|not)\\b"
+        },
+        {
+          "name": "keyword.control.import.include.beacon",
+          "match": "\\binclude\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.function.beacon",
+          "match": "\\bfn\\b"
+        },
+        {
+          "name": "storage.type.beacon",
+          "match": "\\b(type|number|string|boolean|list|record|atom|symbol|null)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.beacon",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.beacon",
+          "match": "\\bnull\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.beacon",
+          "match": "(?<![A-Za-z0-9_])\\d+(?:\\.\\d+)?(?![A-Za-z0-9_])"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.beacon",
+          "match": "\\+=|="
+        },
+        {
+          "name": "keyword.operator.comparison.beacon",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.arithmetic.beacon",
+          "match": "\\+|-|\\*|/"
+        },
+        {
+          "name": "keyword.operator.index.beacon",
+          "match": "@"
+        },
+        {
+          "name": "keyword.operator.type-union.beacon",
+          "match": "\\|"
+        }
+      ]
+    },
+    "member-access": {
+      "patterns": [
+        {
+          "name": "variable.language.receiver.beacon",
+          "match": "(?<![A-Za-z0-9_])\\.[A-Za-z_][A-Za-z0-9_]*"
+        },
+        {
+          "name": "meta.member.access.beacon",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\.([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "variable.other.object.beacon" },
+            "2": { "name": "variable.other.property.beacon" }
+          }
+        }
+      ]
+    }
+  }
+}
