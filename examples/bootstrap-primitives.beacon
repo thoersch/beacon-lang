@@ -10,7 +10,7 @@ print(more)
 
 source: string = "Beacon"
 print(source.length())
-print(source@0)
+print(source.slice(0, 1))
 print(source.slice(1, 3))
 print(source.startsWith("Bea"))
 
@@ -19,7 +19,11 @@ node: record = {
     text: "age"
 }
 
-print(node@"text")
+print(node.text)
+field: string = "text"
+print(node.get(field))
+node.set(field, "name")
+print(node.text)
 print(node.has("kind"))
 print(node.keys())
 

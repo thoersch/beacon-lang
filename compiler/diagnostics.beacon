@@ -79,8 +79,8 @@ sourceTextForFile: fn(sources: list, file: string) = [
     found: boolean = false,
     for [i: number = 0, i < sources.length(), i += 1]
         entry: record = sources@i
-        if not found and entry@"file" == file then
-            result = entry@"source"
+        if not found and entry.file == file then
+            result = entry.source
             found = true
         end
     loop,
@@ -94,7 +94,7 @@ sourceLineText: fn(source: string, requestedLine: number) = [
     finished: boolean = false,
 
     for [i: number = 0, i < source.length(), i += 1]
-        character: string = source@i
+        character: string = source.slice(i, 1)
         if not finished then
             if character == "\n" then
                 if collecting then
@@ -117,12 +117,12 @@ sourceLineText: fn(source: string, requestedLine: number) = [
 ]
 
 renderSourceExcerpt: fn(source: record, sources: list) = [
-    start: record = source@"start",
-    finish: record = source@"end",
-    line: number = start@"line",
-    column: number = start@"column",
-    width: number = finish@"column" - column,
-    text: string = sourceTextForFile(sources, source@"file"),
+    start: record = source.start,
+    finish: record = source.end,
+    line: number = start.line,
+    column: number = start.column,
+    width: number = finish.column - column,
+    text: string = sourceTextForFile(sources, source.file),
     result: string = "",
 
     if width < 1 then
@@ -143,18 +143,18 @@ renderSourceExcerpt: fn(source: record, sources: list) = [
 
 renderDiagnostic: fn(item: record, sources: list) = [
     result: string = "",
-    source: atom | list | record | null = item@"source",
+    source: atom | list | record | null = item.source,
 
     if kind(source) == "record" then
-        start: record = source@"start"
-        result = source@"file" + ":" + start@"line" + ":" + start@"column" + " [" + item@"code" + "]\n"
+        start: record = source.start
+        result = source.file + ":" + start.line + ":" + start.column + " [" + item.code + "]\n"
     else
-        result = "[" + item@"code" + "]\n"
+        result = "[" + item.code + "]\n"
     end,
 
-    result += item@"message",
+    result += item.message,
 
-    path: list = item@"path",
+    path: list = item.path,
     if path.length() > 0 then
         result += "\nwhile checking: " + pathText(path)
     end,
@@ -163,12 +163,12 @@ renderDiagnostic: fn(item: record, sources: list) = [
         result += renderSourceExcerpt(source, sources)
     end,
 
-    notes: list = item@"notes",
+    notes: list = item.notes,
     for [i: number = 0, i < notes.length(), i += 1]
         result += "\n\nnote: " + notes@i
     loop,
 
-    hints: list = item@"hints",
+    hints: list = item.hints,
     for [i: number = 0, i < hints.length(), i += 1]
         result += "\n\nhint: " + hints@i
     loop,
@@ -188,8 +188,8 @@ renderDiagnostics: fn(items: list, sources: list) = [
 ]
 
 requireCompilationPlan: fn(result: record, sources: list) = [
-    if not result@"ok" then
-        fail(renderDiagnostics(result@"diagnostics", sources))
+    if not result.ok then
+        fail(renderDiagnostics(result.diagnostics, sources))
     end,
-    result@"plan"
+    result.plan
 ]

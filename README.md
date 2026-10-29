@@ -185,6 +185,14 @@ Member access uses `.`:
 person.name
 ```
 
+`@` is exclusively positional List access. Records are named structures and Strings are not Lists, so neither supports `@`. When a Record key is data rather than a statically known name, use the explicit Record methods:
+
+```beacon
+field: string = "name"
+print(person.get(field))
+person.set(field, "Grace")
+```
+
 Inside type behavior, a leading `.` refers to the current receiver:
 
 ```beacon

@@ -29,11 +29,11 @@ collectSourceFilesInternal: fn(path: string, seen: list, files: list) = [
 
 collectSourceFiles: fn(path: string) = collectSourceFilesInternal(path, [], [])
 
-spanFromToken: fn(file: string, token: record) = makeSourceSpan(file, token@"line", token@"column", token@"text".length())
+spanFromToken: fn(file: string, token: record) = makeSourceSpan(file, token.line, token.column, token.text.length())
 
 nextNonNewlineTokenIndex: fn(tokens: list, start: number) = [
     index: number = start,
-    for [i: number = start, i < tokens.length() and tokens@index@"kind" == "newline", i += 1]
+    for [i: number = start, i < tokens.length() and tokens@index.kind == "newline", i += 1]
         index += 1
     loop,
     index
@@ -48,31 +48,31 @@ findTopLevelDeclaration: fn(tokens: list, name: string) = [
     for [i: number = 0, i < tokens.length(), i += 1]
         token: record = tokens@i
 
-        if not result@"found" and braceDepth == 0 and bracketDepth == 0 and parenDepth == 0 then
-            if token@"kind" == "identifier" and token@"text" == name then
+        if not result.found and braceDepth == 0 and bracketDepth == 0 and parenDepth == 0 then
+            if token.kind == "identifier" and token.text == name then
                 nextIndex: number = nextNonNewlineTokenIndex(tokens, i + 1)
-                if nextIndex < tokens.length() and tokens@nextIndex@"kind" == "colon" then
+                if nextIndex < tokens.length() and tokens@nextIndex.kind == "colon" then
                     result = { found: true, index: i }
                 end
             end
         end
 
-        if token@"kind" == "lbrace" then
+        if token.kind == "lbrace" then
             braceDepth += 1
         else
-            if token@"kind" == "rbrace" then
+            if token.kind == "rbrace" then
                 braceDepth = braceDepth - 1
             else
-                if token@"kind" == "lbracket" then
+                if token.kind == "lbracket" then
                     bracketDepth += 1
                 else
-                    if token@"kind" == "rbracket" then
+                    if token.kind == "rbracket" then
                         bracketDepth = bracketDepth - 1
                     else
-                        if token@"kind" == "lparen" then
+                        if token.kind == "lparen" then
                             parenDepth += 1
                         else
-                            if token@"kind" == "rparen" then
+                            if token.kind == "rparen" then
                                 parenDepth = parenDepth - 1
                             end
                         end
@@ -89,15 +89,15 @@ findDeclarationRecordOpen: fn(tokens: list, declarationIndex: number) = [
     result: record = { found: false, index: 0 },
     sawEqual: boolean = false,
 
-    for [i: number = declarationIndex, i < tokens.length() and not result@"found", i += 1]
+    for [i: number = declarationIndex, i < tokens.length() and not result.found, i += 1]
         token: record = tokens@i
-        if token@"kind" == "equal" then
+        if token.kind == "equal" then
             sawEqual = true
         else
-            if sawEqual and token@"kind" == "lbrace" then
+            if sawEqual and token.kind == "lbrace" then
                 result = { found: true, index: i }
             else
-                if sawEqual and token@"kind" == "newline" then
+                if sawEqual and token.kind == "newline" then
                     // A record literal may begin on the following line; keep scanning.
                     null
                 end
@@ -116,19 +116,19 @@ findFieldInRecord: fn(tokens: list, openIndex: number, fieldName: string) = [
     for [i: number = openIndex + 1, i < tokens.length() and not done, i += 1]
         token: record = tokens@i
 
-        if token@"kind" == "lbrace" then
+        if token.kind == "lbrace" then
             depth += 1
         else
-            if token@"kind" == "rbrace" then
+            if token.kind == "rbrace" then
                 if depth == 0 then
                     done = true
                 else
                     depth = depth - 1
                 end
             else
-                if not result@"found" and depth == 0 and token@"kind" == "identifier" and token@"text" == fieldName then
+                if not result.found and depth == 0 and token.kind == "identifier" and token.text == fieldName then
                     nextIndex: number = nextNonNewlineTokenIndex(tokens, i + 1)
-                    if nextIndex < tokens.length() and tokens@nextIndex@"kind" == "colon" then
+                    if nextIndex < tokens.length() and tokens@nextIndex.kind == "colon" then
                         result = { found: true, index: i, colon: nextIndex }
                     end
                 end
@@ -145,14 +145,14 @@ findNestedRecordOpen: fn(tokens: list, colonIndex: number) = [
 
     for [i: number = colonIndex + 1, i < tokens.length() and not done, i += 1]
         token: record = tokens@i
-        if token@"kind" == "lbrace" then
+        if token.kind == "lbrace" then
             result = { found: true, index: i }
             done = true
         else
-            if token@"kind" == "comma" or token@"kind" == "rbrace" then
+            if token.kind == "comma" or token.kind == "rbrace" then
                 done = true
             else
-                if token@"kind" == "newline" then
+                if token.kind == "newline" then
                     // Allow formatting where the opening brace is on the next line.
                     null
                 end
@@ -167,29 +167,29 @@ findPathSpanInSource: fn(entry: record, path: list) = [
     result: record = { found: false, source: null },
 
     if path.length() > 0 then
-        tokens: list = lex(entry@"source")
+        tokens: list = lex(entry.source)
         declaration: record = findTopLevelDeclaration(tokens, path@0)
 
-        if declaration@"found" then
+        if declaration.found then
             if path.length() == 1 then
-                result = { found: true, source: spanFromToken(entry@"file", tokens@(declaration@"index")) }
+                result = { found: true, source: spanFromToken(entry.file, tokens@(declaration.index)) }
             else
-                open: record = findDeclarationRecordOpen(tokens, declaration@"index")
-                if open@"found" then
-                    currentOpen: number = open@"index"
+                open: record = findDeclarationRecordOpen(tokens, declaration.index)
+                if open.found then
+                    currentOpen: number = open.index
                     active: boolean = true
 
                     for [segment: number = 1, segment < path.length() and active, segment += 1]
                         field: record = findFieldInRecord(tokens, currentOpen, path@segment)
-                        if not field@"found" then
+                        if not field.found then
                             active = false
                         else
                             if segment == path.length() - 1 then
-                                result = { found: true, source: spanFromToken(entry@"file", tokens@(field@"index")) }
+                                result = { found: true, source: spanFromToken(entry.file, tokens@(field.index)) }
                             else
-                                nested: record = findNestedRecordOpen(tokens, field@"colon")
-                                if nested@"found" then
-                                    currentOpen = nested@"index"
+                                nested: record = findNestedRecordOpen(tokens, field.colon)
+                                if nested.found then
+                                    currentOpen = nested.index
                                 else
                                     active = false
                                 end
@@ -211,8 +211,8 @@ findPathSpan: fn(sources: list, path: list) = [
     for [i: number = 0, i < sources.length(), i += 1]
         if not found then
             located: record = findPathSpanInSource(sources@i, path)
-            if located@"found" then
-                result = located@"source"
+            if located.found then
+                result = located.source
                 found = true
             end
         end
