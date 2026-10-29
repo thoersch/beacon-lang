@@ -29,7 +29,7 @@ splitTypeNames: fn(typeName: string) = [
         character: string = typeName.slice(i, 1)
         if character == "|" then
             if current != "" then
-                result.append(current)
+                result.push(current)
                 current = ""
             end
         else
@@ -38,7 +38,7 @@ splitTypeNames: fn(typeName: string) = [
     loop,
 
     if current != "" then
-        result.append(current)
+        result.push(current)
     end,
 
     result
@@ -101,7 +101,7 @@ fieldNames: fn(members: record) = [
     for [i: number = 0, i < keys.length(), i += 1]
         key: string = keys@i
         if kind(members.get(key)) == "symbol" then
-            result.append(key)
+            result.push(key)
         end
     loop,
 
@@ -156,7 +156,7 @@ namedTypeMembers: fn(types: record, typeName: string) = [
 
 appendTypeMismatch: fn(diagnostics: list, sources: list, path: list, expectedType: string, actualType: string) = [
     source: atom | list | record | null = findPathSpan(sources, path),
-    diagnostics.append(makeDiagnostic(
+    diagnostics.push(makeDiagnostic(
         "B1004",
         "typecheck",
         "Type mismatch for '" + pathText(path) + "': expected " + expectedType + ", got " + actualType,
@@ -237,14 +237,14 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
             if suggestion != "" then
                 expectedSymbol: symbol = members.get(suggestion)
                 expected = { owner: typeName, field: suggestion, type: expectedSymbol.name }
-                hints.append("Did you mean '" + suggestion + "'?")
-                suggestedFields.append(suggestion)
+                hints.push("Did you mean '" + suggestion + "'?")
+                suggestedFields.push(suggestion)
             else
-                notes.append(validFieldsText(members))
+                notes.push(validFieldsText(members))
             end
 
             source: atom | list | record | null = findPathSpan(sources, fieldPath)
-            diagnostics.append(makeDiagnostic(
+            diagnostics.push(makeDiagnostic(
                 "B1002",
                 "typecheck",
                 "Unknown field '" + key + "' in " + typeName,
@@ -270,7 +270,7 @@ validateRecordAgainstType: fn(value: record, typeName: string, members: record, 
             source: atom | list | record | null = findPathSpan(sources, parent)
             fieldType: symbol = member
 
-            diagnostics.append(makeDiagnostic(
+            diagnostics.push(makeDiagnostic(
                 "B1003",
                 "typecheck",
                 "Missing required field '" + key + "' in " + typeName,

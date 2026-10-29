@@ -15,7 +15,7 @@ pushLoopContext: fn(breakLabel: string, continueLabel: string) = [
     if loopDepth < loopContexts.length() then
         loopContexts@loopDepth = context
     else
-        loopContexts.append(context)
+        loopContexts.push(context)
     end,
     loopDepth += 1,
     null
@@ -90,7 +90,7 @@ emitStatement: fn(node: atom | list | record) = [
                     result = emitContinue()
                 else
                     result = emit(node)
-                    result.append({ op: "pop" })
+                    result.push({ op: "pop" })
                 end
             end
         end
@@ -110,7 +110,7 @@ emitFunctionBody: fn(body: atom | list | record) = [
     ops: list = [],
     if isForm(body, "do") then
         if body.length() == 1 then
-            ops.append({ op: "ldnull" })
+            ops.push({ op: "ldnull" })
         else
             for [i: number = 1, i < body.length() - 1, i += 1]
                 ops = ops.concat(emitStatement(body@i))
@@ -118,7 +118,7 @@ emitFunctionBody: fn(body: atom | list | record) = [
             last: atom | list | record = body@(body.length() - 1)
             if isStatementForm(last) then
                 ops = ops.concat(emitStatement(last))
-                ops.append({ op: "ldnull" })
+                ops.push({ op: "ldnull" })
             else
                 ops = ops.concat(emit(last))
             end
@@ -197,7 +197,7 @@ emitRecord: fn(node: record) = [
 
     for [i: number = 0, i < keys.length(), i += 1]
         key: string = keys@i
-        fields.append({
+        fields.push({
             name: key,
             value: emit(node.get(key))
         })
@@ -309,7 +309,7 @@ emitForm: fn(node: list) = [
 emitBinary: fn(node: list, runtimeMethod: string) = [
     ops: list = emit(node@1),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "call", arg: runtimeMethod }),
+    ops.push({ op: "call", arg: runtimeMethod }),
     ops
 ]
 
@@ -319,33 +319,33 @@ emitNegate: fn(node: list) = [
         { op: "box", arg: "number" }
     ],
     ops = ops.concat(emit(node@1)),
-    ops.append({ op: "call", arg: "Runtime.Sub" }),
+    ops.push({ op: "call", arg: "Runtime.Sub" }),
     ops
 ]
 
 emitEquality: fn(node: list) = [
     ops: list = emit(node@1),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "call", arg: "Runtime.Equal" }),
-    ops.append({ op: "box", arg: "boolean" }),
+    ops.push({ op: "call", arg: "Runtime.Equal" }),
+    ops.push({ op: "box", arg: "boolean" }),
     ops
 ]
 
 emitNotEqual: fn(node: list) = [
     ops: list = emit(node@1),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "call", arg: "Runtime.Equal" }),
-    ops.append({ op: "not.bool" }),
-    ops.append({ op: "box", arg: "boolean" }),
+    ops.push({ op: "call", arg: "Runtime.Equal" }),
+    ops.push({ op: "not.bool" }),
+    ops.push({ op: "box", arg: "boolean" }),
     ops
 ]
 
 emitComparison: fn(node: list, operator: string) = [
     ops: list = emit(node@1),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "ldstr", arg: operator }),
-    ops.append({ op: "call", arg: "Runtime.Compare" }),
-    ops.append({ op: "box", arg: "boolean" }),
+    ops.push({ op: "ldstr", arg: operator }),
+    ops.push({ op: "call", arg: "Runtime.Compare" }),
+    ops.push({ op: "box", arg: "boolean" }),
     ops
 ]
 
@@ -353,15 +353,15 @@ emitLogicalAnd: fn(node: list) = [
     falseLabel: string = nextLabel("and_false_"),
     endLabel: string = nextLabel("and_end_"),
     ops: list = emit(node@1),
-    ops.append({ op: "call", arg: "Runtime.Bool" }),
-    ops.append({ op: "brfalse", label: falseLabel }),
+    ops.push({ op: "call", arg: "Runtime.Bool" }),
+    ops.push({ op: "brfalse", label: falseLabel }),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "call", arg: "Runtime.Bool" }),
-    ops.append({ op: "br", label: endLabel }),
-    ops.append({ op: "label", name: falseLabel }),
-    ops.append({ op: "ldbool", arg: false }),
-    ops.append({ op: "label", name: endLabel }),
-    ops.append({ op: "box", arg: "boolean" }),
+    ops.push({ op: "call", arg: "Runtime.Bool" }),
+    ops.push({ op: "br", label: endLabel }),
+    ops.push({ op: "label", name: falseLabel }),
+    ops.push({ op: "ldbool", arg: false }),
+    ops.push({ op: "label", name: endLabel }),
+    ops.push({ op: "box", arg: "boolean" }),
     ops
 ]
 
@@ -369,30 +369,30 @@ emitLogicalOr: fn(node: list) = [
     trueLabel: string = nextLabel("or_true_"),
     endLabel: string = nextLabel("or_end_"),
     ops: list = emit(node@1),
-    ops.append({ op: "call", arg: "Runtime.Bool" }),
-    ops.append({ op: "brtrue", label: trueLabel }),
+    ops.push({ op: "call", arg: "Runtime.Bool" }),
+    ops.push({ op: "brtrue", label: trueLabel }),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "call", arg: "Runtime.Bool" }),
-    ops.append({ op: "br", label: endLabel }),
-    ops.append({ op: "label", name: trueLabel }),
-    ops.append({ op: "ldbool", arg: true }),
-    ops.append({ op: "label", name: endLabel }),
-    ops.append({ op: "box", arg: "boolean" }),
+    ops.push({ op: "call", arg: "Runtime.Bool" }),
+    ops.push({ op: "br", label: endLabel }),
+    ops.push({ op: "label", name: trueLabel }),
+    ops.push({ op: "ldbool", arg: true }),
+    ops.push({ op: "label", name: endLabel }),
+    ops.push({ op: "box", arg: "boolean" }),
     ops
 ]
 
 emitLogicalNot: fn(node: list) = [
     ops: list = emit(node@1),
-    ops.append({ op: "call", arg: "Runtime.Bool" }),
-    ops.append({ op: "not.bool" }),
-    ops.append({ op: "box", arg: "boolean" }),
+    ops.push({ op: "call", arg: "Runtime.Bool" }),
+    ops.push({ op: "not.bool" }),
+    ops.push({ op: "box", arg: "boolean" }),
     ops
 ]
 
 emitList: fn(node: list) = [
     items: list = [],
     for [i: number = 1, i < node.length(), i += 1]
-        items.append(emit(node@i))
+        items.push(emit(node@i))
     loop,
     [{ op: "list", items: items }]
 ]
@@ -409,7 +409,7 @@ emitNamespace: fn(node: list) = [
         if listContainsString(names, key) then
             fail("Standard-library namespace member conflicts with child namespace: " + key)
         end
-        childPlans.append({
+        childPlans.push({
             name: key,
             value: emit(children.get(key))
         })
@@ -426,15 +426,15 @@ emitNamespace: fn(node: list) = [
 emitGet: fn(node: list) = [
     ops: list = emitTarget(node@1),
     member: string = node@2,
-    ops.append({ op: "ldstr", arg: member }),
-    ops.append({ op: "call", arg: "Runtime.Get" }),
+    ops.push({ op: "ldstr", arg: member }),
+    ops.push({ op: "call", arg: "Runtime.Get" }),
     ops
 ]
 
 emitIndex: fn(node: list) = [
     ops: list = emit(node@1),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "call", arg: "Runtime.Index" }),
+    ops.push({ op: "call", arg: "Runtime.Index" }),
     ops
 ]
 
@@ -455,7 +455,7 @@ emitDefinition: fn(node: list) = [
         { op: "ldstr", arg: declaredType.name }
     ],
     ops = ops.concat(valuePlan),
-    ops.append({ op: "call", arg: "Runtime.Declare" }),
+    ops.push({ op: "call", arg: "Runtime.Declare" }),
     ops
 ]
 
@@ -470,19 +470,19 @@ emitAssign: fn(node: list) = [
             { op: "ldstr", arg: target.name }
         ]
         result = result.concat(emit(value))
-        result.append({ op: "call", arg: "Runtime.SetVar" })
+        result.push({ op: "call", arg: "Runtime.SetVar" })
     else
         if isForm(target, "get") then
             result = emitTarget(target@1)
-            result.append({ op: "ldstr", arg: target@2 })
+            result.push({ op: "ldstr", arg: target@2 })
             result = result.concat(emit(value))
-            result.append({ op: "call", arg: "Runtime.SetMember" })
+            result.push({ op: "call", arg: "Runtime.SetMember" })
         else
             if isForm(target, "index") then
                 result = emit(target@1)
                 result = result.concat(emit(target@2))
                 result = result.concat(emit(value))
-                result.append({ op: "call", arg: "Runtime.SetIndex" })
+                result.push({ op: "call", arg: "Runtime.SetIndex" })
             else
                 fail("Left side of = must be a variable, member, or indexed value")
             end
@@ -503,13 +503,13 @@ emitPlusAssign: fn(node: list) = [
             { op: "ldstr", arg: target.name }
         ]
         result = result.concat(emit(value))
-        result.append({ op: "call", arg: "Runtime.AddAssignVar" })
+        result.push({ op: "call", arg: "Runtime.AddAssignVar" })
     else
         if isForm(target, "get") then
             result = emitTarget(target@1)
-            result.append({ op: "ldstr", arg: target@2 })
+            result.push({ op: "ldstr", arg: target@2 })
             result = result.concat(emit(value))
-            result.append({ op: "call", arg: "Runtime.AddAssignMember" })
+            result.push({ op: "call", arg: "Runtime.AddAssignMember" })
         else
             fail("Left side of += must be a variable or member")
         end
@@ -524,7 +524,7 @@ emitCall: fn(node: list) = [
     result: list = [],
 
     for [i: number = 2, i < node.length(), i += 1]
-        args.append(emit(node@i))
+        args.push(emit(node@i))
     loop,
 
     if kind(callee) == "symbol" and callee.name == "print" then
@@ -532,46 +532,46 @@ emitCall: fn(node: list) = [
     else
         if kind(callee) == "symbol" and callee.name == "kind" then
             result = args@0
-            result.append({ op: "call", arg: "Runtime.Kind" })
+            result.push({ op: "call", arg: "Runtime.Kind" })
         else
             if kind(callee) == "symbol" and callee.name == "fail" then
                 result = args@0
-                result.append({ op: "call", arg: "Runtime.Fail" })
+                result.push({ op: "call", arg: "Runtime.Fail" })
             else
                 if kind(callee) == "symbol" and callee.name == "symbol" then
                     result = args@0
-                    result.append({ op: "call", arg: "Runtime.Symbol" })
+                    result.push({ op: "call", arg: "Runtime.Symbol" })
                 else
                     if kind(callee) == "symbol" and callee.name == "number" then
                         result = args@0
-                        result.append({ op: "call", arg: "Runtime.Number" })
-                        result.append({ op: "box", arg: "number" })
+                        result.push({ op: "call", arg: "Runtime.Number" })
+                        result.push({ op: "box", arg: "number" })
                     else
                         if kind(callee) == "symbol" and callee.name == "readFile" then
                             result = args@0
-                            result.append({ op: "call", arg: "Runtime.ReadFile" })
+                            result.push({ op: "call", arg: "Runtime.ReadFile" })
                         else
                             if kind(callee) == "symbol" and callee.name == "fileExists" then
                                 result = args@0
-                                result.append({ op: "call", arg: "Runtime.FileExists" })
-                                result.append({ op: "box", arg: "boolean" })
+                                result.push({ op: "call", arg: "Runtime.FileExists" })
+                                result.push({ op: "box", arg: "boolean" })
                             else
                                 if kind(callee) == "symbol" and callee.name == "absolutePath" then
                                     result = args@0
-                                    result.append({ op: "call", arg: "Runtime.AbsolutePath" })
+                                    result.push({ op: "call", arg: "Runtime.AbsolutePath" })
                                 else
                                     if kind(callee) == "symbol" and callee.name == "directoryName" then
                                         result = args@0
-                                        result.append({ op: "call", arg: "Runtime.DirectoryName" })
+                                        result.push({ op: "call", arg: "Runtime.DirectoryName" })
                                     else
                                         if kind(callee) == "symbol" and callee.name == "combinePath" then
                                             result = args@0
                                             result = result.concat(args@1)
-                                            result.append({ op: "call", arg: "Runtime.CombinePath" })
+                                            result.push({ op: "call", arg: "Runtime.CombinePath" })
                                         else
                                             if kind(callee) == "symbol" and callee.name == "environment" then
                                                 result = args@0
-                                                result.append({ op: "call", arg: "Runtime.EnvironmentValue" })
+                                                result.push({ op: "call", arg: "Runtime.EnvironmentValue" })
                                             else
                                                 if isForm(callee, "get") then
                                                     result = [{
@@ -617,10 +617,10 @@ emitFunctionClauses: fn(node: list) = [
         for [p: number = 0, p < rawParams.length(), p += 1]
             parameter: record = rawParams@p
             paramType: symbol = parameter.type
-            parameterTypes.append(paramType.name)
+            parameterTypes.push(paramType.name)
         loop
 
-        clauses.append({
+        clauses.push({
             value: emitFunction(clause)
             types: parameterTypes
         })
@@ -642,7 +642,7 @@ emitFunction: fn(node: list) = [
             parameter: record = rawParams@i
             paramName: symbol = parameter.name
             paramType: symbol = parameter.type
-            params.append({ name: paramName.name, type: paramType.name })
+            params.push({ name: paramName.name, type: paramType.name })
         loop
 
         savedLoopDepth: number = loopDepth
@@ -670,10 +670,10 @@ emitType: fn(typeName: string, node: list) = [
         key: string = keys@i
         member: atom | list | record = members.get(key)
         if kind(member) == "symbol" then
-            fields.append({ name: key, type: member.name })
+            fields.push({ name: key, type: member.name })
         else
             if isForm(member, "fn") then
-                methods.append({ name: key, value: emit(member) })
+                methods.push({ name: key, value: emit(member) })
             else
                 fail("Unsupported type member: {key}")
             end
@@ -687,13 +687,13 @@ emitIf: fn(node: list) = [
     elseLabel: string = nextLabel("if_else_"),
     endLabel: string = nextLabel("if_end_"),
     ops: list = emit(node@1),
-    ops.append({ op: "call", arg: "Runtime.Bool" }),
-    ops.append({ op: "brfalse", label: elseLabel }),
+    ops.push({ op: "call", arg: "Runtime.Bool" }),
+    ops.push({ op: "brfalse", label: elseLabel }),
     ops = ops.concat(emitDoStatements(node@2)),
-    ops.append({ op: "br", label: endLabel }),
-    ops.append({ op: "label", name: elseLabel }),
+    ops.push({ op: "br", label: endLabel }),
+    ops.push({ op: "label", name: elseLabel }),
     ops = ops.concat(emitDoStatements(node@3)),
-    ops.append({ op: "label", name: endLabel }),
+    ops.push({ op: "label", name: endLabel }),
     ops
 ]
 
@@ -712,21 +712,21 @@ emitFor: fn(node: list) = [
     continueLabel: string = nextLabel("for_continue_"),
     endLabel: string = nextLabel("for_end_"),
     ops: list = emitStatement(node@1),
-    ops.append({ op: "label", name: conditionLabel }),
+    ops.push({ op: "label", name: conditionLabel }),
     ops = ops.concat(emit(node@2)),
-    ops.append({ op: "call", arg: "Runtime.Bool" }),
-    ops.append({ op: "brfalse", label: endLabel }),
+    ops.push({ op: "call", arg: "Runtime.Bool" }),
+    ops.push({ op: "brfalse", label: endLabel }),
 
     pushLoopContext(endLabel, continueLabel),
     bodyOps: list = emitDoStatements(node@4),
     popLoopContext(),
 
     ops = ops.concat(bodyOps),
-    ops.append({ op: "label", name: continueLabel }),
+    ops.push({ op: "label", name: continueLabel }),
     ops = ops.concat(emit(node@3)),
-    ops.append({ op: "pop" }),
-    ops.append({ op: "br", label: conditionLabel }),
-    ops.append({ op: "label", name: endLabel }),
+    ops.push({ op: "pop" }),
+    ops.push({ op: "br", label: conditionLabel }),
+    ops.push({ op: "label", name: endLabel }),
     ops
 ]
 
