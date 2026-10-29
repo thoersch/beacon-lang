@@ -13,7 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Show all Beacon @ usage
         shell: bash
         run: |
           grep -R -n --include='*.beacon' '@' compiler std examples || true
+      - name: Inspect historical seed refresh payload
+        shell: bash
+        run: |
+          git fetch origin feature/includes-and-split-compiler
+          git show origin/feature/includes-and-split-compiler:tools/seed-refresh/payload.zip > /tmp/payload.zip
+          file /tmp/payload.zip
+          unzip -l /tmp/payload.zip
