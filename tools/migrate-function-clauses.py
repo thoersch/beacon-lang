@@ -108,7 +108,7 @@ if seed.exists():
         raise SystemExit('Seed MakeFunction MethodInfo not found')
     seed_text = seed_text.replace(
         method_info,
-        method_info + '    private static readonly MethodInfo MakeFunctionClausesMethod = Method(nameof(Runtime.MakeFunctionClauses), typeof(object[]), typeof(string[][]));\\n'.replace('\\\\n', '\\n'),
+        method_info + '    private static readonly MethodInfo MakeFunctionClausesMethod = Method(nameof(Runtime.MakeFunctionClauses), typeof(object[]), typeof(string[][]));\n',
         1)
 
     fn_case = '''            case "fn":\n                EmitFunction(instruction, ctx);\n                return;\n'''
