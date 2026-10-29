@@ -50,6 +50,33 @@ I'm younger than 49
 42
 ```
 
+## VS Code support
+
+Beacon ships with a packaged VS Code extension for `.beacon` syntax highlighting and editor behavior. A fresh clone can install it without Node.js or npm.
+
+macOS, Linux, or Git Bash:
+
+```bash
+./tools/install-vscode.sh
+```
+
+PowerShell:
+
+```powershell
+./tools/install-vscode.ps1
+```
+
+Reload VS Code after installation. The packaged extension lives in `editors/vscode/` and is rebuilt with Node.js 22+ when the extension source changes.
+
+For extension development:
+
+```bash
+cd editors/vscode
+nvm use 22
+npm install
+npm run package
+```
+
 ## Verify self-hosting
 
 Beacon can compile its own compiler to a fixed point:

@@ -19,3 +19,6 @@ obj/
 # The frozen bootstrap seed is intentionally versioned.
 !bootstrap/stage0/
 !bootstrap/stage0/**
+
+# VS Code extension build dependencies
+editors/vscode/node_modules/
