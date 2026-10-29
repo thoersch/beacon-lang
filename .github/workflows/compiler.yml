@@ -147,6 +147,14 @@ jobs:
           BEACON
           [[ "$(bash ./beacon.sh /tmp/legacy-function.beacon)" == '42' ]]
 
+      - name: Verify multiline expressions
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/multiline-expressions.beacon)"
+          printf '%s\n' "$output"
+          expected=$'7\n43\n-5\n15\nmultiline\n42'
+          [[ "$output" == "$expected" ]]
+
       - name: Verify unary minus and loop control
         shell: bash
         run: |
