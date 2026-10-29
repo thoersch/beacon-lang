@@ -106,7 +106,7 @@ parseProgram: fn(tokens: list) = [
     skipNewLines(state),
 
     for [tick: number = 0, not checkToken(state, "end"), tick += 1]
-        expressions.append(parseStatement(state))
+        expressions.push(parseStatement(state))
         requireStatementBoundary(state)
         skipNewLines(state)
     loop,
@@ -211,7 +211,7 @@ parseStatementsUntil: fn(state: record, terminators: list) = [
     items: list = [symbol("do")],
     skipNewLines(state),
     for [tick: number = 0, not checkToken(state, "end") and not atTerminator(state, terminators), tick += 1]
-        items.append(parseStatement(state))
+        items.push(parseStatement(state))
         requireStatementBoundary(state)
         skipNewLines(state)
     loop,
@@ -286,7 +286,7 @@ parseFunctionClausesAfterEqual: fn(state: record) = [
     done: boolean = false,
     for [tick: number = 0, not done, tick += 1]
         consumeIdentifier(state, "fn", "Expected fn clause")
-        clauses.append(parseFunctionAfterFn(state))
+        clauses.push(parseFunctionAfterFn(state))
         skipNewLines(state)
 
         if matchToken(state, "rbracket") then
@@ -311,7 +311,7 @@ parseFunctionAfterFn: fn(state: record) = [
             nameToken: record = consumeToken(state, "identifier", "Expected parameter name")
             consumeToken(state, "colon", "Expected ':' after parameter name")
             typeName: string = parseTypeAnnotation(state)
-            parameters.append({ name: symbol(nameToken.text), type: symbol(typeName) })
+            parameters.push({ name: symbol(nameToken.text), type: symbol(typeName) })
             if matchToken(state, "comma") then
                 skipNewLines(state)
             else
@@ -338,7 +338,7 @@ parseBody: fn(state: record) = [
         else
             done: boolean = false
             for [tick: number = 0, not done, tick += 1]
-                items.append(parseStatement(state))
+                items.push(parseStatement(state))
                 skipNewLines(state)
                 if matchToken(state, "rbracket") then
                     done = true
@@ -533,7 +533,7 @@ parsePostfix: fn(state: record) = [
                     if not checkToken(state, "rparen") then
                         done: boolean = false
                         for [argIndex: number = 0, not done, argIndex += 1]
-                            call.append(parseExpression(state))
+                            call.push(parseExpression(state))
                             if matchToken(state, "comma") then
                                 skipNewLines(state)
                             else
@@ -613,7 +613,7 @@ parseListLiteralAfterOpen: fn(state: record) = [
     done: boolean = matchToken(state, "rbracket"),
 
     for [tick: number = 0, not done, tick += 1]
-        items.append(parseExpression(state))
+        items.push(parseExpression(state))
         skipNewLines(state)
         if matchToken(state, "rbracket") then
             done = true

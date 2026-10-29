@@ -1,7 +1,9 @@
 // Runtime features added specifically to make a self-hosted compiler practical.
 
 values: list = ["a", "b"]
-values.append("c")
+values.push("c")
+print(values.pop())
+values.push("c")
 more: list = values.concat(["d", "e"])
 print(more)
 print(more@2)

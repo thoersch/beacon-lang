@@ -58,7 +58,7 @@ splitDottedName: fn(name: string) = [
             if current == "" then
                 fail("Invalid named include: " + name)
             end
-            parts.append(current)
+            parts.push(current)
             current = ""
         else
             current += character
@@ -68,7 +68,7 @@ splitDottedName: fn(name: string) = [
     if current == "" then
         fail("Invalid named include: " + name)
     end,
-    parts.append(current),
+    parts.push(current),
     parts
 ]
 
@@ -141,7 +141,7 @@ appendProgramNode: fn(target: list, node: atom | list | record) = [
     if name != "" and programHasDefinition(target, name) then
         fail("Duplicate declaration while composing includes: " + name)
     end,
-    target.append(node),
+    target.push(node),
     target
 ]
 
@@ -165,7 +165,7 @@ standardNamespaceParts: fn(name: string) = [
 
     result: list = [],
     for [i: number = 1, i < parts.length(), i += 1]
-        result.append(parts@i)
+        result.push(parts@i)
     loop,
     result
 ]
@@ -221,7 +221,7 @@ namespaceExportNames: fn(program: list) = [
         if listContainsString(names, name) then
             fail("Duplicate declaration in standard-library namespace: " + name)
         end
-        names.append(name)
+        names.push(name)
     loop,
 
     names
@@ -260,7 +260,7 @@ composeStandardNamespaces: fn(program: list, tree: record) = [
         if programHasDefinition(program, name) then
             fail("Standard-library namespace conflicts with declaration: " + name)
         end
-        result.append([
+        result.push([
             symbol("def"),
             symbol(name),
             symbol("record"),
@@ -315,7 +315,7 @@ loadProgramInternal: fn(path: string, seen: list, stack: list, standardNamespace
             fail("Beacon source not found: " + canonical)
         end
 
-        seen.append(canonical)
+        seen.push(canonical)
         nextStack: list = stack.concat([canonical])
         source: string = readFile(canonical)
         parsed: list = parseProgram(lex(source))

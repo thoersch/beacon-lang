@@ -196,6 +196,15 @@ values@i
 values@(i + 1)
 ```
 
+Lists use stack-style mutation methods:
+
+```beacon
+values.push(42)      // add to the end
+print(values.pop())  // remove and return the final value
+```
+
+`pop()` fails on an empty List. The previous `append()` name is not retained as an alias.
+
 Member access uses `.`:
 
 ```beacon
