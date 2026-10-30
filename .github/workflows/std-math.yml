@@ -1,0 +1,29 @@
+name: std.math
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  std-math:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify std.math
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/std-math.beacon)"
+          printf '%s\n' "$output"
+
+          expected=$'42\n3\n7\n0\n10\n5\n2\n-3\n3\n-2\n3\n-3\n9\n1024\n2\n3\ntrue\ntrue'
+          [[ "$output" == "$expected" ]]

@@ -1,4 +1,69 @@
-// Minimal standard-library math example.
-// Named includes resolve from BEACON_HOME.
+pi: number = 3.141592653589793
+e: number = 2.718281828459045
 
-twice: fn(value: number) = value * 2
+abs: fn(value: number) = [
+    result: number = value,
+
+    if value < 0 then
+        result = -value
+    end,
+
+    result
+]
+
+min: fn(left: number, right: number) = [
+    result: number = right,
+
+    if left < right then
+        result = left
+    end,
+
+    result
+]
+
+max: fn(left: number, right: number) = [
+    result: number = right,
+
+    if left > right then
+        result = left
+    end,
+
+    result
+]
+
+clamp: fn(value: number, minimum: number, maximum: number) = [
+    result: number = value,
+
+    if result < minimum then
+        result = minimum
+    end,
+
+    if result > maximum then
+        result = maximum
+    end,
+
+    result
+]
+
+floor: fn(value: number) = value.floor()
+
+ceil: fn(value: number) = value.ceil()
+
+round: fn(value: number) = [
+    result: number = 0,
+
+    if value >= 0 then
+        result = floor(value + 0.5)
+    else
+        result = ceil(value - 0.5)
+    end,
+
+    result
+]
+
+sqrt: fn(value: number) = value.sqrt()
+
+pow: fn(value: number, exponent: number) = value.pow(exponent)
+
+mod: fn(value: number, divisor: number) =
+    value - floor(value / divisor) * divisor
