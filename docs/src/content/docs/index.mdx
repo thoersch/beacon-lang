@@ -1,0 +1,85 @@
+---
+title: Beacon
+description: Documentation for Beacon, a compiled, homoiconic-inspired, and self-hosted programming language targeting the CLR.
+template: splash
+hero:
+  title: Beacon
+  tagline: A compiled, homoiconic-inspired, and self-hosted programming language, targeting the CLR.
+  actions:
+    - text: Install Beacon
+      link: ./getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: Explore the syntax
+      link: ./language/syntax/
+      icon: open-book
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Beacon combines an explicit, familiar surface syntax with a deliberately small structural foundation. Its compiler is written in Beacon, it targets the CLR directly, and its canonical program representation reduces to three structural forms: **Atom**, **List**, and **Record**.
+
+```beacon title="hello.beacon"
+person: type = {
+    name: string
+    age: number
+
+    greet: fn() = "Hi, I'm {.name}"
+}
+
+ada: person = {
+    name: "Ada"
+    age: 42
+}
+
+numbers: list = [1, 2, 3, 4]
+double: fn(value: number) = value * 2
+
+print(ada.greet())
+print(numbers.map(double))
+```
+
+<CardGrid>
+  <LinkCard
+    title="Installation"
+    href="./getting-started/installation/"
+    description="Clone Beacon, verify .NET, and run your first program."
+  />
+  <LinkCard
+    title="VS Code"
+    href="./getting-started/vscode/"
+    description="Install Beacon syntax highlighting and editor behavior from the repository."
+  />
+  <LinkCard
+    title="Syntax tour"
+    href="./language/syntax/"
+    description="Learn the shape of Beacon without reading a full language specification."
+  />
+</CardGrid>
+
+## Small on purpose
+
+Beacon keeps a narrow semantic foundation and builds higher-level behavior from it. Lists represent ordered structure. Records represent named structure. Atoms represent values and symbols.
+
+The same principle extends through the compiler: when Beacon can express something cleanly using Beacon data, it does.
+
+## Self-hosted from a clean checkout
+
+The canonical compiler lives in `compiler/` and is written in Beacon. A small frozen Stage-0 CLR seed exists only to solve the bootstrap problem and provide irreducible runtime operations.
+
+```text
+Beacon source
+    ↓
+Atom / List / Record Core
+    ↓
+Beacon IL planner
+    ↓
+Symbolic CLR plan
+    ↓
+Stage-0 CLR assembler/runtime
+    ↓
+CLR
+```
+
+Start with installation, then use the syntax tour as a map of the language.
