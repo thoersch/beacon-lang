@@ -22,3 +22,8 @@ obj/
 
 # VS Code extension build dependencies
 editors/vscode/node_modules/
+
+# Documentation site build dependencies/output
+docs/node_modules/
+docs/dist/
+docs/.astro/
