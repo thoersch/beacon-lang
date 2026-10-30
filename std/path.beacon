@@ -1,0 +1,22 @@
+join: fn(left: string, right: string) = combinePath(left, right)
+
+parent: fn(value: string) = parentPath(value)
+
+name: fn(value: string) = fileName(value)
+
+extension: fn(value: string) = pathExtension(value)
+
+withoutExtension: fn(value: string) = [
+    ext: string = extension(value),
+    result: string = value,
+
+    if ext.length() > 0 then
+        result = value.slice(0, value.length() - ext.length())
+    end,
+
+    result
+]
+
+isAbsolute: fn(value: string) = pathIsAbsolute(value)
+
+normalize: fn(value: string) = absolutePath(value)
