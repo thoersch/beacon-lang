@@ -2,7 +2,7 @@ Beacon Stage-0 bootstrap seed
 =============================
 
 Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
-Seed refresh: filesystem and path primitives for std.fs/std.path, Number floor()/ceil()/sqrt()/pow() primitives, List push()/pop() mutation primitives, ordered function-clause dispatch, List-only positional @ indexing, explicit Record get()/set(), seed-only local include composition, and generic namespace plan assembly.
+Seed refresh: filesystem and path primitives for std.fs/std.path, List map()/filter()/head()/tail() methods, Number floor()/ceil()/sqrt()/pow() primitives, List push()/pop() mutation primitives, ordered function-clause dispatch, List-only positional @ indexing, explicit Record get()/set(), seed-only local include composition, and generic namespace plan assembly.
 Historical implementation language: C#
 Source branch: feature/std-fs-path-v1
 .NET SDK: 10.0.403
