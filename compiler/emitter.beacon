@@ -522,6 +522,7 @@ emitCall: fn(node: list) = [
     callee: atom | list | record = node@1,
     args: list = [],
     result: list = [],
+    handled: boolean = false,
 
     for [i: number = 2, i < node.length(), i += 1]
         args.push(emit(node@i))
@@ -529,73 +530,148 @@ emitCall: fn(node: list) = [
 
     if kind(callee) == "symbol" and callee.name == "print" then
         result = [{ op: "print", args: args }]
-    else
-        if kind(callee) == "symbol" and callee.name == "kind" then
-            result = args@0
-            result.push({ op: "call", arg: "Runtime.Kind" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "kind" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.Kind" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "fail" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.Fail" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "symbol" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.Symbol" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "number" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.Number" })
+        result.push({ op: "box", arg: "number" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "readFile" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.ReadFile" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "fileExists" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.FileExists" })
+        result.push({ op: "box", arg: "boolean" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "writeFile" then
+        result = args@0
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.WriteFile" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "appendFile" then
+        result = args@0
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.AppendFile" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "directoryExists" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.DirectoryExists" })
+        result.push({ op: "box", arg: "boolean" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "deletePath" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.DeletePath" })
+        result.push({ op: "box", arg: "boolean" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "copyFile" then
+        result = args@0
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.CopyFile" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "movePath" then
+        result = args@0
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.MovePath" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "listFiles" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.ListFiles" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "listDirectories" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.ListDirectories" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "createDirectoryPath" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.CreateDirectoryPath" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "absolutePath" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.AbsolutePath" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "directoryName" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.DirectoryName" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "combinePath" then
+        result = args@0
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.CombinePath" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "parentPath" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.ParentPath" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "fileName" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.FileName" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "pathExtension" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.PathExtension" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "pathIsAbsolute" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.PathIsAbsolute" })
+        result.push({ op: "box", arg: "boolean" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "environment" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.EnvironmentValue" })
+        handled = true
+    end,
+
+    if not handled then
+        if isForm(callee, "get") then
+            result = [{
+                op: "invoke.member",
+                receiver: emitTarget(callee@1),
+                member: callee@2,
+                args: args
+            }]
         else
-            if kind(callee) == "symbol" and callee.name == "fail" then
-                result = args@0
-                result.push({ op: "call", arg: "Runtime.Fail" })
-            else
-                if kind(callee) == "symbol" and callee.name == "symbol" then
-                    result = args@0
-                    result.push({ op: "call", arg: "Runtime.Symbol" })
-                else
-                    if kind(callee) == "symbol" and callee.name == "number" then
-                        result = args@0
-                        result.push({ op: "call", arg: "Runtime.Number" })
-                        result.push({ op: "box", arg: "number" })
-                    else
-                        if kind(callee) == "symbol" and callee.name == "readFile" then
-                            result = args@0
-                            result.push({ op: "call", arg: "Runtime.ReadFile" })
-                        else
-                            if kind(callee) == "symbol" and callee.name == "fileExists" then
-                                result = args@0
-                                result.push({ op: "call", arg: "Runtime.FileExists" })
-                                result.push({ op: "box", arg: "boolean" })
-                            else
-                                if kind(callee) == "symbol" and callee.name == "absolutePath" then
-                                    result = args@0
-                                    result.push({ op: "call", arg: "Runtime.AbsolutePath" })
-                                else
-                                    if kind(callee) == "symbol" and callee.name == "directoryName" then
-                                        result = args@0
-                                        result.push({ op: "call", arg: "Runtime.DirectoryName" })
-                                    else
-                                        if kind(callee) == "symbol" and callee.name == "combinePath" then
-                                            result = args@0
-                                            result = result.concat(args@1)
-                                            result.push({ op: "call", arg: "Runtime.CombinePath" })
-                                        else
-                                            if kind(callee) == "symbol" and callee.name == "environment" then
-                                                result = args@0
-                                                result.push({ op: "call", arg: "Runtime.EnvironmentValue" })
-                                            else
-                                                if isForm(callee, "get") then
-                                                    result = [{
-                                                        op: "invoke.member",
-                                                        receiver: emitTarget(callee@1),
-                                                        member: callee@2,
-                                                        args: args
-                                                    }]
-                                                else
-                                                    result = [{
-                                                        op: "invoke",
-                                                        callee: emit(callee),
-                                                        args: args
-                                                    }]
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
+            result = [{
+                op: "invoke",
+                callee: emit(callee),
+                args: args
+            }]
         end
     end,
 
