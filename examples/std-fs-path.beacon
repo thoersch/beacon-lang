@@ -1,0 +1,56 @@
+include std.fs
+include std.path
+
+root: string = path.join(path.normalize("."), ".beacon-fs-path-test")
+source: string = path.join(root, "sample.txt")
+copied: string = path.join(root, "copied.txt")
+moved: string = path.join(root, "moved.txt")
+subdir: string = path.join(root, "nested")
+
+if fs.exists(source) then
+    fs.delete(source)
+end
+if fs.exists(copied) then
+    fs.delete(copied)
+end
+if fs.exists(moved) then
+    fs.delete(moved)
+end
+if fs.exists(subdir) then
+    fs.delete(subdir)
+end
+if fs.exists(root) then
+    fs.delete(root)
+end
+
+fs.createDirectory(root)
+print(fs.exists(root))
+
+fs.writeText(source, "hello")
+fs.appendText(source, " world")
+print(fs.readText(source) == "hello world")
+
+print(path.name(source))
+print(path.extension(source))
+print(path.name(path.withoutExtension(source)))
+print(path.parent(source) == root)
+print(path.isAbsolute(root))
+print(path.normalize(root) == root)
+print(path.join(root, "sample.txt") == source)
+
+print(fs.files(root).length())
+fs.createDirectory(subdir)
+print(fs.directories(root).length())
+
+fs.copy(source, copied)
+print(fs.readText(copied) == "hello world")
+fs.move(copied, moved)
+print(fs.exists(copied))
+print(fs.exists(moved))
+
+print(fs.delete(source))
+print(fs.delete(moved))
+print(fs.delete(subdir))
+print(fs.delete(root))
+print(fs.exists(root))
+print(fs.delete(root))
