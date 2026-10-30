@@ -1,0 +1,29 @@
+name: std.fs and std.path
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  std-fs-path:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify std.fs and std.path
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/std-fs-path.beacon)"
+          printf '%s\n' "$output"
+
+          expected=$'true\ntrue\nsample.txt\n.txt\nsample\ntrue\ntrue\ntrue\ntrue\n1\n1\ntrue\nfalse\ntrue\ntrue\ntrue\ntrue\ntrue\nfalse\nfalse'
+          [[ "$output" == "$expected" ]]
