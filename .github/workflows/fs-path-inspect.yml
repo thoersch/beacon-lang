@@ -29,11 +29,13 @@ jobs:
           mkdir -p /tmp/seed-refresh
           unzip -q /tmp/seed-refresh.zip -d /tmp/seed-refresh
 
-      - name: Show filesystem and path primitives
+      - name: Show relevant runtime sections
         shell: bash
         run: |
           FILE=/tmp/seed-refresh/Beacon.Compiler/Program.cs
-          echo '--- host API references ---'
-          grep -nE 'File\.|Directory\.|Path\.|Environment\.' "$FILE" || true
-          echo '--- Beacon primitive names ---'
-          grep -nE 'readFile|writeFile|appendFile|fileExists|deleteFile|copyFile|moveFile|createDirectory|listFiles|listDirectories|absolutePath|combinePath|directoryName|fileName|extension|normalize|environment' "$FILE" || true
+          echo '--- Runtime methods ---'
+          sed -n '870,940p' "$FILE"
+          echo '--- Plan/static method references ---'
+          grep -n -B8 -A18 'Runtime.ReadFile' "$FILE" || true
+          echo '--- Physical compiler intrinsic calls ---'
+          sed -n '1850,1945p' "$FILE"
