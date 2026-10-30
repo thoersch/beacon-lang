@@ -1,0 +1,39 @@
+name: Inspect fs/path runtime surface
+
+on:
+  push:
+    branches:
+      - feature/std-fs-path-v1
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct Stage-0 source
+        shell: bash
+        run: |
+          SOURCE_COMMIT=5e23c57752add5a0cb176309e44b114f8df0c327
+          git show "$SOURCE_COMMIT:tools/seed-refresh-source.b64" > /tmp/seed.1.b64
+          git show "$SOURCE_COMMIT:tools/seed-refresh-source.2.b64" > /tmp/seed.2.b64
+          git show "$SOURCE_COMMIT:tools/seed-refresh-source.3.b64" > /tmp/seed.3.b64
+          git show "$SOURCE_COMMIT:tools/seed-refresh-source.4.b64" > /tmp/seed.4.b64
+          cat /tmp/seed.1.b64 /tmp/seed.2.b64 /tmp/seed.3.b64 /tmp/seed.4.b64 > /tmp/seed-refresh.b64
+          base64 --decode /tmp/seed-refresh.b64 > /tmp/seed-refresh.zip
+          rm -rf /tmp/seed-refresh
+          mkdir -p /tmp/seed-refresh
+          unzip -q /tmp/seed-refresh.zip -d /tmp/seed-refresh
+
+      - name: Show filesystem and path primitives
+        shell: bash
+        run: |
+          FILE=/tmp/seed-refresh/Beacon.Compiler/Program.cs
+          echo '--- host API references ---'
+          grep -nE 'File\.|Directory\.|Path\.|Environment\.' "$FILE" || true
+          echo '--- Beacon primitive names ---'
+          grep -nE 'readFile|writeFile|appendFile|fileExists|deleteFile|copyFile|moveFile|createDirectory|listFiles|listDirectories|absolutePath|combinePath|directoryName|fileName|extension|normalize|environment' "$FILE" || true
