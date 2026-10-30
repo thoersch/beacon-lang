@@ -1,0 +1,62 @@
+name: List methods
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  list-methods:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify List map/filter/head/tail
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/list-functional-methods.beacon)"
+          printf '%s\n' "$output"
+          expected=$'[2, 4, 6, 8]\n[3, 4]\n1\n[2, 3, 4]\n[99, 3, 4]\n[1, 2, 3, 4]\n[]\n[]'
+          [[ "$output" == "$expected" ]]
+
+          cat > /tmp/filter-non-boolean.beacon <<'BEACON'
+          identity: fn(value: number) = value
+          values: list = [1]
+          values.filter(identity)
+          BEACON
+          set +e
+          filter_output="$(bash ./beacon.sh /tmp/filter-non-boolean.beacon 2>&1)"
+          filter_status=$?
+          set -e
+          [[ $filter_status -ne 0 ]]
+          grep -F 'filter() predicate must return a Boolean' <<<"$filter_output"
+
+          cat > /tmp/head-empty.beacon <<'BEACON'
+          values: list = []
+          values.head()
+          BEACON
+          set +e
+          head_output="$(bash ./beacon.sh /tmp/head-empty.beacon 2>&1)"
+          head_status=$?
+          set -e
+          [[ $head_status -ne 0 ]]
+          grep -F 'head() cannot read from an empty List' <<<"$head_output"
+
+          cat > /tmp/tail-empty.beacon <<'BEACON'
+          values: list = []
+          values.tail()
+          BEACON
+          set +e
+          tail_output="$(bash ./beacon.sh /tmp/tail-empty.beacon 2>&1)"
+          tail_status=$?
+          set -e
+          [[ $tail_status -ne 0 ]]
+          grep -F 'tail() cannot read from an empty List' <<<"$tail_output"
