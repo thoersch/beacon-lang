@@ -1,0 +1,19 @@
+readText: fn(path: string) = readFile(path)
+
+writeText: fn(path: string, value: string) = writeFile(path, value)
+
+appendText: fn(path: string, value: string) = appendFile(path, value)
+
+exists: fn(path: string) = fileExists(path) or directoryExists(path)
+
+delete: fn(path: string) = deletePath(path)
+
+copy: fn(source: string, destination: string) = copyFile(source, destination)
+
+move: fn(source: string, destination: string) = movePath(source, destination)
+
+files: fn(path: string) = listFiles(path)
+
+directories: fn(path: string) = listDirectories(path)
+
+createDirectory: fn(path: string) = createDirectoryPath(path)
