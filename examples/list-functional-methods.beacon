@@ -1,0 +1,18 @@
+double: fn(value: number) = value * 2
+aboveTwo: fn(value: number) = value > 2
+
+values: list = [1, 2, 3, 4]
+
+print(values.map(double))
+print(values.filter(aboveTwo))
+print(values.head())
+
+rest: list = values.tail()
+print(rest)
+rest@0 = 99
+print(rest)
+print(values)
+
+empty: list = []
+print(empty.map(double))
+print(empty.filter(aboveTwo))
