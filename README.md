@@ -63,6 +63,12 @@ A few things are visible even in this small example:
 
 The full language guide belongs in the Beacon documentation.
 
+## Documentation
+
+The full Beacon documentation is available at **[thoersch.github.io/beacon-lang](https://thoersch.github.io/beacon-lang/)**.
+
+It covers installation, VS Code integration, and a practical tour of Beacon's syntax and language features.
+
 ## Getting started
 
 Beacon currently runs directly from a source checkout.
