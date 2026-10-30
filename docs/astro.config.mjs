@@ -10,7 +10,6 @@ const beaconGrammar = {
     ),
   ),
   name: 'beacon',
-  aliases: ['beacon'],
 };
 
 export default defineConfig({
