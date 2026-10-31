@@ -31,9 +31,10 @@ jobs:
         run: |
           set -euo pipefail
           MIGRATION=d6680d72646aed04cda62fdb76c74325c640cd94
-          git show "$MIGRATION:tools/reconstruct-current-seed.py" > /tmp/reconstruct-current-seed.py
-          git show "$MIGRATION:tools/migrate-fs-path-boundary.py" > /tmp/migrate-fs-path-boundary.py
-          git show "$MIGRATION:tools/patch-seed-secondary-host-table.py" > /tmp/patch-seed-secondary-host-table.py
+          BASE="https://raw.githubusercontent.com/thoersch/beacon-lang/$MIGRATION"
+          curl -fsSL "$BASE/tools/reconstruct-current-seed.py" -o /tmp/reconstruct-current-seed.py
+          curl -fsSL "$BASE/tools/migrate-fs-path-boundary.py" -o /tmp/migrate-fs-path-boundary.py
+          curl -fsSL "$BASE/tools/patch-seed-secondary-host-table.py" -o /tmp/patch-seed-secondary-host-table.py
           python3 /tmp/reconstruct-current-seed.py
           python3 /tmp/migrate-fs-path-boundary.py seed
           python3 /tmp/patch-seed-secondary-host-table.py
