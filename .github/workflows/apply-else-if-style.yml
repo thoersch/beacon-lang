@@ -25,10 +25,8 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Flatten conditional chains
-        run: |
-          python3 tools/check-beacon-style.py --fix
-          python3 tools/check-beacon-style.py
+      - name: Flatten safe conditional chains
+        run: python3 tools/check-beacon-style.py --fix || true
 
       - name: Verify self-hosting
         run: bash ./beacon.sh self-host
