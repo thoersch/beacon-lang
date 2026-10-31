@@ -63,18 +63,12 @@ parent: fn(value: string) = [
                 result = value.slice(0, endingIndex)
             end
         end
-    else
-        if separatorIndex == 0 then
-            result = value.slice(0, 1)
-        else
-            if separator == "\\" and separatorIndex == 2 and value.length() >= 2 and value.slice(1, 1) == ":" then
-                result = value.slice(0, 3)
-            else
-                if separatorIndex > 0 then
-                    result = value.slice(0, separatorIndex)
-                end
-            end
-        end
+    else if separatorIndex == 0 then
+        result = value.slice(0, 1)
+    else if separator == "\\" and separatorIndex == 2 and value.length() >= 2 and value.slice(1, 1) == ":" then
+        result = value.slice(0, 3)
+    else if separatorIndex > 0 then
+        result = value.slice(0, separatorIndex)
     end,
 
     result

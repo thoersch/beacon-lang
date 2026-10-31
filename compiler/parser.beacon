@@ -118,32 +118,20 @@ parseStatement: fn(state: record) = [
     result: atom | list | record = null,
     if checkIdentifier(state, "include") then
         result = parseInclude(state)
+    else if checkIdentifier(state, "if") then
+        result = parseIf(state)
+    else if checkIdentifier(state, "when") then
+        result = parseWhen(state)
+    else if checkIdentifier(state, "for") then
+        result = parseFor(state)
+    else if matchIdentifier(state, "break") then
+        result = [symbol("break")]
+    else if matchIdentifier(state, "continue") then
+        result = [symbol("continue")]
+    else if checkToken(state, "identifier") and checkNextToken(state, "colon") then
+        result = parseDeclaration(state)
     else
-        if checkIdentifier(state, "if") then
-            result = parseIf(state)
-        else
-            if checkIdentifier(state, "when") then
-                result = parseWhen(state)
-            else
-                if checkIdentifier(state, "for") then
-                    result = parseFor(state)
-                else
-                    if matchIdentifier(state, "break") then
-                        result = [symbol("break")]
-                    else
-                        if matchIdentifier(state, "continue") then
-                            result = [symbol("continue")]
-                        else
-                            if checkToken(state, "identifier") and checkNextToken(state, "colon") then
-                                result = parseDeclaration(state)
-                            else
-                                result = parseExpression(state)
-                            end
-                        end
-                    end
-                end
-            end
-        end
+        result = parseExpression(state)
     end,
     result
 ]
@@ -338,16 +326,14 @@ parseDeclaration: fn(state: record) = [
 
     if matchIdentifier(state, "fn") then
         result = [symbol("def"), symbol(nameToken.text), symbol("fn"), parseFunctionDeclarationAfterFn(state)]
+    else if matchIdentifier(state, "type") then
+        consumeToken(state, "equal", "Expected '=' after type declaration")
+        result = [symbol("def"), symbol(nameToken.text), symbol("type"), parseTypeDefinition(state)]
     else
-        if matchIdentifier(state, "type") then
-            consumeToken(state, "equal", "Expected '=' after type declaration")
-            result = [symbol("def"), symbol(nameToken.text), symbol("type"), parseTypeDefinition(state)]
-        else
-            typeName: string = parseTypeAnnotation(state)
-            consumeToken(state, "equal", "Expected '=' in declaration")
-            skipNewLines(state)
-            result = [symbol("def"), symbol(nameToken.text), symbol(typeName), parseExpression(state)]
-        end
+        typeName: string = parseTypeAnnotation(state)
+        consumeToken(state, "equal", "Expected '=' in declaration")
+        skipNewLines(state)
+        result = [symbol("def"), symbol(nameToken.text), symbol(typeName), parseExpression(state)]
     end,
 
     result
@@ -479,10 +465,8 @@ parseTypeDefinition: fn(state: record) = [
 
         if matchToken(state, "comma") then
             skipNewLines(state)
-        else
-            if not checkToken(state, "rbrace") then
-                requireNewLine(state, "Expected newline or ',' between Record members")
-            end
+        else if not checkToken(state, "rbrace") then
+            requireNewLine(state, "Expected newline or ',' between Record members")
         end
         skipNewLines(state)
     loop,
@@ -499,11 +483,9 @@ parseAssignment: fn(state: record) = [
     if matchToken(state, "pluseq") then
         skipNewLines(state)
         result = [symbol("+="), left, parseAssignment(state)]
-    else
-        if matchToken(state, "equal") then
-            skipNewLines(state)
-            result = [symbol("="), left, parseAssignment(state)]
-        end
+    else if matchToken(state, "equal") then
+        skipNewLines(state)
+        result = [symbol("="), left, parseAssignment(state)]
     end,
     result
 ]
@@ -533,28 +515,18 @@ parseComparison: fn(state: record) = [
         operator: string = ""
         if matchToken(state, "eqeq") then
             operator = "=="
+        else if matchToken(state, "bangeq") then
+            operator = "!="
+        else if matchToken(state, "less") then
+            operator = "<"
+        else if matchToken(state, "lesseq") then
+            operator = "<="
+        else if matchToken(state, "greater") then
+            operator = ">"
+        else if matchToken(state, "greatereq") then
+            operator = ">="
         else
-            if matchToken(state, "bangeq") then
-                operator = "!="
-            else
-                if matchToken(state, "less") then
-                    operator = "<"
-                else
-                    if matchToken(state, "lesseq") then
-                        operator = "<="
-                    else
-                        if matchToken(state, "greater") then
-                            operator = ">"
-                        else
-                            if matchToken(state, "greatereq") then
-                                operator = ">="
-                            else
-                                active = false
-                            end
-                        end
-                    end
-                end
-            end
+            active = false
         end
         if active then
             skipNewLines(state)
@@ -571,12 +543,10 @@ parseAdditive: fn(state: record) = [
         operator: string = ""
         if matchToken(state, "plus") then
             operator = "+"
+        else if matchToken(state, "minus") then
+            operator = "-"
         else
-            if matchToken(state, "minus") then
-                operator = "-"
-            else
-                active = false
-            end
+            active = false
         end
         if active then
             skipNewLines(state)
@@ -593,12 +563,10 @@ parseMultiplicative: fn(state: record) = [
         operator: string = ""
         if matchToken(state, "star") then
             operator = "*"
+        else if matchToken(state, "slash") then
+            operator = "/"
         else
-            if matchToken(state, "slash") then
-                operator = "/"
-            else
-                active = false
-            end
+            active = false
         end
         if active then
             skipNewLines(state)
@@ -613,13 +581,11 @@ parseUnary: fn(state: record) = [
     if matchIdentifier(state, "not") then
         skipNewLines(state)
         result = [symbol("not"), parseUnary(state)]
+    else if matchToken(state, "minus") then
+        skipNewLines(state)
+        result = [symbol("neg"), parseUnary(state)]
     else
-        if matchToken(state, "minus") then
-            skipNewLines(state)
-            result = [symbol("neg"), parseUnary(state)]
-        else
-            result = parsePostfix(state)
-        end
+        result = parsePostfix(state)
     end,
     result
 ]
@@ -632,32 +598,28 @@ parsePostfix: fn(state: record) = [
         if matchToken(state, "dot") then
             member: record = consumeToken(state, "identifier", "Expected member name after '.'")
             expression = [symbol("get"), expression, member.text]
-        else
-            if matchToken(state, "at") then
-                skipNewLines(state)
-                expression = [symbol("index"), expression, parsePrimary(state)]
-            else
-                if matchToken(state, "lparen") then
-                    call: list = [symbol("call"), expression]
-                    skipNewLines(state)
-                    if not checkToken(state, "rparen") then
-                        done: boolean = false
-                        for [argIndex: number = 0, not done, argIndex += 1]
-                            call.push(parseExpression(state))
-                            if matchToken(state, "comma") then
-                                skipNewLines(state)
-                            else
-                                done = true
-                            end
-                        loop
+        else if matchToken(state, "at") then
+            skipNewLines(state)
+            expression = [symbol("index"), expression, parsePrimary(state)]
+        else if matchToken(state, "lparen") then
+            call: list = [symbol("call"), expression]
+            skipNewLines(state)
+            if not checkToken(state, "rparen") then
+                done: boolean = false
+                for [argIndex: number = 0, not done, argIndex += 1]
+                    call.push(parseExpression(state))
+                    if matchToken(state, "comma") then
+                        skipNewLines(state)
+                    else
+                        done = true
                     end
-                    skipNewLines(state)
-                    consumeToken(state, "rparen", "Expected ')' after arguments")
-                    expression = call
-                else
-                    active = false
-                end
+                loop
             end
+            skipNewLines(state)
+            consumeToken(state, "rparen", "Expected ')' after arguments")
+            expression = call
+        else
+            active = false
         end
     loop,
 
@@ -670,56 +632,36 @@ parsePrimary: fn(state: record) = [
 
     if matchToken(state, "number") then
         result = number(token.text)
-    else
-        if matchToken(state, "string") then
-            result = token.text
+    else if matchToken(state, "string") then
+        result = token.text
+    else if checkIdentifier(state, "if") then
+        result = parseIf(state)
+    else if checkIdentifier(state, "when") then
+        result = parseWhen(state)
+    else if matchToken(state, "identifier") then
+        if token.text == "true" then
+            result = true
+        else if token.text == "false" then
+            result = false
+        else if token.text == "null" then
+            result = null
         else
-            if checkIdentifier(state, "if") then
-                result = parseIf(state)
-            else
-                if checkIdentifier(state, "when") then
-                    result = parseWhen(state)
-                else
-                    if matchToken(state, "identifier") then
-                        if token.text == "true" then
-                            result = true
-                        else
-                            if token.text == "false" then
-                                result = false
-                            else
-                                if token.text == "null" then
-                                    result = null
-                                else
-                                    result = symbol(token.text)
-                                end
-                            end
-                        end
-                    else
-                        if matchToken(state, "dot") then
-                            member: record = consumeToken(state, "identifier", "Expected member after '.'")
-                            result = [symbol("get"), symbol("self"), member.text]
-                        else
-                            if matchToken(state, "lparen") then
-                                skipNewLines(state)
-                                result = parseExpression(state)
-                                skipNewLines(state)
-                                consumeToken(state, "rparen", "Expected ')'")
-                            else
-                                if matchToken(state, "lbracket") then
-                                    result = parseListLiteralAfterOpen(state)
-                                else
-                                    if matchToken(state, "lbrace") then
-                                        result = parseRecordLiteralAfterOpen(state)
-                                    else
-                                        fail("Expected expression at " + token.line + ":" + token.column)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
+            result = symbol(token.text)
         end
+    else if matchToken(state, "dot") then
+        member: record = consumeToken(state, "identifier", "Expected member after '.'")
+        result = [symbol("get"), symbol("self"), member.text]
+    else if matchToken(state, "lparen") then
+        skipNewLines(state)
+        result = parseExpression(state)
+        skipNewLines(state)
+        consumeToken(state, "rparen", "Expected ')'")
+    else if matchToken(state, "lbracket") then
+        result = parseListLiteralAfterOpen(state)
+    else if matchToken(state, "lbrace") then
+        result = parseRecordLiteralAfterOpen(state)
+    else
+        fail("Expected expression at " + token.line + ":" + token.column)
     end,
 
     result
@@ -755,10 +697,8 @@ parseRecordLiteralAfterOpen: fn(state: record) = [
 
         if matchToken(state, "comma") then
             skipNewLines(state)
-        else
-            if not checkToken(state, "rbrace") then
-                requireNewLine(state, "Expected newline or ',' between Record fields")
-            end
+        else if not checkToken(state, "rbrace") then
+            requireNewLine(state, "Expected newline or ',' between Record fields")
         end
         skipNewLines(state)
     loop,

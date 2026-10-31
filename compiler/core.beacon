@@ -105,10 +105,8 @@ compilerParentPath: fn(value: string) = [
     result: string = "",
     if separatorIndex == 0 then
         result = value.slice(0, 1)
-    else
-        if separatorIndex > 0 then
-            result = value.slice(0, separatorIndex)
-        end
+    else if separatorIndex > 0 then
+        result = value.slice(0, separatorIndex)
     end,
     result
 ]
@@ -119,21 +117,17 @@ compilerJoinPath: fn(left: string, right: string) = [
 
     if left == "" then
         result = right
+    else if right == "" then
+        result = left
     else
-        if right == "" then
-            result = left
+        leftSeparated: boolean = compilerIsPathSeparator(left.slice(left.length() - 1, 1))
+        rightSeparated: boolean = compilerIsPathSeparator(right.slice(0, 1))
+        if leftSeparated and rightSeparated then
+            result = left + right.slice(1)
+        else if leftSeparated or rightSeparated then
+            result = left + right
         else
-            leftSeparated: boolean = compilerIsPathSeparator(left.slice(left.length() - 1, 1))
-            rightSeparated: boolean = compilerIsPathSeparator(right.slice(0, 1))
-            if leftSeparated and rightSeparated then
-                result = left + right.slice(1)
-            else
-                if leftSeparated or rightSeparated then
-                    result = left + right
-                else
-                    result = left + separator + right
-                end
-            end
+            result = left + separator + right
         end
     end,
     result
@@ -150,21 +144,19 @@ resolveIncludePath: fn(currentFile: string, spec: record) = [
 
     if includeKind == "local" then
         result = hostAbsolutePath(compilerJoinPath(compilerParentPath(currentFile), includeName + ".beacon"))
-    else
-        if includeKind == "named" then
-            parts: list = splitDottedName(includeName)
-            if parts.length() < 2 or parts@0 != "std" then
-                fail("Named includes are reserved for the standard library and must begin with 'std.': " + includeName)
-            end
-
-            root: string = hostEnvironment("BEACON_HOME")
-            if root == "" then
-                fail("Standard-library includes require BEACON_HOME to be set")
-            end
-            result = hostAbsolutePath(compilerJoinPath(root, namedIncludePath(includeName) + ".beacon"))
-        else
-            fail("Unknown include kind: " + includeKind)
+    else if includeKind == "named" then
+        parts: list = splitDottedName(includeName)
+        if parts.length() < 2 or parts@0 != "std" then
+            fail("Named includes are reserved for the standard library and must begin with 'std.': " + includeName)
         end
+
+        root: string = hostEnvironment("BEACON_HOME")
+        if root == "" then
+            fail("Standard-library includes require BEACON_HOME to be set")
+        end
+        result = hostAbsolutePath(compilerJoinPath(root, namedIncludePath(includeName) + ".beacon"))
+    else
+        fail("Unknown include kind: " + includeKind)
     end,
 
     result
