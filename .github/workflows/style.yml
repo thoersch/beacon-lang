@@ -14,5 +14,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Require flattened else-if chains
-        run: python3 tools/check-beacon-style.py
+        run: bash ./beacon.sh tools/check-beacon-style.beacon
