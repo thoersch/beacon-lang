@@ -15,6 +15,7 @@
     "Programming Languages"
   ],
   "scripts": {
+    "check:syntax": "node check-syntax.mjs",
     "package": "vsce package"
   },
   "devDependencies": {
