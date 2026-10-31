@@ -1,0 +1,77 @@
+include std.fs
+include std.text
+
+indentWidth: fn(line: string) =
+    line.length() - text.trimStart(line).length()
+
+nextSignificantLine: fn(lines: list, start: number) = [
+    result: number = -1,
+
+    for [i: number = start, i < lines.length() and result == -1, i += 1]
+        line: string = text.trim(lines@i)
+        if line != "" and not text.startsWith(line, "//") then
+            result = i
+        end
+    loop,
+
+    result
+]
+
+checkFile: fn(file: string) = [
+    lines: list = text.lines(fs.readText(file)),
+    violations: number = 0,
+
+    for [i: number = 0, i < lines.length(), i += 1]
+        line: string = lines@i
+
+        if text.trim(line) == "else" then
+            child: number = nextSignificantLine(lines, i + 1)
+
+            if child >= 0 then
+                childLine: string = lines@child
+                childText: string = text.trim(childLine)
+
+                if indentWidth(childLine) > indentWidth(line) and
+                    text.startsWith(childText, "if ") and
+                    text.endsWith(childText, " then") then
+                    elseLine: number = i + 1
+                    ifLine: number = child + 1
+                    print("{file}:{elseLine}: nested if on line {ifLine} should use 'else if'")
+                    violations += 1
+                end
+            end
+        end
+    loop,
+
+    violations
+]
+
+checkTree: fn(root: string) = [
+    violations: number = 0,
+    files: list = fs.files(root),
+    directories: list = fs.directories(root),
+
+    for [i: number = 0, i < files.length(), i += 1]
+        file: string = files@i
+        if text.endsWith(file, ".beacon") then
+            violations += checkFile(file)
+        end
+    loop,
+
+    for [i: number = 0, i < directories.length(), i += 1]
+        violations += checkTree(directories@i)
+    loop,
+
+    violations
+]
+
+roots: list = ["compiler", "std", "examples"]
+violations: number = 0
+
+for [i: number = 0, i < roots.length(), i += 1]
+    violations += checkTree(roots@i)
+loop
+
+if violations > 0 then
+    fail("Beacon style requires an if that directly follows else to use flattened 'else if' syntax.")
+end
