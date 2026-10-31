@@ -1,0 +1,74 @@
+name: Refresh VS Code logical keyword scope
+
+on:
+  push:
+    branches:
+      - fix/vscode-when-otherwise-package
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/vscode-when-otherwise-package
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Reclassify logical word operators as keywords
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path('editors/vscode/syntaxes/beacon.tmLanguage.json'),
+              Path('editors/vscode/check-syntax.mjs'),
+          ]
+          old = 'keyword.operator.logical.beacon'
+          new = 'keyword.control.logical.beacon'
+          for path in paths:
+              text = path.read_text()
+              if old not in text:
+                  raise SystemExit(f'{old} not found in {path}')
+              path.write_text(text.replace(old, new))
+          PY
+
+      - name: Install extension build dependencies
+        working-directory: editors/vscode
+        run: npm install --no-audit --no-fund
+
+      - name: Audit syntax coverage and scopes
+        working-directory: editors/vscode
+        run: npm run check:syntax
+
+      - name: Rebuild package
+        working-directory: editors/vscode
+        run: npm run package
+
+      - name: Verify rebuilt package grammar
+        working-directory: editors/vscode
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          unzip -p "beacon-lang-$VERSION.vsix" extension/syntaxes/beacon.tmLanguage.json > /tmp/beacon-rebuilt-grammar.json
+          diff -u syntaxes/beacon.tmLanguage.json /tmp/beacon-rebuilt-grammar.json
+
+      - name: Commit refreshed grammar and package
+        run: |
+          if git diff --quiet -- editors/vscode/syntaxes/beacon.tmLanguage.json editors/vscode/check-syntax.mjs editors/vscode/beacon-lang-*.vsix; then
+            echo "Logical keyword scope is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add editors/vscode/syntaxes/beacon.tmLanguage.json editors/vscode/check-syntax.mjs editors/vscode/beacon-lang-*.vsix
+          git commit -m "Highlight logical word operators as keywords"
+          git push origin HEAD:fix/vscode-when-otherwise-package
