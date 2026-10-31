@@ -185,21 +185,19 @@ validateValueAgainstType: fn(value: atom | list | record, expectedType: string, 
                 appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
             end
         end
-    else
+    else if actual != "" then
         // Union validation remains conservative. If the static type matches any
         // primitive option, the value is valid. Named-record unions are deferred.
-        if actual != "" then
-            matched: boolean = false
-            for [i: number = 0, i < options.length(), i += 1]
-                if primitiveTypeMatches(options@i, actual) then
-                    matched = true
-                else if types.has(options@i) and actual == "record" then
-                    matched = true
-                end
-            loop
-            if not matched then
-                appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
+        matched: boolean = false
+        for [i: number = 0, i < options.length(), i += 1]
+            if primitiveTypeMatches(options@i, actual) then
+                matched = true
+            else if types.has(options@i) and actual == "record" then
+                matched = true
             end
+        loop
+        if not matched then
+            appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
         end
     end,
 
