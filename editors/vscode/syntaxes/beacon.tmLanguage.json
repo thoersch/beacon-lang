@@ -121,7 +121,7 @@
       "patterns": [
         {
           "name": "keyword.control.conditional.beacon",
-          "match": "\\b(if|then|else|end)\\b"
+          "match": "\\b(if|then|else|when|otherwise|end)\\b"
         },
         {
           "name": "keyword.control.loop.beacon",
