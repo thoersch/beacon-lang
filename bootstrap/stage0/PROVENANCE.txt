@@ -2,10 +2,10 @@ Beacon Stage-0 bootstrap seed
 =============================
 
 Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
-Seed refresh: reduced filesystem/path host boundary. Stage-0 now exposes raw text/byte I/O, path-kind queries, raw directory enumeration, file/directory removal, directory creation, native move, absolute-path resolution, the platform path separator, and environment lookup. Filesystem composition and path parsing live in Beacon under std/ and compiler/.
+Seed refresh: syntax-only bootstrap refresh adding parser support for flattened 'else if' chains. The reduced filesystem/path host boundary is unchanged: Stage-0 exposes raw text/byte I/O, path-kind queries, raw directory enumeration, file/directory removal, directory creation, native move, absolute-path resolution, the platform path separator, and environment lookup. Filesystem composition and path parsing remain in Beacon under std/ and compiler/.
 Historical implementation language: C#
-Source branch: refactor/fs-path-beacon-boundary
+Source branch: feature/conditional-expressions-when
 .NET SDK: 10.0.403
 
-The one-time C# refresh source was removed after this seed was built and verified.
+The one-time C# refresh source was reconstructed from the verified historical migration lineage and removed after this seed was built and verified.
 The canonical compiler implementation remains Beacon source under compiler/.
