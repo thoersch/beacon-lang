@@ -234,7 +234,7 @@ parseWhenClauseBody: fn(state: record) = [
     items: list = [symbol("do")],
     skipNewLines(state),
 
-    for [tick: number = 0, not checkToken(state, "end") and not checkIdentifier(state, "otherwise") and not atWhenClauseStart(state), tick += 1]
+    for [tick: number = 0, not checkToken(state, "end") and not checkIdentifier(state, "end") and not checkIdentifier(state, "otherwise") and not atWhenClauseStart(state), tick += 1]
         items.push(parseStatement(state))
         requireStatementBoundary(state)
         skipNewLines(state)
@@ -254,9 +254,9 @@ parseWhen: fn(state: record) = [
     conditions: list = [],
     bodies: list = [],
 
-    for [tick: number = 0, not checkIdentifier(state, "otherwise") and not checkToken(state, "end"), tick += 1]
+    for [tick: number = 0, not checkIdentifier(state, "otherwise") and not checkIdentifier(state, "end") and not checkToken(state, "end"), tick += 1]
         condition: atom | list | record = parseExpression(state)
-        consumeIdentifier(state, "then", "Expected 'then' after when condition")
+        consumeIdentifier(state, "then", "Expected 'then' after when condition"),
         requireNewLine(state, "Expected newline after 'then'"),
         conditions.push(condition)
         bodies.push(parseWhenClauseBody(state))
