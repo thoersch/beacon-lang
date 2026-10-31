@@ -230,6 +230,67 @@ if active then
 end
 ```
 
+`if` is also an expression. The selected branch produces the value of its final expression:
+
+```beacon
+status: string =
+    if active then
+        "ready"
+    else
+        "waiting"
+    end
+```
+
+An `if` without `else` produces `null` when its condition is false.
+
+Use `else if` for a flat conditional chain. A chain still closes with a single `end`:
+
+```beacon
+category: string =
+    if age < 13 then
+        "child"
+    else if age < 18 then
+        "teen"
+    else if age < 65 then
+        "adult"
+    else
+        "senior"
+    end
+```
+
+For several ordered predicates, `when` provides a cond-style expression. Conditions are checked from top to bottom and the first true clause wins. Every `when` requires an `otherwise` fallback:
+
+```beacon
+category: string =
+    when
+        age < 13 then
+            "child"
+        age < 18 then
+            "teen"
+        age < 65 then
+            "adult"
+        otherwise
+            "senior"
+    end
+```
+
+Clause bodies can contain multiple expressions. Their final expression becomes the value of that clause:
+
+```beacon
+message: string =
+    when
+        score >= 90 then
+            prefix: string = "excellent"
+            prefix + " result"
+        score >= 70 then
+            "good result"
+        otherwise
+            "keep going"
+    end
+```
+
+`when` is predicate-based control flow, not pattern matching. It lowers to ordinary conditional Core rather than introducing a new fundamental structural form.
+
 ## Loops
 
 Beacon's `for` loop uses a three-part header:
@@ -359,4 +420,4 @@ That structural simplicity is an important part of Beacon's design, but you do n
 
 ## Keep exploring
 
-The `examples/` directory in the repository contains runnable programs covering control flow, function clauses, List methods, multiline expressions, and the standard library.
+The `examples/` directory in the repository contains runnable programs covering control flow, conditional expressions, function clauses, List methods, multiline expressions, and the standard library.
