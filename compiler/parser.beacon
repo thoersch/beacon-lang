@@ -340,7 +340,7 @@ parseDeclaration: fn(state: record) = [
         result = [symbol("def"), symbol(nameToken.text), symbol("fn"), parseFunctionDeclarationAfterFn(state)]
     else
         if matchIdentifier(state, "type") then
-            consumeToken(state, "equal", "Expected '=' after type declaration"),
+            consumeToken(state, "equal", "Expected '=' after type declaration")
             result = [symbol("def"), symbol(nameToken.text), symbol("type"), parseTypeDefinition(state)]
         else
             typeName: string = parseTypeAnnotation(state)
@@ -397,7 +397,7 @@ parseFunctionClausesAfterEqual: fn(state: record) = [
     for [tick: number = 0, not done, tick += 1]
         consumeIdentifier(state, "fn", "Expected fn clause")
         clauses.push(parseFunctionAfterFn(state))
-        skipNewLines(state),
+        skipNewLines(state)
 
         if matchToken(state, "rbracket") then
             done = true
