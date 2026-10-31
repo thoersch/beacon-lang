@@ -1,0 +1,20 @@
+include std.path
+
+root: string = path.normalize(".")
+nested: string = path.join(root, "nested")
+file: string = path.join(nested, "archive.tar.gz")
+
+print(path.join("", "value") == "value")
+print(path.join(root, "") == root)
+print(path.parent(file) == nested)
+print(path.name(file) == "archive.tar.gz")
+print(path.extension(file) == ".gz")
+print(path.name(path.withoutExtension(file)) == "archive.tar")
+print(not path.isAbsolute("relative/file.txt"))
+
+// Preserve the observable semantics of the former CLR-backed implementation.
+print(path.parent("/tmp/") == "/tmp")
+print(path.parent("/") == "")
+print(path.extension(".gitignore") == ".gitignore")
+print(path.withoutExtension(".gitignore") == "")
+print(path.extension("file.") == "")

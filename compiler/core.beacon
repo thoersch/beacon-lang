@@ -86,6 +86,59 @@ formatIncludeCycle: fn(stack: list, repeated: string) = [
     text + repeated
 ]
 
+compilerIsPathSeparator: fn(value: string) = [
+    separator: string = hostPathSeparator(),
+    value == separator or (separator == "\\" and value == "/")
+]
+
+compilerParentPath: fn(value: string) = [
+    separatorIndex: number = 0,
+    found: boolean = false,
+
+    for [i: number = value.length() - 1, i >= 0 and not found, i = i - 1]
+        if compilerIsPathSeparator(value.slice(i, 1)) then
+            separatorIndex = i
+            found = true
+        end
+    loop,
+
+    result: string = "",
+    if separatorIndex == 0 then
+        result = value.slice(0, 1)
+    else
+        if separatorIndex > 0 then
+            result = value.slice(0, separatorIndex)
+        end
+    end,
+    result
+]
+
+compilerJoinPath: fn(left: string, right: string) = [
+    separator: string = hostPathSeparator(),
+    result: string = "",
+
+    if left == "" then
+        result = right
+    else
+        if right == "" then
+            result = left
+        else
+            leftSeparated: boolean = compilerIsPathSeparator(left.slice(left.length() - 1, 1))
+            rightSeparated: boolean = compilerIsPathSeparator(right.slice(0, 1))
+            if leftSeparated and rightSeparated then
+                result = left + right.slice(1)
+            else
+                if leftSeparated or rightSeparated then
+                    result = left + right
+                else
+                    result = left + separator + right
+                end
+            end
+        end
+    end,
+    result
+]
+
 resolveIncludePath: fn(currentFile: string, spec: record) = [
     includeKind: string = spec.kind,
     includeName: string = spec.name,
@@ -96,7 +149,7 @@ resolveIncludePath: fn(currentFile: string, spec: record) = [
     end,
 
     if includeKind == "local" then
-        result = absolutePath(combinePath(directoryName(currentFile), includeName + ".beacon"))
+        result = hostAbsolutePath(compilerJoinPath(compilerParentPath(currentFile), includeName + ".beacon"))
     else
         if includeKind == "named" then
             parts: list = splitDottedName(includeName)
@@ -104,11 +157,11 @@ resolveIncludePath: fn(currentFile: string, spec: record) = [
                 fail("Named includes are reserved for the standard library and must begin with 'std.': " + includeName)
             end
 
-            root: string = environment("BEACON_HOME")
+            root: string = hostEnvironment("BEACON_HOME")
             if root == "" then
                 fail("Standard-library includes require BEACON_HOME to be set")
             end
-            result = absolutePath(combinePath(root, namedIncludePath(includeName) + ".beacon"))
+            result = hostAbsolutePath(compilerJoinPath(root, namedIncludePath(includeName) + ".beacon"))
         else
             fail("Unknown include kind: " + includeKind)
         end
@@ -303,7 +356,7 @@ resolveProgramIncludes: fn(program: list, currentFile: string, seen: list, stack
 ]
 
 loadProgramInternal: fn(path: string, seen: list, stack: list, standardNamespaces: record) = [
-    canonical: string = absolutePath(path),
+    canonical: string = hostAbsolutePath(path),
     result: list = [symbol("do")],
 
     if listContainsString(stack, canonical) then
@@ -311,13 +364,13 @@ loadProgramInternal: fn(path: string, seen: list, stack: list, standardNamespace
     end,
 
     if not listContainsString(seen, canonical) then
-        if not fileExists(canonical) then
+        if hostPathKind(canonical) != "file" then
             fail("Beacon source not found: " + canonical)
         end
 
         seen.push(canonical)
         nextStack: list = stack.concat([canonical])
-        source: string = readFile(canonical)
+        source: string = hostReadText(canonical)
         parsed: list = parseProgram(lex(source))
         result = resolveProgramIncludes(parsed, canonical, seen, nextStack, standardNamespaces)
     end,

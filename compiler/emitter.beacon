@@ -553,108 +553,73 @@ emitCall: fn(node: list) = [
         result.push({ op: "box", arg: "number" })
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "readFile" then
+    if not handled and kind(callee) == "symbol" and callee.name == "hostReadText" then
         result = args@0
-        result.push({ op: "call", arg: "Runtime.ReadFile" })
+        result.push({ op: "call", arg: "Runtime.HostReadText" })
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "fileExists" then
+    if not handled and kind(callee) == "symbol" and callee.name == "hostWriteText" then
         result = args@0
-        result.push({ op: "call", arg: "Runtime.FileExists" })
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.HostWriteText" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostReadBytes" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostReadBytes" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostWriteBytes" then
+        result = args@0
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.HostWriteBytes" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostPathKind" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostPathKind" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostReadDirectory" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostReadDirectory" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostRemoveFile" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostRemoveFile" })
         result.push({ op: "box", arg: "boolean" })
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "writeFile" then
+    if not handled and kind(callee) == "symbol" and callee.name == "hostRemoveDirectory" then
         result = args@0
-        result = result.concat(args@1)
-        result.push({ op: "call", arg: "Runtime.WriteFile" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "appendFile" then
-        result = args@0
-        result = result.concat(args@1)
-        result.push({ op: "call", arg: "Runtime.AppendFile" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "directoryExists" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.DirectoryExists" })
+        result.push({ op: "call", arg: "Runtime.HostRemoveDirectory" })
         result.push({ op: "box", arg: "boolean" })
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "deletePath" then
+    if not handled and kind(callee) == "symbol" and callee.name == "hostCreateDirectory" then
         result = args@0
-        result.push({ op: "call", arg: "Runtime.DeletePath" })
-        result.push({ op: "box", arg: "boolean" })
+        result.push({ op: "call", arg: "Runtime.HostCreateDirectory" })
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "copyFile" then
+    if not handled and kind(callee) == "symbol" and callee.name == "hostMovePath" then
         result = args@0
         result = result.concat(args@1)
-        result.push({ op: "call", arg: "Runtime.CopyFile" })
+        result.push({ op: "call", arg: "Runtime.HostMovePath" })
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "movePath" then
+    if not handled and kind(callee) == "symbol" and callee.name == "hostAbsolutePath" then
         result = args@0
-        result = result.concat(args@1)
-        result.push({ op: "call", arg: "Runtime.MovePath" })
+        result.push({ op: "call", arg: "Runtime.HostAbsolutePath" })
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "listFiles" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.ListFiles" })
+    if not handled and kind(callee) == "symbol" and callee.name == "hostPathSeparator" then
+        result = [{ op: "call", arg: "Runtime.HostPathSeparator" }]
         handled = true
     end,
-    if not handled and kind(callee) == "symbol" and callee.name == "listDirectories" then
+    if not handled and kind(callee) == "symbol" and callee.name == "hostEnvironment" then
         result = args@0
-        result.push({ op: "call", arg: "Runtime.ListDirectories" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "createDirectoryPath" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.CreateDirectoryPath" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "absolutePath" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.AbsolutePath" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "directoryName" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.DirectoryName" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "combinePath" then
-        result = args@0
-        result = result.concat(args@1)
-        result.push({ op: "call", arg: "Runtime.CombinePath" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "parentPath" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.ParentPath" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "fileName" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.FileName" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "pathExtension" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.PathExtension" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "pathIsAbsolute" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.PathIsAbsolute" })
-        result.push({ op: "box", arg: "boolean" })
-        handled = true
-    end,
-    if not handled and kind(callee) == "symbol" and callee.name == "environment" then
-        result = args@0
-        result.push({ op: "call", arg: "Runtime.EnvironmentValue" })
+        result.push({ op: "call", arg: "Runtime.HostEnvironment" })
         handled = true
     end,
 

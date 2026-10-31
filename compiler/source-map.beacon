@@ -3,13 +3,13 @@
 // still recover exact file/line/column locations.
 
 collectSourceFilesInternal: fn(path: string, seen: list, files: list) = [
-    canonical: string = absolutePath(path),
+    canonical: string = hostAbsolutePath(path),
 
     if not listContainsString(seen, canonical) then
         seen.push(canonical)
 
-        if fileExists(canonical) then
-            source: string = readFile(canonical)
+        if hostPathKind(canonical) == "file" then
+            source: string = hostReadText(canonical)
             files.push({ file: canonical, source: source })
 
             program: list = parseProgram(lex(source))

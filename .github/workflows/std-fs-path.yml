@@ -27,3 +27,26 @@ jobs:
 
           expected=$'true\ntrue\nsample.txt\n.txt\nsample\ntrue\ntrue\ntrue\ntrue\n1\n1\ntrue\nfalse\ntrue\ntrue\ntrue\ntrue\ntrue\nfalse\nfalse'
           [[ "$output" == "$expected" ]]
+
+      - name: Verify Beacon-native path semantics
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/std-path-semantics.beacon)"
+          printf '%s\n' "$output"
+          [[ "$output" == $'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue' ]]
+
+      - name: Verify fs.copy preserves binary bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .beacon-fs-binary-test
+          mkdir .beacon-fs-binary-test
+          printf '\x00\xff\x01Beacon\x80\x7f' > .beacon-fs-binary-test/source.bin
+          printf '%s\n' \
+            'include std.fs' \
+            'fs.copy(".beacon-fs-binary-test/source.bin", ".beacon-fs-binary-test/copy.bin")' \
+            'print(fs.exists(".beacon-fs-binary-test/copy.bin"))' \
+            > .beacon-fs-binary-test/copy.beacon
+          [[ "$(bash ./beacon.sh .beacon-fs-binary-test/copy.beacon)" == 'true' ]]
+          cmp .beacon-fs-binary-test/source.bin .beacon-fs-binary-test/copy.bin
+          rm -rf .beacon-fs-binary-test

@@ -1,10 +1,129 @@
-join: fn(left: string, right: string) = combinePath(left, right)
+join: fn(left: string, right: string) = [
+    separator: string = hostPathSeparator(),
+    result: string = "",
 
-parent: fn(value: string) = parentPath(value)
+    if left == "" then
+        result = right
+    else
+        if right == "" then
+            result = left
+        else
+            if isAbsolute(right) then
+                result = right
+            else
+                leftLast: string = left.slice(left.length() - 1, 1)
+                rightFirst: string = right.slice(0, 1)
+                leftSeparated: boolean = leftLast == separator or (separator == "\\" and leftLast == "/")
+                rightSeparated: boolean = rightFirst == separator or (separator == "\\" and rightFirst == "/")
 
-name: fn(value: string) = fileName(value)
+                if leftSeparated and rightSeparated then
+                    result = left + right.slice(1)
+                else
+                    if leftSeparated or rightSeparated then
+                        result = left + right
+                    else
+                        result = left + separator + right
+                    end
+                end
+            end
+        end
+    end,
 
-extension: fn(value: string) = pathExtension(value)
+    result
+]
+
+parent: fn(value: string) = [
+    separator: string = hostPathSeparator(),
+    endingIndex: number = value.length(),
+    trimming: boolean = true,
+    hadTrailingSeparator: boolean = false,
+
+    for [i: number = value.length() - 1, i >= 0 and trimming, i = i - 1]
+        character: string = value.slice(i, 1)
+        separated: boolean = character == separator or (separator == "\\" and character == "/")
+        if separated then
+            endingIndex = i
+            hadTrailingSeparator = true
+        else
+            trimming = false
+        end
+    loop,
+
+    separatorIndex: number = -1,
+    found: boolean = false,
+    if not hadTrailingSeparator then
+        for [i: number = endingIndex - 1, i >= 0 and not found, i = i - 1]
+            character: string = value.slice(i, 1)
+            separated: boolean = character == separator or (separator == "\\" and character == "/")
+            if separated then
+                separatorIndex = i
+                found = true
+            end
+        loop
+    end,
+
+    result: string = "",
+    if hadTrailingSeparator then
+        if endingIndex > 0 then
+            if separator == "\\" and endingIndex == 2 and value.length() >= 2 and value.slice(1, 1) == ":" then
+                result = ""
+            else
+                result = value.slice(0, endingIndex)
+            end
+        end
+    else
+        if separatorIndex == 0 then
+            result = value.slice(0, 1)
+        else
+            if separator == "\\" and separatorIndex == 2 and value.length() >= 2 and value.slice(1, 1) == ":" then
+                result = value.slice(0, 3)
+            else
+                if separatorIndex > 0 then
+                    result = value.slice(0, separatorIndex)
+                end
+            end
+        end
+    end,
+
+    result
+]
+
+name: fn(value: string) = [
+    separator: string = hostPathSeparator(),
+    separatorIndex: number = -1,
+    found: boolean = false,
+
+    for [i: number = value.length() - 1, i >= 0 and not found, i = i - 1]
+        character: string = value.slice(i, 1)
+        separated: boolean = character == separator or (separator == "\\" and character == "/")
+        if separated then
+            separatorIndex = i
+            found = true
+        end
+    loop,
+
+    value.slice(separatorIndex + 1)
+]
+
+extension: fn(value: string) = [
+    file: string = name(value),
+    dotIndex: number = -1,
+    found: boolean = false,
+
+    for [i: number = file.length() - 1, i >= 0 and not found, i = i - 1]
+        if file.slice(i, 1) == "." then
+            dotIndex = i
+            found = true
+        end
+    loop,
+
+    result: string = "",
+    if dotIndex >= 0 and dotIndex < file.length() - 1 then
+        result = file.slice(dotIndex)
+    end,
+
+    result
+]
 
 withoutExtension: fn(value: string) = [
     ext: string = extension(value),
@@ -17,6 +136,35 @@ withoutExtension: fn(value: string) = [
     result
 ]
 
-isAbsolute: fn(value: string) = pathIsAbsolute(value)
+isAbsolute: fn(value: string) = [
+    separator: string = hostPathSeparator(),
+    result: boolean = false,
 
-normalize: fn(value: string) = absolutePath(value)
+    if value.length() > 0 then
+        if separator == "/" then
+            result = value.slice(0, 1) == "/"
+        else
+            if value.length() >= 2 then
+                first: string = value.slice(0, 1)
+                second: string = value.slice(1, 1)
+                firstSeparated: boolean = first == "\\" or first == "/"
+                secondSeparated: boolean = second == "\\" or second == "/"
+                if firstSeparated and secondSeparated then
+                    result = true
+                end
+            end
+
+            if not result and value.length() >= 3 then
+                third: string = value.slice(2, 1)
+                thirdSeparated: boolean = third == "\\" or third == "/"
+                if value.slice(1, 1) == ":" and thirdSeparated then
+                    result = true
+                end
+            end
+        end
+    end,
+
+    result
+]
+
+normalize: fn(value: string) = hostAbsolutePath(value)
