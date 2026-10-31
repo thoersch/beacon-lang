@@ -206,7 +206,7 @@ parseIf: fn(state: record) = [
             if matchIdentifier(state, "if") then
                 parseIfClauseAfterIf(state, conditions, bodies)
             else
-                requireNewLine(state, "Expected newline after 'else'"),
+                requireNewLine(state, "Expected newline after 'else'")
                 elseBody = parseStatementsUntil(state, ["end"])
                 chaining = false
             end
@@ -270,8 +270,8 @@ parseWhen: fn(state: record) = [
 
     for [tick: number = 0, not atWhenTerminator(state), tick += 1]
         condition: atom | list | record = parseExpression(state)
-        consumeIdentifier(state, "then", "Expected 'then' after when condition"),
-        requireNewLine(state, "Expected newline after 'then'"),
+        consumeIdentifier(state, "then", "Expected 'then' after when condition")
+        requireNewLine(state, "Expected newline after 'then'")
         conditions.push(condition)
         bodies.push(parseWhenClauseBody(state))
     loop,
@@ -469,8 +469,8 @@ parseTypeDefinition: fn(state: record) = [
     skipNewLines(state),
 
     for [tick: number = 0, not checkToken(state, "rbrace"), tick += 1]
-        nameToken: record = consumeToken(state, "identifier", "Expected member name"),
-        consumeToken(state, "colon", "Expected ':' after member name"),
+        nameToken: record = consumeToken(state, "identifier", "Expected member name")
+        consumeToken(state, "colon", "Expected ':' after member name")
         if matchIdentifier(state, "fn") then
             members.set(nameToken.text, parseFunctionDeclarationAfterFn(state))
         else
@@ -630,7 +630,7 @@ parsePostfix: fn(state: record) = [
 
     for [tick: number = 0, active, tick += 1]
         if matchToken(state, "dot") then
-            member: record = consumeToken(state, "identifier", "Expected member name after '.'"),
+            member: record = consumeToken(state, "identifier", "Expected member name after '.'")
             expression = [symbol("get"), expression, member.text]
         else
             if matchToken(state, "at") then
@@ -652,7 +652,7 @@ parsePostfix: fn(state: record) = [
                         loop
                     end
                     skipNewLines(state)
-                    consumeToken(state, "rparen", "Expected ')' after arguments"),
+                    consumeToken(state, "rparen", "Expected ')' after arguments")
                     expression = call
                 else
                     active = false
@@ -696,7 +696,7 @@ parsePrimary: fn(state: record) = [
                         end
                     else
                         if matchToken(state, "dot") then
-                            member: record = consumeToken(state, "identifier", "Expected member after '.'"),
+                            member: record = consumeToken(state, "identifier", "Expected member after '.'")
                             result = [symbol("get"), symbol("self"), member.text]
                         else
                             if matchToken(state, "lparen") then
@@ -736,7 +736,7 @@ parseListLiteralAfterOpen: fn(state: record) = [
         if matchToken(state, "rbracket") then
             done = true
         else
-            consumeToken(state, "comma", "Beacon Lists require commas between elements"),
+            consumeToken(state, "comma", "Beacon Lists require commas between elements")
             skipNewLines(state)
         end
     loop,
@@ -749,8 +749,8 @@ parseRecordLiteralAfterOpen: fn(state: record) = [
     skipNewLines(state),
 
     for [tick: number = 0, not checkToken(state, "rbrace"), tick += 1]
-        key: record = consumeToken(state, "identifier", "Expected Record field name"),
-        consumeToken(state, "colon", "Expected ':' after field name"),
+        key: record = consumeToken(state, "identifier", "Expected Record field name")
+        consumeToken(state, "colon", "Expected ':' after field name")
         result.set(key.text, parseExpression(state))
 
         if matchToken(state, "comma") then
