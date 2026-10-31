@@ -124,33 +124,23 @@ withoutExtension: fn(value: string) = [
 
 isAbsolute: fn(value: string) = [
     separator: string = hostPathSeparator(),
-    result: boolean = false,
 
-    if value.length() > 0 then
-        if separator == "/" then
-            result = value.slice(0, 1) == "/"
-        else
-            if value.length() >= 2 then
-                first: string = value.slice(0, 1)
-                second: string = value.slice(1, 1)
-                firstSeparated: boolean = first == "\\" or first == "/"
-                secondSeparated: boolean = second == "\\" or second == "/"
-                if firstSeparated and secondSeparated then
-                    result = true
-                end
-            end
-
-            if not result and value.length() >= 3 then
-                third: string = value.slice(2, 1)
-                thirdSeparated: boolean = third == "\\" or third == "/"
-                if value.slice(1, 1) == ":" and thirdSeparated then
-                    result = true
-                end
-            end
-        end
-    end,
-
-    result
+    when
+        value == "" then
+            false
+        separator == "/" then
+            value.slice(0, 1) == "/"
+        value.length() >= 2 and
+        (value.slice(0, 1) == "\\" or value.slice(0, 1) == "/") and
+        (value.slice(1, 1) == "\\" or value.slice(1, 1) == "/") then
+            true
+        value.length() >= 3 and
+        value.slice(1, 1) == ":" and
+        (value.slice(2, 1) == "\\" or value.slice(2, 1) == "/") then
+            true
+        otherwise
+            false
+    end
 ]
 
 normalize: fn(value: string) = hostAbsolutePath(value)
