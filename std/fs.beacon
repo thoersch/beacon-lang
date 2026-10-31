@@ -1,19 +1,66 @@
-readText: fn(path: string) = readFile(path)
+readText: fn(path: string) = hostReadText(path)
 
-writeText: fn(path: string, value: string) = writeFile(path, value)
+writeText: fn(path: string, value: string) = hostWriteText(path, value)
 
-appendText: fn(path: string, value: string) = appendFile(path, value)
+appendText: fn(path: string, value: string) = [
+    existing: string = "",
 
-exists: fn(path: string) = fileExists(path) or directoryExists(path)
+    if hostPathKind(path) == "file" then
+        existing = hostReadText(path)
+    end,
 
-delete: fn(path: string) = deletePath(path)
+    hostWriteText(path, existing + value)
+]
 
-copy: fn(source: string, destination: string) = copyFile(source, destination)
+exists: fn(path: string) = hostPathKind(path) != "missing"
 
-move: fn(source: string, destination: string) = movePath(source, destination)
+delete: fn(path: string) = [
+    entryKind: string = hostPathKind(path),
+    removed: boolean = false,
 
-files: fn(path: string) = listFiles(path)
+    if entryKind == "file" then
+        removed = hostRemoveFile(path)
+    else
+        if entryKind == "directory" then
+            removed = hostRemoveDirectory(path)
+        end
+    end,
 
-directories: fn(path: string) = listDirectories(path)
+    removed
+]
 
-createDirectory: fn(path: string) = createDirectoryPath(path)
+copy: fn(source: string, destination: string) =
+    hostWriteBytes(destination, hostReadBytes(source))
+
+move: fn(source: string, destination: string) =
+    hostMovePath(source, destination)
+
+files: fn(path: string) = [
+    entries: list = hostReadDirectory(path),
+    result: list = [],
+
+    for [i: number = 0, i < entries.length(), i += 1]
+        entry: string = entries@i
+        if hostPathKind(entry) == "file" then
+            result.push(entry)
+        end
+    loop,
+
+    result
+]
+
+directories: fn(path: string) = [
+    entries: list = hostReadDirectory(path),
+    result: list = [],
+
+    for [i: number = 0, i < entries.length(), i += 1]
+        entry: string = entries@i
+        if hostPathKind(entry) == "directory" then
+            result.push(entry)
+        end
+    loop,
+
+    result
+]
+
+createDirectory: fn(path: string) = hostCreateDirectory(path)
