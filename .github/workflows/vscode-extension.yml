@@ -1,6 +1,10 @@
 name: Package VS Code extension
 
 on:
+  pull_request:
+    paths:
+      - "editors/vscode/**"
+      - ".github/workflows/vscode-extension.yml"
   push:
     tags:
       - "v*"
@@ -21,6 +25,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Audit Beacon syntax coverage
+        working-directory: editors/vscode
+        run: npm run check:syntax
+
+      - name: Verify checked-in VSIX uses the source grammar
+        working-directory: editors/vscode
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          VSIX="beacon-lang-$VERSION.vsix"
+
+          if [[ ! -f "$VSIX" ]]; then
+            echo "Packaged extension not found: $VSIX" >&2
+            exit 1
+          fi
+
+          unzip -p "$VSIX" extension/syntaxes/beacon.tmLanguage.json > /tmp/beacon-packaged-grammar.json
+          diff -u syntaxes/beacon.tmLanguage.json /tmp/beacon-packaged-grammar.json
 
       - name: Install extension build dependencies
         working-directory: editors/vscode
