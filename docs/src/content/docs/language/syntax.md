@@ -1,10 +1,22 @@
-# Syntax
+---
+title: Syntax tour
+description: A practical tour of Beacon syntax and core language concepts.
+---
 
-Beacon uses a small, explicit surface syntax that lowers into a compact structural Core built from Atoms, Lists, and Records.
+This page is a working tour of Beacon's surface syntax. It is meant to help you read and write normal Beacon code without turning the docs into a formal language specification.
+
+## Comments
+
+Beacon uses `//` line comments:
+
+```beacon
+// This is a comment
+name: string = "Beacon"
+```
 
 ## Declarations and types
 
-Declarations name a value and state its type explicitly:
+Declarations put the name first, followed by a type and a value:
 
 ```beacon
 age: number = 42
@@ -13,26 +25,28 @@ active: boolean = true
 values: list = [1, 2, 3]
 ```
 
-Beacon has no `any` type. Use an explicit type or union instead:
+Beacon has no `any` type. When a value can have more than one type, use an explicit union:
 
 ```beacon
 node: atom | list | record | null = null
 ```
 
-Common built-in types include:
+Common types include:
 
-- `number`
-- `string`
-- `boolean`
-- `list`
-- `record`
-- `atom`
-- `symbol`
-- `null`
-- `fn`
-- `type`
+```text
+number
+string
+boolean
+list
+record
+atom
+symbol
+null
+fn
+type
+```
 
-## Strings
+## Strings and interpolation
 
 Strings use double quotes:
 
@@ -54,13 +68,13 @@ Inside type behavior, receiver fields can be interpolated directly:
 
 ## Functions
 
-A function can be a single expression:
+A single-expression function can stay on one line:
 
 ```beacon
 square: fn(value: number) = value * value
 ```
 
-A multi-expression function body uses a List. Commas separate the top-level expressions, and the final expression is the function result:
+A multi-expression function body is a List. Commas separate the top-level expressions and the final expression becomes the result:
 
 ```beacon
 incrementTwice: fn(value: number) = [
@@ -70,11 +84,7 @@ incrementTwice: fn(value: number) = [
 ]
 ```
 
-Functions are ordinary values.
-
-### Function clauses
-
-A function binding can contain an ordered List of typed clauses:
+Beacon also supports ordered function clauses:
 
 ```beacon
 format: fn = [
@@ -83,44 +93,53 @@ format: fn = [
 ]
 ```
 
-Clauses are checked from top to bottom. The first clause whose arity and parameter types match is called.
-
-Union types and named Beacon types participate in clause matching. Return types do not participate in dispatch.
+Clauses are checked from top to bottom. The first matching clause executes.
 
 ## Lists
 
-Lists are ordered and require commas between elements:
+Lists are ordered and require commas:
 
 ```beacon
 values: list = [10, 20, 30]
 ```
 
-Use `@` for positional List access:
+Positional access uses `@`:
 
 ```beacon
 print(values@0)
-values@1 = 42
+print(values@2)
+```
+
+The index can be an expression:
+
+```beacon
 print(values@(i + 1))
 ```
 
-`@` is List-only. Records use named access, and Strings use String methods such as `slice()`.
-
-Common List methods include:
+Useful List methods live directly on the List:
 
 ```beacon
 values.push(40)
 last: number = values.pop()
-doubled: list = values.map(double)
-selected: list = values.filter(isPositive)
 first: number = values.head()
 rest: list = values.tail()
 ```
 
-`map()` and `filter()` return new Lists. `push()` and `pop()` mutate the receiver.
+`map` and `filter` return new Lists:
+
+```beacon
+double: fn(value: number) = value * 2
+large: fn(value: number) = value >= 20
+
+print(values.map(double))
+print(values.filter(large))
+```
+
+`@` is exclusively List indexing. Records and Strings do not use positional `@` access.
 
 ## Records
 
-Records are named structure:
+Records are named structures:
 
 ```beacon
 person: record = {
@@ -129,26 +148,27 @@ person: record = {
 }
 ```
 
-Use dot notation for static named access:
+Named members use `.`:
 
 ```beacon
 print(person.name)
 print(person.age)
 ```
 
-For dynamic field names, use `get()` and `set()`:
+When the field name is data rather than a statically known member, use explicit Record operations:
 
 ```beacon
 field: string = "name"
+
 print(person.get(field))
 person.set(field, "Grace")
 ```
 
-Record field order is not part of the Record's meaning.
+Record field order is not part of the value's meaning.
 
-## Named types
+## Types
 
-Define a named type with `type`:
+A named type describes a Record shape:
 
 ```beacon
 person: type = {
@@ -157,7 +177,7 @@ person: type = {
 }
 ```
 
-Then construct values of that type with ordinary Record syntax:
+Create a value of that type with a Record literal:
 
 ```beacon
 ada: person = {
@@ -166,7 +186,7 @@ ada: person = {
 }
 ```
 
-Types can define behavior:
+Types can also define behavior:
 
 ```beacon
 person: type = {
@@ -182,41 +202,17 @@ person: type = {
 }
 ```
 
-A leading `.` inside type behavior refers to the current receiver.
-
-## Includes
-
-Local includes are relative to the containing file and omit the `.beacon` extension:
+A leading `.` inside type behavior refers to the current receiver:
 
 ```beacon
-include "person"
-include "models/address"
+.name
+.age
+.age += 1
 ```
 
-The extension is intentionally omitted. Writing `include "person.beacon"` is rejected.
+## Conditionals
 
-Standard-library modules use named includes:
-
-```beacon
-include std.text
-include std.math
-include std.fs
-include std.path
-```
-
-Standard-library APIs remain namespaced:
-
-```beacon
-clean: string = text.trim(value)
-root: number = math.sqrt(81)
-path.writeText("output.txt", "hello")
-```
-
-Includes are deduplicated, and circular includes are rejected.
-
-## Control flow
-
-Use `if`, `else`, and `end` for conditional control flow:
+Beacon uses explicit `then`, `else`, and `end` keywords:
 
 ```beacon
 if age >= 18 then
@@ -262,7 +258,7 @@ category: string =
     end
 ```
 
-Flattened `else if` is the canonical Beacon style. When an `else` continues immediately with another condition, write `else if` on one line rather than nesting an `if` beneath `else`.
+Flattened `else if` is the canonical Beacon style. When an `else` continues immediately with another condition, keep `else if` on the same line rather than nesting an `if` beneath `else`.
 
 For several ordered predicates, `when` provides a cond-style expression. Conditions are checked from top to bottom and the first true clause wins. Every `when` requires an `otherwise` fallback:
 
@@ -325,7 +321,7 @@ for [i: number = 0, i < values.length(), i += 1]
 loop
 ```
 
-`break` and `continue` apply to the innermost loop. A function declared inside a loop cannot break or continue the enclosing loop.
+`continue` runs the loop step before the condition is checked again.
 
 ## Operators
 
@@ -353,15 +349,17 @@ Assignment:
 =  +=
 ```
 
-Unary numeric negation uses `-`:
+Unary negation is supported:
 
 ```beacon
-negative: number = -value
+x: number = -1
+y: number = -x
+z: number = -(x + 5)
 ```
 
 ## Multiline expressions
 
-An expression can continue on the next line when the preceding token makes continuation unambiguous:
+A newline can follow an operator when the expression clearly continues:
 
 ```beacon
 result: number =
@@ -370,12 +368,58 @@ result: number =
     3
 ```
 
-Logical expressions can be split the same way:
+Logical expressions can continue the same way:
 
 ```beacon
-endsWith: fn(str: string, search: string) =
-    search.length() <= str.length() and
-    str.slice(str.length() - search.length(), search.length()) == search
+valid: boolean =
+    age >= 18 and
+    active
 ```
 
-Keep the operator on the preceding line. A newline before an operator remains a statement boundary.
+The operator stays on the preceding line. A newline before an operator remains a statement boundary.
+
+## Includes
+
+Local Beacon files use quoted includes:
+
+```beacon
+include "person"
+include "models/address"
+```
+
+The `.beacon` extension is omitted. Local includes resolve relative to the file containing them.
+
+Standard-library modules use dotted includes:
+
+```beacon
+include std.text
+include std.math
+include std.fs
+include std.path
+```
+
+Standard-library APIs are namespaced:
+
+```beacon
+include std.text
+include std.math
+
+clean: string = text.trim("  Beacon  ")
+root: number = math.sqrt(81)
+```
+
+## The structural model
+
+Beacon's canonical representation is intentionally small:
+
+- **Atom** — a literal or symbol
+- **List** — ordered structure
+- **Record** — named structure
+
+Higher-level language constructs reduce to combinations of those structures rather than continuously adding new fundamental Core shapes.
+
+That structural simplicity is an important part of Beacon's design, but you do not need to understand the compiler internals to write ordinary Beacon programs.
+
+## Keep exploring
+
+The `examples/` directory in the repository contains runnable programs covering control flow, conditional expressions, function clauses, List methods, multiline expressions, and the standard library.
