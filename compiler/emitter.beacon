@@ -41,7 +41,7 @@ nextLabel: fn(prefix: string) = [
 
 isStatementForm: fn(node: atom | list | record) = [
     result: boolean = false,
-    if isForm(node, "if") or isForm(node, "for") or isForm(node, "break") or isForm(node, "continue") then
+    if isForm(node, "for") or isForm(node, "break") or isForm(node, "continue") then
         result = true
     end,
     result
@@ -77,21 +77,17 @@ compile: fn(program: list) = [
 
 emitStatement: fn(node: atom | list | record) = [
     result: list = [],
-    if isForm(node, "if") then
-        result = emitIf(node)
+    if isForm(node, "for") then
+        result = emitFor(node)
     else
-        if isForm(node, "for") then
-            result = emitFor(node)
+        if isForm(node, "break") then
+            result = emitBreak()
         else
-            if isForm(node, "break") then
-                result = emitBreak()
+            if isForm(node, "continue") then
+                result = emitContinue()
             else
-                if isForm(node, "continue") then
-                    result = emitContinue()
-                else
-                    result = emit(node)
-                    result.push({ op: "pop" })
-                end
+                result = emit(node)
+                result.push({ op: "pop" })
             end
         end
     end,
@@ -106,23 +102,30 @@ emitDoStatements: fn(body: list) = [
     ops
 ]
 
+emitDoValue: fn(body: list) = [
+    ops: list = [],
+    if body.length() == 1 then
+        ops.push({ op: "ldnull" })
+    else
+        for [i: number = 1, i < body.length() - 1, i += 1]
+            ops = ops.concat(emitStatement(body@i))
+        loop
+
+        last: atom | list | record = body@(body.length() - 1)
+        if isStatementForm(last) then
+            ops = ops.concat(emitStatement(last))
+            ops.push({ op: "ldnull" })
+        else
+            ops = ops.concat(emit(last))
+        end
+    end,
+    ops
+]
+
 emitFunctionBody: fn(body: atom | list | record) = [
     ops: list = [],
     if isForm(body, "do") then
-        if body.length() == 1 then
-            ops.push({ op: "ldnull" })
-        else
-            for [i: number = 1, i < body.length() - 1, i += 1]
-                ops = ops.concat(emitStatement(body@i))
-            loop
-            last: atom | list | record = body@(body.length() - 1)
-            if isStatementForm(last) then
-                ops = ops.concat(emitStatement(last))
-                ops.push({ op: "ldnull" })
-            else
-                ops = ops.concat(emit(last))
-            end
-        end
+        ops = emitDoValue(body)
     else
         ops = emit(body)
     end,
@@ -254,6 +257,10 @@ emitForm: fn(node: list) = [
     end,
     if form == "neg" then
         result = emitNegate(node)
+        handled = true
+    end,
+    if form == "if" then
+        result = emitIf(node)
         handled = true
     end,
     if form == "list" then
@@ -730,10 +737,10 @@ emitIf: fn(node: list) = [
     ops: list = emit(node@1),
     ops.push({ op: "call", arg: "Runtime.Bool" }),
     ops.push({ op: "brfalse", label: elseLabel }),
-    ops = ops.concat(emitDoStatements(node@2)),
+    ops = ops.concat(emitDoValue(node@2)),
     ops.push({ op: "br", label: endLabel }),
     ops.push({ op: "label", name: elseLabel }),
-    ops = ops.concat(emitDoStatements(node@3)),
+    ops = ops.concat(emitDoValue(node@3)),
     ops.push({ op: "label", name: endLabel }),
     ops
 ]
