@@ -20,10 +20,8 @@ delete: fn(path: string) = [
 
     if entryKind == "file" then
         removed = hostRemoveFile(path)
-    else
-        if entryKind == "directory" then
-            removed = hostRemoveDirectory(path)
-        end
+    else if entryKind == "directory" then
+        removed = hostRemoveDirectory(path)
     end,
 
     removed

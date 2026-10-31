@@ -50,15 +50,11 @@ staticTypeName: fn(value: atom | list | record) = [
 
     if valueKind == "number" or valueKind == "string" or valueKind == "boolean" or valueKind == "null" or valueKind == "symbol" or valueKind == "record" then
         result = valueKind
-    else
-        if valueKind == "list" then
-            if isForm(value, "list") then
-                result = "list"
-            else
-                if isForm(value, "fn") then
-                    result = "fn"
-                end
-            end
+    else if valueKind == "list" then
+        if isForm(value, "list") then
+            result = "list"
+        else if isForm(value, "fn") then
+            result = "fn"
         end
     end,
 
@@ -180,36 +176,28 @@ validateValueAgainstType: fn(value: atom | list | record, expectedType: string, 
         if kind(namedMembers) == "record" then
             if kind(value) == "record" then
                 validateRecordAgainstType(value, expectedType, namedMembers, path, types, sources, diagnostics)
-            else
-                if actual != "" then
-                    appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
-                end
+            else if actual != "" then
+                appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
             end
-        else
-            if actual != "" then
-                matched: boolean = primitiveTypeMatches(expectedType, actual)
-                if not matched then
-                    appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
-                end
-            end
-        end
-    else
-        // Union validation remains conservative. If the static type matches any
-        // primitive option, the value is valid. Named-record unions are deferred.
-        if actual != "" then
-            matched: boolean = false
-            for [i: number = 0, i < options.length(), i += 1]
-                if primitiveTypeMatches(options@i, actual) then
-                    matched = true
-                else
-                    if types.has(options@i) and actual == "record" then
-                        matched = true
-                    end
-                end
-            loop
+        else if actual != "" then
+            matched: boolean = primitiveTypeMatches(expectedType, actual)
             if not matched then
                 appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
             end
+        end
+    else if actual != "" then
+        // Union validation remains conservative. If the static type matches any
+        // primitive option, the value is valid. Named-record unions are deferred.
+        matched: boolean = false
+        for [i: number = 0, i < options.length(), i += 1]
+            if primitiveTypeMatches(options@i, actual) then
+                matched = true
+            else if types.has(options@i) and actual == "record" then
+                matched = true
+            end
+        loop
+        if not matched then
+            appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
         end
     end,
 

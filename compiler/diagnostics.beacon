@@ -105,10 +105,8 @@ sourceLineText: fn(source: string, requestedLine: number) = [
                         collecting = true
                     end
                 end
-            else
-                if collecting and character != "\r" then
-                    result += character
-                end
+            else if collecting and character != "\r" then
+                result += character
             end
         end
     loop,

@@ -1,0 +1,48 @@
+name: Conditional expressions
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  conditional-flow:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify if expressions, else if, and when
+        shell: bash
+        run: |
+          output="$(bash ./beacon.sh examples/conditional-expressions.beacon)"
+          printf '%s\n' "$output"
+          expected=$'negative\nzero\npositive\nnegative\nzero\nsmall positive\nlarge positive\nnull\nstatement if'
+          [[ "$output" == "$expected" ]]
+
+      - name: Require otherwise in when
+        shell: bash
+        run: |
+          cat > /tmp/when-missing-otherwise.beacon <<'BEACON'
+          value: string =
+              when
+                  true then
+                      "yes"
+              end
+          print(value)
+          BEACON
+
+          set +e
+          output="$(bash ./beacon.sh /tmp/when-missing-otherwise.beacon 2>&1)"
+          status=$?
+          set -e
+
+          [[ $status -ne 0 ]]
+          grep -F "Expected 'otherwise' in when expression" <<<"$output"

@@ -1,0 +1,39 @@
+classify: fn(value: number) =
+    if value < 0 then
+        "negative"
+    else if value == 0 then
+        "zero"
+    else
+        "positive"
+    end
+
+describe: fn(value: number) =
+    when
+        value < 0 then
+            "negative"
+        value == 0 then
+            "zero"
+        value < 10 then
+            prefix: string = "small"
+            prefix + " positive"
+        otherwise
+            "large positive"
+    end
+
+print(classify(-1))
+print(classify(0))
+print(classify(3))
+print(describe(-1))
+print(describe(0))
+print(describe(4))
+print(describe(10))
+
+fallback: null =
+    if false then
+        "unreachable"
+    end
+print(fallback)
+
+if true then
+    print("statement if")
+end
