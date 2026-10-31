@@ -122,19 +122,23 @@ parseStatement: fn(state: record) = [
         if checkIdentifier(state, "if") then
             result = parseIf(state)
         else
-            if checkIdentifier(state, "for") then
-                result = parseFor(state)
+            if checkIdentifier(state, "when") then
+                result = parseWhen(state)
             else
-                if matchIdentifier(state, "break") then
-                    result = [symbol("break")]
+                if checkIdentifier(state, "for") then
+                    result = parseFor(state)
                 else
-                    if matchIdentifier(state, "continue") then
-                        result = [symbol("continue")]
+                    if matchIdentifier(state, "break") then
+                        result = [symbol("break")]
                     else
-                        if checkToken(state, "identifier") and checkNextToken(state, "colon") then
-                            result = parseDeclaration(state)
+                        if matchIdentifier(state, "continue") then
+                            result = [symbol("continue")]
                         else
-                            result = parseExpression(state)
+                            if checkToken(state, "identifier") and checkNextToken(state, "colon") then
+                                result = parseDeclaration(state)
+                            else
+                                result = parseExpression(state)
+                            end
                         end
                     end
                 end
@@ -168,21 +172,113 @@ parseInclude: fn(state: record) = [
     [symbol("include"), spec]
 ]
 
-parseIf: fn(state: record) = [
-    consumeIdentifier(state, "if", "Expected 'if'"),
+buildConditionalChain: fn(conditions: list, bodies: list, fallback: list) = [
+    lastIndex: number = conditions.length() - 1,
+    result: list = [symbol("if"), conditions@lastIndex, bodies@lastIndex, fallback],
+
+    for [i: number = lastIndex - 1, i >= 0, i = i - 1]
+        result = [symbol("if"), conditions@i, bodies@i, [symbol("do"), result]]
+    loop,
+
+    result
+]
+
+parseIfClauseAfterIf: fn(state: record, conditions: list, bodies: list) = [
     condition: atom | list | record = parseExpression(state),
     consumeIdentifier(state, "then", "Expected 'then' after if condition"),
     requireNewLine(state, "Expected newline after 'then'"),
-    thenBody: list = parseStatementsUntil(state, ["else", "end"]),
+    conditions.push(condition),
+    bodies.push(parseStatementsUntil(state, ["else", "end"])),
+    null
+]
+
+parseIf: fn(state: record) = [
+    consumeIdentifier(state, "if", "Expected 'if'"),
+    conditions: list = [],
+    bodies: list = [],
     elseBody: list = [symbol("do")],
 
-    if matchIdentifier(state, "else") then
-        requireNewLine(state, "Expected newline after 'else'")
-        elseBody = parseStatementsUntil(state, ["end"])
-    end,
+    parseIfClauseAfterIf(state, conditions, bodies),
+
+    chaining: boolean = true,
+    for [tick: number = 0, chaining, tick += 1]
+        if matchIdentifier(state, "else") then
+            if matchIdentifier(state, "if") then
+                parseIfClauseAfterIf(state, conditions, bodies)
+            else
+                requireNewLine(state, "Expected newline after 'else'")
+                elseBody = parseStatementsUntil(state, ["end"])
+                chaining = false
+            end
+        else
+            chaining = false
+        end
+    loop,
 
     consumeIdentifier(state, "end", "Expected 'end' to close if"),
-    [symbol("if"), condition, thenBody, elseBody]
+    buildConditionalChain(conditions, bodies, elseBody)
+]
+
+atWhenClauseStart: fn(state: record) = [
+    result: boolean = false,
+    if not checkIdentifier(state, "otherwise") and not checkIdentifier(state, "end") then
+        savedPosition: number = state.pos
+        parseExpression(state)
+        result = checkIdentifier(state, "then")
+        state.pos = savedPosition
+    end,
+    result
+]
+
+parseWhenClauseBody: fn(state: record) = [
+    items: list = [symbol("do")],
+    skipNewLines(state),
+
+    for [tick: number = 0, not checkToken(state, "end") and not checkIdentifier(state, "otherwise") and not atWhenClauseStart(state), tick += 1]
+        items.push(parseStatement(state))
+        requireStatementBoundary(state)
+        skipNewLines(state)
+    loop,
+
+    if items.length() == 1 then
+        token: record = currentToken(state)
+        fail("Expected expression in when clause at " + token.line + ":" + token.column)
+    end,
+
+    items
+]
+
+parseWhen: fn(state: record) = [
+    consumeIdentifier(state, "when", "Expected 'when'"),
+    requireNewLine(state, "Expected newline after 'when'"),
+    conditions: list = [],
+    bodies: list = [],
+
+    for [tick: number = 0, not checkIdentifier(state, "otherwise") and not checkToken(state, "end"), tick += 1]
+        condition: atom | list | record = parseExpression(state)
+        consumeIdentifier(state, "then", "Expected 'then' after when condition")
+        requireNewLine(state, "Expected newline after 'then'"),
+        conditions.push(condition)
+        bodies.push(parseWhenClauseBody(state))
+    loop,
+
+    if conditions.length() == 0 then
+        fail("when requires at least one condition")
+    end,
+    if not matchIdentifier(state, "otherwise") then
+        token: record = currentToken(state)
+        fail("Expected 'otherwise' in when expression at " + token.line + ":" + token.column)
+    end,
+
+    requireNewLine(state, "Expected newline after 'otherwise'"),
+    otherwiseBody: list = parseStatementsUntil(state, ["end"]),
+    if otherwiseBody.length() == 1 then
+        token: record = currentToken(state)
+        fail("Expected expression after 'otherwise' at " + token.line + ":" + token.column)
+    end,
+
+    consumeIdentifier(state, "end", "Expected 'end' to close when"),
+    buildConditionalChain(conditions, bodies, otherwiseBody)
 ]
 
 parseFor: fn(state: record) = [
@@ -287,7 +383,7 @@ parseFunctionClausesAfterEqual: fn(state: record) = [
     for [tick: number = 0, not done, tick += 1]
         consumeIdentifier(state, "fn", "Expected fn clause")
         clauses.push(parseFunctionAfterFn(state))
-        skipNewLines(state)
+        skipNewLines(state),
 
         if matchToken(state, "rbracket") then
             done = true
@@ -564,38 +660,46 @@ parsePrimary: fn(state: record) = [
         if matchToken(state, "string") then
             result = token.text
         else
-            if matchToken(state, "identifier") then
-                if token.text == "true" then
-                    result = true
-                else
-                    if token.text == "false" then
-                        result = false
-                    else
-                        if token.text == "null" then
-                            result = null
-                        else
-                            result = symbol(token.text)
-                        end
-                    end
-                end
+            if checkIdentifier(state, "if") then
+                result = parseIf(state)
             else
-                if matchToken(state, "dot") then
-                    member: record = consumeToken(state, "identifier", "Expected member after '.'")
-                    result = [symbol("get"), symbol("self"), member.text]
+                if checkIdentifier(state, "when") then
+                    result = parseWhen(state)
                 else
-                    if matchToken(state, "lparen") then
-                        skipNewLines(state)
-                        result = parseExpression(state)
-                        skipNewLines(state)
-                        consumeToken(state, "rparen", "Expected ')'")
-                    else
-                        if matchToken(state, "lbracket") then
-                            result = parseListLiteralAfterOpen(state)
+                    if matchToken(state, "identifier") then
+                        if token.text == "true" then
+                            result = true
                         else
-                            if matchToken(state, "lbrace") then
-                                result = parseRecordLiteralAfterOpen(state)
+                            if token.text == "false" then
+                                result = false
                             else
-                                fail("Expected expression at " + token.line + ":" + token.column)
+                                if token.text == "null" then
+                                    result = null
+                                else
+                                    result = symbol(token.text)
+                                end
+                            end
+                        end
+                    else
+                        if matchToken(state, "dot") then
+                            member: record = consumeToken(state, "identifier", "Expected member after '.'")
+                            result = [symbol("get"), symbol("self"), member.text]
+                        else
+                            if matchToken(state, "lparen") then
+                                skipNewLines(state)
+                                result = parseExpression(state)
+                                skipNewLines(state)
+                                consumeToken(state, "rparen", "Expected ')'")
+                            else
+                                if matchToken(state, "lbracket") then
+                                    result = parseListLiteralAfterOpen(state)
+                                else
+                                    if matchToken(state, "lbrace") then
+                                        result = parseRecordLiteralAfterOpen(state)
+                                    else
+                                        fail("Expected expression at " + token.line + ":" + token.column)
+                                    end
+                                end
                             end
                         end
                     end
