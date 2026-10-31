@@ -22,7 +22,7 @@ const checks = [
     },
     {
         repository: "keywords",
-        scope: "keyword.operator.logical.beacon",
+        scope: "keyword.control.logical.beacon",
         tokens: ["and", "or", "not"]
     },
     {

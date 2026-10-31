@@ -132,7 +132,7 @@
           "match": "\\b(break|continue)\\b"
         },
         {
-          "name": "keyword.operator.logical.beacon",
+          "name": "keyword.control.logical.beacon",
           "match": "\\b(and|or|not)\\b"
         },
         {
