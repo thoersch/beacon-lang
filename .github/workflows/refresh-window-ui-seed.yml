@@ -1,3 +1,4 @@
+# One-time Stage-0 refresh for the native desktop boundary.
 name: Refresh Stage-0 for std.window and std.ui
 
 on:
