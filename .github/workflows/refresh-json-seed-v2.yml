@@ -1,0 +1,22 @@
+name: Refresh std.json seed
+
+on:
+  push:
+    branches:
+      - feature/std-json
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/std-json
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: bash tools/refresh-json-seed.sh
