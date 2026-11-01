@@ -44,6 +44,10 @@ export default defineConfig({
           label: 'Language',
           items: [{ label: 'Syntax tour', slug: 'language/syntax' }],
         },
+        {
+          label: 'Standard library',
+          items: [{ label: 'JSON', slug: 'standard-library/json' }],
+        },
       ],
       expressiveCode: {
         themes: ['github-dark', 'github-light'],
