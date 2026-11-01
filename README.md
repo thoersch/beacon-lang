@@ -132,6 +132,8 @@ include std.math
 include std.fs
 include std.path
 include std.json
+include std.window
+include std.ui
 ```
 
 For example:
@@ -149,6 +151,8 @@ print(name)
 print(root)
 print(payload.name)
 ```
+
+Beacon also has the first native desktop foundation used by the Beacon Inspector. `std.window` owns application-window lifecycle and events, while `std.ui` represents UI as ordinary Beacon Records and Lists and owns layout and callback routing. The first native window backend is Win32; programs can use `window.available()` before creating a window on other platforms.
 
 Beacon keeps native/runtime operations deliberately small. Higher-level functionality belongs in Beacon source when it can be expressed there.
 
@@ -243,7 +247,8 @@ Already working:
 - user-defined types
 - control flow and loops
 - local and standard-library includes
-- text, math, filesystem, path, and JSON libraries
+- text, math, filesystem, path, JSON, window, and structural UI libraries
+- initial native Win32 desktop backend
 - VS Code syntax support
 - structured compiler diagnostics
 
@@ -252,6 +257,7 @@ Still evolving:
 - broader type-system capabilities
 - package and dependency management
 - standard-library breadth
+- richer desktop UI driven by the Beacon Inspector
 - executable distribution
 - developer tooling
 - networking and process APIs
