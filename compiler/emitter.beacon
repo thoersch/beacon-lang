@@ -609,6 +609,11 @@ emitCall: fn(node: list) = [
         result.push({ op: "call", arg: "Runtime.HostEnvironment" })
         handled = true
     end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostCharacter" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostCharacter" })
+        handled = true
+    end,
 
     if not handled then
         if isForm(callee, "get") then

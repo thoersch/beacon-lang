@@ -38,23 +38,40 @@ _jsonIsNonZeroDigit: fn(character: string) =
 
 _jsonHexValue: fn(character: string) =
     when
-        character == "0" then 0
-        character == "1" then 1
-        character == "2" then 2
-        character == "3" then 3
-        character == "4" then 4
-        character == "5" then 5
-        character == "6" then 6
-        character == "7" then 7
-        character == "8" then 8
-        character == "9" then 9
-        character == "a" or character == "A" then 10
-        character == "b" or character == "B" then 11
-        character == "c" or character == "C" then 12
-        character == "d" or character == "D" then 13
-        character == "e" or character == "E" then 14
-        character == "f" or character == "F" then 15
-        otherwise -1
+        character == "0" then
+            0
+        character == "1" then
+            1
+        character == "2" then
+            2
+        character == "3" then
+            3
+        character == "4" then
+            4
+        character == "5" then
+            5
+        character == "6" then
+            6
+        character == "7" then
+            7
+        character == "8" then
+            8
+        character == "9" then
+            9
+        character == "a" or character == "A" then
+            10
+        character == "b" or character == "B" then
+            11
+        character == "c" or character == "C" then
+            12
+        character == "d" or character == "D" then
+            13
+        character == "e" or character == "E" then
+            14
+        character == "f" or character == "F" then
+            15
+        otherwise
+            -1
     end
 
 _jsonParseHex4: fn(state: record) = [
@@ -138,16 +155,26 @@ _jsonParseString: fn(state: record) = [
             state.pos += 1
 
             when
-                escape == "\"" then result += "\""
-                escape == "\\" then result += "\\"
-                escape == "/" then result += "/"
-                escape == "b" then result += hostCharacter(8)
-                escape == "f" then result += hostCharacter(12)
-                escape == "n" then result += "\n"
-                escape == "r" then result += "\r"
-                escape == "t" then result += "\t"
-                escape == "u" then result += _jsonParseUnicodeEscape(state)
-                otherwise _jsonError(state, "Invalid string escape")
+                escape == "\"" then
+                    result += "\""
+                escape == "\\" then
+                    result += "\\"
+                escape == "/" then
+                    result += "/"
+                escape == "b" then
+                    result += hostCharacter(8)
+                escape == "f" then
+                    result += hostCharacter(12)
+                escape == "n" then
+                    result += "\n"
+                escape == "r" then
+                    result += "\r"
+                escape == "t" then
+                    result += "\t"
+                escape == "u" then
+                    result += _jsonParseUnicodeEscape(state)
+                otherwise
+                    _jsonError(state, "Invalid string escape")
             end
         else
             if _jsonControlCode(character) >= 0 then
@@ -372,12 +399,22 @@ _jsonHexDigit: fn(value: number) =
 
 _jsonControlEscape: fn(code: number) =
     when
-        code == 8 then "\\b"
-        code == 9 then "\\t"
-        code == 10 then "\\n"
-        code == 12 then "\\f"
-        code == 13 then "\\r"
-        otherwise "\\u00" + _jsonHexDigit((code - code % 16) / 16) + _jsonHexDigit(code % 16)
+        code == 8 then
+            "\\b"
+        code == 9 then
+            "\\t"
+        code == 10 then
+            "\\n"
+        code == 12 then
+            "\\f"
+        code == 13 then
+            "\\r"
+        otherwise
+            if code < 16 then
+                "\\u000" + _jsonHexDigit(code)
+            else
+                "\\u001" + _jsonHexDigit(code - 16)
+            end
     end
 
 _jsonEncodeString: fn(value: string) = [
