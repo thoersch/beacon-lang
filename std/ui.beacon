@@ -239,11 +239,10 @@ dispatchEvent: fn<private>(app: record, event: record) = [
             handlers: record = app.get("uiHandlers")
             if handlers.has(event.action) then
                 handler: record = handlers.get(event.action)
-                callback: fn = handler.callback
                 if handler.mode == "input" then
-                    callback(event.value)
+                    handler.callback(event.value)
                 else
-                    callback()
+                    handler.callback()
                 end
             end
         end
