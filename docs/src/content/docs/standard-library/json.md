@@ -5,6 +5,8 @@ description: Parse and serialize JSON with Beacon's std.json module.
 
 Beacon's JSON support lives in `std.json` and is implemented in Beacon.
 
+Only `parse` and `stringify` are public. Parser and encoder helpers use `fn<private>` and stay inside the `json` module.
+
 ```beacon
 include std.json
 ```

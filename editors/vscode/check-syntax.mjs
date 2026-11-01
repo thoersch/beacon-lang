@@ -27,6 +27,11 @@ const checks = [
     },
     {
         repository: "keywords",
+        scope: "storage.modifier.function.beacon",
+        tokens: ["private"]
+    },
+    {
+        repository: "keywords",
         scope: "keyword.control.import.include.beacon",
         tokens: ["include"]
     },

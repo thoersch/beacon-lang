@@ -1,20 +1,20 @@
-_jsonError: fn(state: record, message: string) =
+error: fn<private>(state: record, message: string) =
     fail("Invalid JSON at character {state.pos}: {message}")
 
-_jsonPeek: fn(state: record) =
+peek: fn<private>(state: record) =
     if state.pos < state.source.length() then
         state.source.slice(state.pos, 1)
     else
         ""
     end
 
-_jsonIsWhitespace: fn(character: string) =
+isWhitespace: fn<private>(character: string) =
     character == " " or character == "\t" or character == "\n" or character == "\r"
 
-_jsonSkipWhitespace: fn(state: record) = [
+skipWhitespace: fn<private>(state: record) = [
     for [keep: boolean = true, keep, keep = keep]
-        character: string = _jsonPeek(state)
-        if character != "" and _jsonIsWhitespace(character) then
+        character: string = peek(state)
+        if character != "" and isWhitespace(character) then
             state.pos += 1
         else
             keep = false
@@ -24,17 +24,17 @@ _jsonSkipWhitespace: fn(state: record) = [
     null
 ]
 
-_jsonIsDigit: fn(character: string) =
+isDigit: fn<private>(character: string) =
     character == "0" or character == "1" or character == "2" or character == "3" or
     character == "4" or character == "5" or character == "6" or character == "7" or
     character == "8" or character == "9"
 
-_jsonIsNonZeroDigit: fn(character: string) =
+isNonZeroDigit: fn<private>(character: string) =
     character == "1" or character == "2" or character == "3" or character == "4" or
     character == "5" or character == "6" or character == "7" or character == "8" or
     character == "9"
 
-_jsonHexValue: fn(character: string) =
+hexValue: fn<private>(character: string) =
     when
         character == "0" then
             0
@@ -72,17 +72,17 @@ _jsonHexValue: fn(character: string) =
             -1
     end
 
-_jsonParseHex4: fn(state: record) = [
+parseHex4: fn<private>(state: record) = [
     value: number = 0,
 
     for [i: number = 0, i < 4, i += 1]
         if state.pos >= state.source.length() then
-            _jsonError(state, "Incomplete Unicode escape")
+            error(state, "Incomplete Unicode escape")
         end
 
-        digit: number = _jsonHexValue(state.source.slice(state.pos, 1))
+        digit: number = hexValue(state.source.slice(state.pos, 1))
         if digit < 0 then
-            _jsonError(state, "Unicode escape must contain four hexadecimal digits")
+            error(state, "Unicode escape must contain four hexadecimal digits")
         end
 
         value = value * 16 + digit
@@ -92,30 +92,30 @@ _jsonParseHex4: fn(state: record) = [
     value
 ]
 
-_jsonParseUnicodeEscape: fn(state: record) = [
-    first: number = _jsonParseHex4(state),
+parseUnicodeEscape: fn<private>(state: record) = [
+    first: number = parseHex4(state),
     codePoint: number = first,
 
     if first >= 55296 and first <= 56319 then
         if state.pos + 2 > state.source.length() or state.source.slice(state.pos, 2) != "\\u" then
-            _jsonError(state, "High surrogate must be followed by a low surrogate Unicode escape")
+            error(state, "High surrogate must be followed by a low surrogate Unicode escape")
         end
 
         state.pos += 2
-        second: number = _jsonParseHex4(state)
+        second: number = parseHex4(state)
         if second < 56320 or second > 57343 then
-            _jsonError(state, "High surrogate must be followed by a low surrogate Unicode escape")
+            error(state, "High surrogate must be followed by a low surrogate Unicode escape")
         end
 
         codePoint = 65536 + (first - 55296) * 1024 + (second - 56320)
     else if first >= 56320 and first <= 57343 then
-        _jsonError(state, "Low surrogate must follow a high surrogate Unicode escape")
+        error(state, "Low surrogate must follow a high surrogate Unicode escape")
     end,
 
     hostCharacter(codePoint)
 ]
 
-_jsonControlCode: fn(character: string) = [
+controlCode: fn<private>(character: string) = [
     result: number = -1,
 
     for [i: number = 0, i < 32 and result == -1, i += 1]
@@ -127,7 +127,7 @@ _jsonControlCode: fn(character: string) = [
     result
 ]
 
-_jsonParseString: fn(state: record) = [
+parseString: fn<private>(state: record) = [
     result: string = "",
     done: boolean = false,
 
@@ -135,7 +135,7 @@ _jsonParseString: fn(state: record) = [
 
     for [reading: boolean = true, reading, reading = reading]
         if state.pos >= state.source.length() then
-            _jsonError(state, "Unterminated string")
+            error(state, "Unterminated string")
         end
 
         character: string = state.source.slice(state.pos, 1)
@@ -146,7 +146,7 @@ _jsonParseString: fn(state: record) = [
             done = true
         else if character == "\\" then
             if state.pos >= state.source.length() then
-                _jsonError(state, "Unterminated escape sequence")
+                error(state, "Unterminated escape sequence")
             end
 
             escape: string = state.source.slice(state.pos, 1)
@@ -170,57 +170,57 @@ _jsonParseString: fn(state: record) = [
                 escape == "t" then
                     result += "\t"
                 escape == "u" then
-                    result += _jsonParseUnicodeEscape(state)
+                    result += parseUnicodeEscape(state)
                 otherwise
-                    _jsonError(state, "Invalid string escape")
+                    error(state, "Invalid string escape")
             end
-        else if _jsonControlCode(character) >= 0 then
-            _jsonError(state, "Unescaped control character in string")
+        else if controlCode(character) >= 0 then
+            error(state, "Unescaped control character in string")
         else
             result += character
         end
     loop,
 
     if not done then
-        _jsonError(state, "Unterminated string")
+        error(state, "Unterminated string")
     end,
 
     result
 ]
 
-_jsonParseNumber: fn(state: record) = [
+parseNumber: fn<private>(state: record) = [
     start: number = state.pos,
-    character: string = _jsonPeek(state),
+    character: string = peek(state),
 
     if character == "-" then
         state.pos += 1
-        character = _jsonPeek(state)
+        character = peek(state)
     end,
 
     if character == "0" then
         state.pos += 1
-        if _jsonIsDigit(_jsonPeek(state)) then
-            _jsonError(state, "Numbers cannot contain leading zeroes")
+        if isDigit(peek(state)) then
+            error(state, "Numbers cannot contain leading zeroes")
         end
-    else if _jsonIsNonZeroDigit(character) then
+    else if isNonZeroDigit(character) then
         for [digits: boolean = true, digits, digits = digits]
-            if _jsonIsDigit(_jsonPeek(state)) then
+            if isDigit(peek(state)) then
                 state.pos += 1
             else
                 digits = false
             end
         loop
     else
-        _jsonError(state, "Expected a digit")
+        error(state, "Expected a digit")
     end,
 
-    if _jsonPeek(state) == "." then
+    if peek(state) == "." then
         state.pos += 1
-        if not _jsonIsDigit(_jsonPeek(state)) then
-            _jsonError(state, "Fraction requires at least one digit")
+        if not isDigit(peek(state)) then
+            error(state, "Fraction requires at least one digit")
         end
         for [fraction: boolean = true, fraction, fraction = fraction]
-            if _jsonIsDigit(_jsonPeek(state)) then
+            if isDigit(peek(state)) then
                 state.pos += 1
             else
                 fraction = false
@@ -228,18 +228,18 @@ _jsonParseNumber: fn(state: record) = [
         loop
     end,
 
-    character = _jsonPeek(state),
+    character = peek(state),
     if character == "e" or character == "E" then
         state.pos += 1
-        character = _jsonPeek(state)
+        character = peek(state)
         if character == "+" or character == "-" then
             state.pos += 1
         end
-        if not _jsonIsDigit(_jsonPeek(state)) then
-            _jsonError(state, "Exponent requires at least one digit")
+        if not isDigit(peek(state)) then
+            error(state, "Exponent requires at least one digit")
         end
         for [exponent: boolean = true, exponent, exponent = exponent]
-            if _jsonIsDigit(_jsonPeek(state)) then
+            if isDigit(peek(state)) then
                 state.pos += 1
             else
                 exponent = false
@@ -252,17 +252,17 @@ _jsonParseNumber: fn(state: record) = [
     rendered: string = "{value}",
 
     if rendered == "NaN" or rendered == "Infinity" or rendered == "-Infinity" then
-        _jsonError(state, "Number is outside Beacon's finite Number range")
+        error(state, "Number is outside Beacon's finite Number range")
     end,
 
     value
 ]
 
-_jsonExpectLiteral: fn(state: record, literal: string) = [
+expectLiteral: fn<private>(state: record, literal: string) = [
     for [i: number = 0, i < literal.length(), i += 1]
         if state.pos >= state.source.length() or
             state.source.slice(state.pos, 1) != literal.slice(i, 1) then
-            _jsonError(state, "Invalid literal")
+            error(state, "Invalid literal")
         end
         state.pos += 1
     loop,
@@ -270,106 +270,106 @@ _jsonExpectLiteral: fn(state: record, literal: string) = [
     null
 ]
 
-_jsonParseArray: fn(state: record) = [
+parseArray: fn<private>(state: record) = [
     result: list = [],
     done: boolean = false,
 
     state.pos += 1,
-    _jsonSkipWhitespace(state),
+    skipWhitespace(state),
 
-    if _jsonPeek(state) == "]" then
+    if peek(state) == "]" then
         state.pos += 1
         done = true
     end,
 
     for [reading: boolean = not done, reading, reading = reading]
-        result.push(_jsonParseValue(state))
-        _jsonSkipWhitespace(state)
+        result.push(parseValue(state))
+        skipWhitespace(state)
 
-        character: string = _jsonPeek(state)
+        character: string = peek(state)
         if character == "," then
             state.pos += 1
-            _jsonSkipWhitespace(state)
+            skipWhitespace(state)
         else if character == "]" then
             state.pos += 1
             reading = false
         else
-            _jsonError(state, "Expected ',' or ']' in array")
+            error(state, "Expected ',' or ']' in array")
         end
     loop,
 
     result
 ]
 
-_jsonParseObject: fn(state: record) = [
+parseObject: fn<private>(state: record) = [
     result: record = {},
     done: boolean = false,
 
     state.pos += 1,
-    _jsonSkipWhitespace(state),
+    skipWhitespace(state),
 
-    if _jsonPeek(state) == "}" then
+    if peek(state) == "}" then
         state.pos += 1
         done = true
     end,
 
     for [reading: boolean = not done, reading, reading = reading]
-        if _jsonPeek(state) != "\"" then
-            _jsonError(state, "Object keys must be strings")
+        if peek(state) != "\"" then
+            error(state, "Object keys must be strings")
         end
 
-        key: string = _jsonParseString(state)
-        _jsonSkipWhitespace(state)
+        key: string = parseString(state)
+        skipWhitespace(state)
 
-        if _jsonPeek(state) != ":" then
-            _jsonError(state, "Expected ':' after object key")
+        if peek(state) != ":" then
+            error(state, "Expected ':' after object key")
         end
         state.pos += 1
-        _jsonSkipWhitespace(state)
+        skipWhitespace(state)
 
-        result.set(key, _jsonParseValue(state))
-        _jsonSkipWhitespace(state)
+        result.set(key, parseValue(state))
+        skipWhitespace(state)
 
-        character: string = _jsonPeek(state)
+        character: string = peek(state)
         if character == "," then
             state.pos += 1
-            _jsonSkipWhitespace(state)
+            skipWhitespace(state)
         else if character == "}" then
             state.pos += 1
             reading = false
         else
-            _jsonError(state, "Expected ',' or '}' in object")
+            error(state, "Expected ',' or '}' in object")
         end
     loop,
 
     result
 ]
 
-_jsonParseValue: fn(state: record) = [
-    _jsonSkipWhitespace(state),
-    character: string = _jsonPeek(state),
+parseValue: fn<private>(state: record) = [
+    skipWhitespace(state),
+    character: string = peek(state),
     result: atom | list | record = null,
 
     when
         character == "\"" then
-            result = _jsonParseString(state)
+            result = parseString(state)
         character == "[" then
-            result = _jsonParseArray(state)
+            result = parseArray(state)
         character == "{" then
-            result = _jsonParseObject(state)
+            result = parseObject(state)
         character == "t" then
-            _jsonExpectLiteral(state, "true")
+            expectLiteral(state, "true")
             result = true
         character == "f" then
-            _jsonExpectLiteral(state, "false")
+            expectLiteral(state, "false")
             result = false
         character == "n" then
-            _jsonExpectLiteral(state, "null")
+            expectLiteral(state, "null")
             result = null
-        character == "-" or _jsonIsDigit(character) then
-            result = _jsonParseNumber(state)
+        character == "-" or isDigit(character) then
+            result = parseNumber(state)
         otherwise
-            _jsonError(state, "Expected a JSON value")
+            error(state, "Expected a JSON value")
     end,
 
     result
@@ -381,20 +381,20 @@ parse: fn(source: string) = [
         pos: 0
     },
 
-    value: atom | list | record = _jsonParseValue(state),
-    _jsonSkipWhitespace(state),
+    value: atom | list | record = parseValue(state),
+    skipWhitespace(state),
 
     if state.pos != source.length() then
-        _jsonError(state, "Unexpected trailing content")
+        error(state, "Unexpected trailing content")
     end,
 
     value
 ]
 
-_jsonHexDigit: fn(value: number) =
+hexDigit: fn<private>(value: number) =
     "0123456789abcdef".slice(value, 1)
 
-_jsonControlEscape: fn(code: number) =
+controlEscape: fn<private>(code: number) =
     when
         code == 8 then
             "\\b"
@@ -408,13 +408,13 @@ _jsonControlEscape: fn(code: number) =
             "\\r"
         otherwise
             if code < 16 then
-                "\\u000" + _jsonHexDigit(code)
+                "\\u000" + hexDigit(code)
             else
-                "\\u001" + _jsonHexDigit(code - 16)
+                "\\u001" + hexDigit(code - 16)
             end
     end
 
-_jsonEncodeString: fn(value: string) = [
+encodeString: fn<private>(value: string) = [
     result: string = "\"",
 
     for [i: number = 0, i < value.length(), i += 1]
@@ -424,9 +424,9 @@ _jsonEncodeString: fn(value: string) = [
         else if character == "\\" then
             result += "\\\\"
         else
-            control: number = _jsonControlCode(character)
+            control: number = controlCode(character)
             if control >= 0 then
-                result += _jsonControlEscape(control)
+                result += controlEscape(control)
             else
                 result += character
             end
@@ -436,7 +436,7 @@ _jsonEncodeString: fn(value: string) = [
     result + "\""
 ]
 
-_jsonContainsIdentity: fn(values: list, target: list | record) = [
+containsIdentity: fn<private>(values: list, target: list | record) = [
     found: boolean = false,
 
     for [i: number = 0, i < values.length() and not found, i += 1]
@@ -448,7 +448,7 @@ _jsonContainsIdentity: fn(values: list, target: list | record) = [
     found
 ]
 
-_jsonEncodeNumber: fn(value: number) = [
+encodeNumber: fn<private>(value: number) = [
     result: string = "{value}",
 
     if result == "NaN" or result == "Infinity" or result == "-Infinity" then
@@ -458,8 +458,8 @@ _jsonEncodeNumber: fn(value: number) = [
     result
 ]
 
-_jsonEncodeList: fn(value: list, active: list) = [
-    if _jsonContainsIdentity(active, value) then
+encodeList: fn<private>(value: list, active: list) = [
+    if containsIdentity(active, value) then
         fail("json.stringify() cannot encode a cyclic List or Record")
     end,
 
@@ -470,15 +470,15 @@ _jsonEncodeList: fn(value: list, active: list) = [
         if i > 0 then
             result += ","
         end
-        result += _jsonEncode(value@i, active)
+        result += encode(value@i, active)
     loop,
 
     active.pop(),
     result + "]"
 ]
 
-_jsonEncodeRecord: fn(value: record, active: list) = [
-    if _jsonContainsIdentity(active, value) then
+encodeRecord: fn<private>(value: record, active: list) = [
+    if containsIdentity(active, value) then
         fail("json.stringify() cannot encode a cyclic List or Record")
     end,
 
@@ -491,14 +491,14 @@ _jsonEncodeRecord: fn(value: record, active: list) = [
         if i > 0 then
             result += ","
         end
-        result += _jsonEncodeString(key) + ":" + _jsonEncode(value.get(key), active)
+        result += encodeString(key) + ":" + encode(value.get(key), active)
     loop,
 
     active.pop(),
     result + "}"
 ]
 
-_jsonEncode: fn(value: atom | list | record | fn | type, active: list) = [
+encode: fn<private>(value: atom | list | record | fn | type, active: list) = [
     valueKind: string = kind(value),
     result: string = "",
 
@@ -512,13 +512,13 @@ _jsonEncode: fn(value: atom | list | record | fn | type, active: list) = [
                 result = "false"
             end
         valueKind == "number" then
-            result = _jsonEncodeNumber(value)
+            result = encodeNumber(value)
         valueKind == "string" then
-            result = _jsonEncodeString(value)
+            result = encodeString(value)
         valueKind == "list" then
-            result = _jsonEncodeList(value, active)
+            result = encodeList(value, active)
         valueKind == "record" then
-            result = _jsonEncodeRecord(value, active)
+            result = encodeRecord(value, active)
         otherwise
             fail("json.stringify() cannot encode Beacon value of kind {valueKind}")
     end,
@@ -527,4 +527,4 @@ _jsonEncode: fn(value: atom | list | record | fn | type, active: list) = [
 ]
 
 stringify: fn(value: atom | list | record | fn | type) =
-    _jsonEncode(value, [])
+    encode(value, [])

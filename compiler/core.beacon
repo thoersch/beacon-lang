@@ -171,6 +171,17 @@ definitionName: fn(node: atom | list | record) = [
     result
 ]
 
+definitionIsPrivate: fn(node: atom | list | record) = [
+    result: boolean = false,
+    if isForm(node, "def") and node.length() > 4 then
+        metadata: atom | list | record = node@4
+        if kind(metadata) == "record" then
+            result = metadata.has("private") and metadata.get("private") == true
+        end
+    end,
+    result
+]
+
 programHasDefinition: fn(program: list, name: string) = [
     found: boolean = false,
     for [i: number = 1, i < program.length(), i += 1]
@@ -264,9 +275,11 @@ namespaceExportNames: fn(program: list) = [
             fail("Standard-library namespaces may contain only top-level declarations")
         end
         if listContainsString(names, name) then
-            fail("Duplicate declaration in standard-library namespace: " + name)
+            fail("Duplicate public declaration in standard-library namespace: " + name)
         end
-        names.push(name)
+        if not definitionIsPrivate(node) then
+            names.push(name)
+        end
     loop,
 
     names
@@ -286,7 +299,7 @@ namespaceNodeExpression: fn(node: record) = [
 
     for [i: number = 0, i < childKeys.length(), i += 1]
         key: string = childKeys@i
-        if listContainsString(exports, key) then
+        if programHasDefinition(body, key) then
             fail("Standard-library namespace member conflicts with child namespace: " + key)
         end
         childExpressions.set(key, namespaceNodeExpression(children.get(key)))

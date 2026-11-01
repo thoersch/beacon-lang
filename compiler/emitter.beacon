@@ -399,7 +399,7 @@ emitNamespace: fn(node: list) = [
 
     for [i: number = 0, i < childKeys.length(), i += 1]
         key: string = childKeys@i
-        if listContainsString(names, key) then
+        if programHasDefinition(body, key) then
             fail("Standard-library namespace member conflicts with child namespace: " + key)
         end
         childPlans.push({
