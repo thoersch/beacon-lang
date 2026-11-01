@@ -11,7 +11,7 @@ searchChanged: fn(value: string) =
     print("Search: {value}")
 
 if not window.available() then
-    print("Beacon Inspector UI is not available on {window.platform()}")
+    print("Beacon Inspector UI is not available on " + window.platform())
 else
     app: record = window.create({
         title: "Beacon Inspector"
