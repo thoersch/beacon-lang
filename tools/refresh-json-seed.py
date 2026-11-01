@@ -15,7 +15,23 @@ def patch_beacon() -> None:
             end'''
     if old not in text:
         raise SystemExit("Expected temporary control-escape expression was not found")
-    json_path.write_text(text.replace(old, new, 1))
+    text = text.replace(old, new, 1)
+
+    # Beacon when-clause bodies are blocks. Normalize the compact temporary
+    # clauses used while drafting std.json into canonical multiline syntax.
+    text = re.sub(
+        r'^(\s+)(?!if\b|else if\b)(.+\bthen) (.+)$',
+        lambda match: f"{match.group(1)}{match.group(2)}\n{match.group(1)}    {match.group(3)}",
+        text,
+        flags=re.M,
+    )
+    text = re.sub(
+        r'^(\s+)otherwise (.+)$',
+        lambda match: f"{match.group(1)}otherwise\n{match.group(1)}    {match.group(2)}",
+        text,
+        flags=re.M,
+    )
+    json_path.write_text(text)
 
     emitter_path = Path("compiler/emitter.beacon")
     text = emitter_path.read_text()
