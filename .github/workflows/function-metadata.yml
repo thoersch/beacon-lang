@@ -1,0 +1,132 @@
+name: Function metadata
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  function-metadata:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify private functions remain callable inside their module
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/private-internal.beacon <<'BEACON'
+          hidden: fn<private>(value: number) = value + 1
+          visible: fn(value: number) = hidden(value)
+          print(visible(41))
+          BEACON
+          [[ "$(bash ./beacon.sh /tmp/private-internal.beacon)" == '42' ]]
+
+      - name: Verify private functions are not exported by named modules
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/private-public.beacon <<'BEACON'
+          include std.json
+          print(kind(json.parse))
+          BEACON
+          [[ "$(bash ./beacon.sh /tmp/private-public.beacon)" == 'fn' ]]
+
+          cat > /tmp/private-export.beacon <<'BEACON'
+          include std.json
+          json.parseValue
+          BEACON
+          set +e
+          output="$(bash ./beacon.sh /tmp/private-export.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F "Record has no member 'parseValue'" <<<"$output"
+
+      - name: Reject private metadata outside module-level named declarations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/private-nested.beacon <<'BEACON'
+          outer: fn() = [
+              helper: fn<private>() = 1,
+              helper()
+          ]
+          outer()
+          BEACON
+          set +e
+          output="$(bash ./beacon.sh /tmp/private-nested.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F 'fn<private> is only valid on module-level named function declarations' <<<"$output"
+
+          cat > /tmp/private-type-method.beacon <<'BEACON'
+          person: type = {
+              name: string
+              greet: fn<private>() = .name
+          }
+          BEACON
+          set +e
+          output="$(bash ./beacon.sh /tmp/private-type-method.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F 'Function metadata is only valid on module-level named function declarations' <<<"$output"
+
+          cat > /tmp/private-clause.beacon <<'BEACON'
+          format: fn = [
+              fn<private>(value: string) = value
+          ]
+          BEACON
+          set +e
+          output="$(bash ./beacon.sh /tmp/private-clause.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F 'Function metadata is only valid on module-level named function declarations' <<<"$output"
+
+      - name: Reject invalid function metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/private-unknown.beacon <<'BEACON'
+          helper: fn<internal>() = 1
+          BEACON
+          set +e
+          output="$(bash ./beacon.sh /tmp/private-unknown.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F "Unknown function metadata 'internal'" <<<"$output"
+
+          cat > /tmp/private-empty.beacon <<'BEACON'
+          helper: fn<>() = 1
+          BEACON
+          set +e
+          output="$(bash ./beacon.sh /tmp/private-empty.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F 'Function metadata cannot be empty' <<<"$output"
+
+          cat > /tmp/private-duplicate.beacon <<'BEACON'
+          helper: fn<private, private>() = 1
+          BEACON
+          set +e
+          output="$(bash ./beacon.sh /tmp/private-duplicate.beacon 2>&1)"
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          grep -F "Duplicate function metadata 'private'" <<<"$output"
