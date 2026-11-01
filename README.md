@@ -131,6 +131,7 @@ include std.text
 include std.math
 include std.fs
 include std.path
+include std.json
 ```
 
 For example:
@@ -138,12 +139,15 @@ For example:
 ```beacon
 include std.text
 include std.math
+include std.json
 
 name: string = text.trim("  Beacon  ")
 root: number = math.sqrt(81)
+payload: record = json.parse("{\"name\":\"Ada\",\"active\":true}")
 
 print(name)
 print(root)
+print(payload.name)
 ```
 
 Beacon keeps native/runtime operations deliberately small. Higher-level functionality belongs in Beacon source when it can be expressed there.
@@ -239,7 +243,7 @@ Already working:
 - user-defined types
 - control flow and loops
 - local and standard-library includes
-- text, math, filesystem, and path libraries
+- text, math, filesystem, path, and JSON libraries
 - VS Code syntax support
 - structured compiler diagnostics
 
