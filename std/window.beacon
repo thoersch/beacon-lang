@@ -1,0 +1,73 @@
+available: fn() = hostWindow("available", null)
+
+platform: fn() = hostWindow("platform", null)
+
+create: fn(config: record) = [
+    if not available() then
+        fail("std.window is not available on this platform")
+    end,
+
+    title: string = "Beacon",
+    width: number = 1024,
+    height: number = 720,
+
+    if config.has("title") then
+        title = config.get("title")
+    end,
+    if config.has("width") then
+        width = config.get("width")
+    end,
+    if config.has("height") then
+        height = config.get("height")
+    end,
+
+    if width <= 0 or height <= 0 then
+        fail("window.create() width and height must be positive")
+    end,
+
+    id: number = hostWindow("create", {
+        title: title
+        width: width
+        height: height
+    }),
+
+    {
+        id: id
+        title: title
+        width: width
+        height: height
+    }
+]
+
+show: fn(app: record) = [
+    hostWindow("show", app.id),
+    app
+]
+
+close: fn(app: record) = [
+    hostWindow("close", app.id),
+    app
+]
+
+nextEvent: fn(app: record) = hostWindow("next", app.id)
+
+run: fn(app: record, handler: fn) = [
+    running: boolean = true,
+
+    for [tick: number = 0, running, tick += 1]
+        event: record = nextEvent(app)
+
+        if event.type == "resize" then
+            app.width = event.width
+            app.height = event.height
+        end
+
+        handler(event)
+
+        if event.type == "close" then
+            running = false
+        end
+    loop,
+
+    null
+]
