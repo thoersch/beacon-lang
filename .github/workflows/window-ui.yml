@@ -126,7 +126,7 @@ jobs:
           print(closed)
           BEACON
 
-          actual="$(bash ./beacon.sh /tmp/window-ui-native.beacon)"
+          actual="$(bash ./beacon.sh /tmp/window-ui-native.beacon | tr -d '\r')"
           expected=$'true\nwindows\ntrue'
           if [ "$actual" != "$expected" ]; then
             echo 'Unexpected Windows std.window/std.ui output:' >&2
