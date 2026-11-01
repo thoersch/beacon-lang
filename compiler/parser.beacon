@@ -106,12 +106,22 @@ parseProgram: fn(tokens: list) = [
     skipNewLines(state),
 
     for [tick: number = 0, not checkToken(state, "end"), tick += 1]
-        expressions.push(parseStatement(state))
+        expressions.push(parseTopLevelStatement(state))
         requireStatementBoundary(state)
         skipNewLines(state)
     loop,
 
     expressions
+]
+
+parseTopLevelStatement: fn(state: record) = [
+    result: atom | list | record = null,
+    if checkToken(state, "identifier") and checkNextToken(state, "colon") then
+        result = parseDeclaration(state, true)
+    else
+        result = parseStatement(state)
+    end,
+    result
 ]
 
 parseStatement: fn(state: record) = [
@@ -129,7 +139,7 @@ parseStatement: fn(state: record) = [
     else if matchIdentifier(state, "continue") then
         result = [symbol("continue")]
     else if checkToken(state, "identifier") and checkNextToken(state, "colon") then
-        result = parseDeclaration(state)
+        result = parseDeclaration(state, false)
     else
         result = parseExpression(state)
     end,
@@ -289,7 +299,7 @@ parseFor: fn(state: record) = [
     initializer: atom | list | record = null,
 
     if checkToken(state, "identifier") and checkNextToken(state, "colon") then
-        initializer = parseDeclaration(state)
+        initializer = parseDeclaration(state, false)
     else
         initializer = parseExpression(state)
     end,
@@ -319,13 +329,57 @@ parseStatementsUntil: fn(state: record, terminators: list) = [
     items
 ]
 
-parseDeclaration: fn(state: record) = [
+parseFunctionMetadataAfterFn: fn(state: record) = [
+    metadata: record = {},
+
+    if matchToken(state, "less") then
+        if checkToken(state, "greater") then
+            token: record = currentToken(state)
+            fail("Function metadata cannot be empty at " + token.line + ":" + token.column)
+        end
+
+        done: boolean = false
+        for [tick: number = 0, not done, tick += 1]
+            tag: record = consumeToken(state, "identifier", "Expected function metadata name")
+            if tag.text != "private" then
+                fail("Unknown function metadata '" + tag.text + "' at " + tag.line + ":" + tag.column)
+            end
+            if metadata.has(tag.text) then
+                fail("Duplicate function metadata '" + tag.text + "' at " + tag.line + ":" + tag.column)
+            end
+            metadata.set(tag.text, true)
+
+            if matchToken(state, "comma") then
+                if checkToken(state, "greater") then
+                    token: record = currentToken(state)
+                    fail("Expected function metadata name after ',' at " + token.line + ":" + token.column)
+                end
+            else
+                done = true
+            end
+        loop
+
+        consumeToken(state, "greater", "Expected '>' after function metadata")
+    end,
+
+    metadata
+]
+
+parseDeclaration: fn(state: record, moduleLevel: boolean) = [
     nameToken: record = consumeToken(state, "identifier", "Expected declaration name"),
     consumeToken(state, "colon", "Expected ':'"),
     result: atom | list | record = null,
 
     if matchIdentifier(state, "fn") then
+        metadata: record = parseFunctionMetadataAfterFn(state)
+        if metadata.has("private") and not moduleLevel then
+            fail("fn<private> is only valid on module-level named function declarations at " + nameToken.line + ":" + nameToken.column)
+        end
+
         result = [symbol("def"), symbol(nameToken.text), symbol("fn"), parseFunctionDeclarationAfterFn(state)]
+        if metadata.has("private") then
+            result.push(metadata)
+        end
     else if matchIdentifier(state, "type") then
         consumeToken(state, "equal", "Expected '=' after type declaration")
         result = [symbol("def"), symbol(nameToken.text), symbol("type"), parseTypeDefinition(state)]
@@ -382,6 +436,10 @@ parseFunctionClausesAfterEqual: fn(state: record) = [
     done: boolean = false,
     for [tick: number = 0, not done, tick += 1]
         consumeIdentifier(state, "fn", "Expected fn clause")
+        if checkToken(state, "less") then
+            token: record = currentToken(state)
+            fail("Function metadata is only valid on module-level named function declarations at " + token.line + ":" + token.column)
+        end
         clauses.push(parseFunctionAfterFn(state))
         skipNewLines(state)
 
@@ -458,6 +516,10 @@ parseTypeDefinition: fn(state: record) = [
         nameToken: record = consumeToken(state, "identifier", "Expected member name")
         consumeToken(state, "colon", "Expected ':' after member name")
         if matchIdentifier(state, "fn") then
+            if checkToken(state, "less") then
+                token: record = currentToken(state)
+                fail("Function metadata is only valid on module-level named function declarations at " + token.line + ":" + token.column)
+            end
             members.set(nameToken.text, parseFunctionDeclarationAfterFn(state))
         else
             members.set(nameToken.text, symbol(parseTypeAnnotation(state)))

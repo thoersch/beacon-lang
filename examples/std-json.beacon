@@ -1,0 +1,24 @@
+include std.json
+
+document: record = json.parse("{\"name\":\"Ada\",\"active\":true,\"scores\":[1,2.5,-3e2],\"meta\":null}")
+print(document.name)
+print(document.active)
+print(document.scores@0)
+print(document.scores@1)
+print(document.scores@2)
+print(kind(document.meta))
+
+print(json.parse("\"\\u0041\\u03a9\""))
+print(json.parse("\"\\uD83D\\uDE03\""))
+print(json.parse("  [true, false, null]  ").length())
+
+encoded: string = json.stringify({
+    name: "Ada"
+    active: true
+    values: [1, 2, null]
+})
+print(encoded)
+
+escaped: string = json.parse("\"line\\nquote\\\"slash\\\\control\\u0001\"")
+print(json.stringify(escaped))
+print(json.stringify(json.parse("{\"nested\":[{\"x\":1}],\"ok\":true}")))

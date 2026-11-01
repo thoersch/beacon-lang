@@ -95,6 +95,14 @@ format: fn = [
 
 Clauses are checked from top to bottom. The first matching clause executes.
 
+Function metadata follows `fn` in angle brackets. `private` is currently the only supported metadata tag:
+
+```beacon
+parseValue: fn<private>(state: record) = ...
+```
+
+Functions are public by default. A `private` function remains callable by other code in the same module, but it is omitted from the namespace created by a named include. Function metadata is valid only on named, module-level function declarations; nested functions, type methods, and individual function clauses cannot carry it. Unknown metadata is a compile-time error.
+
 ## Lists
 
 Lists are ordered and require commas:

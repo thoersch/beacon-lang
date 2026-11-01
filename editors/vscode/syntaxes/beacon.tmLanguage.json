@@ -136,6 +136,10 @@
           "match": "\\b(and|or|not)\\b"
         },
         {
+          "name": "storage.modifier.function.beacon",
+          "match": "\\bprivate\\b"
+        },
+        {
           "name": "keyword.control.import.include.beacon",
           "match": "\\binclude\\b"
         }

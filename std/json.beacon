@@ -1,0 +1,530 @@
+error: fn<private>(state: record, message: string) =
+    fail("Invalid JSON at character {state.pos}: {message}")
+
+peek: fn<private>(state: record) =
+    if state.pos < state.source.length() then
+        state.source.slice(state.pos, 1)
+    else
+        ""
+    end
+
+isWhitespace: fn<private>(character: string) =
+    character == " " or character == "\t" or character == "\n" or character == "\r"
+
+skipWhitespace: fn<private>(state: record) = [
+    for [keep: boolean = true, keep, keep = keep]
+        character: string = peek(state)
+        if character != "" and isWhitespace(character) then
+            state.pos += 1
+        else
+            keep = false
+        end
+    loop,
+
+    null
+]
+
+isDigit: fn<private>(character: string) =
+    character == "0" or character == "1" or character == "2" or character == "3" or
+    character == "4" or character == "5" or character == "6" or character == "7" or
+    character == "8" or character == "9"
+
+isNonZeroDigit: fn<private>(character: string) =
+    character == "1" or character == "2" or character == "3" or character == "4" or
+    character == "5" or character == "6" or character == "7" or character == "8" or
+    character == "9"
+
+hexValue: fn<private>(character: string) =
+    when
+        character == "0" then
+            0
+        character == "1" then
+            1
+        character == "2" then
+            2
+        character == "3" then
+            3
+        character == "4" then
+            4
+        character == "5" then
+            5
+        character == "6" then
+            6
+        character == "7" then
+            7
+        character == "8" then
+            8
+        character == "9" then
+            9
+        character == "a" or character == "A" then
+            10
+        character == "b" or character == "B" then
+            11
+        character == "c" or character == "C" then
+            12
+        character == "d" or character == "D" then
+            13
+        character == "e" or character == "E" then
+            14
+        character == "f" or character == "F" then
+            15
+        otherwise
+            -1
+    end
+
+parseHex4: fn<private>(state: record) = [
+    value: number = 0,
+
+    for [i: number = 0, i < 4, i += 1]
+        if state.pos >= state.source.length() then
+            error(state, "Incomplete Unicode escape")
+        end
+
+        digit: number = hexValue(state.source.slice(state.pos, 1))
+        if digit < 0 then
+            error(state, "Unicode escape must contain four hexadecimal digits")
+        end
+
+        value = value * 16 + digit
+        state.pos += 1
+    loop,
+
+    value
+]
+
+parseUnicodeEscape: fn<private>(state: record) = [
+    first: number = parseHex4(state),
+    codePoint: number = first,
+
+    if first >= 55296 and first <= 56319 then
+        if state.pos + 2 > state.source.length() or state.source.slice(state.pos, 2) != "\\u" then
+            error(state, "High surrogate must be followed by a low surrogate Unicode escape")
+        end
+
+        state.pos += 2
+        second: number = parseHex4(state)
+        if second < 56320 or second > 57343 then
+            error(state, "High surrogate must be followed by a low surrogate Unicode escape")
+        end
+
+        codePoint = 65536 + (first - 55296) * 1024 + (second - 56320)
+    else if first >= 56320 and first <= 57343 then
+        error(state, "Low surrogate must follow a high surrogate Unicode escape")
+    end,
+
+    hostCharacter(codePoint)
+]
+
+controlCode: fn<private>(character: string) = [
+    result: number = -1,
+
+    for [i: number = 0, i < 32 and result == -1, i += 1]
+        if character == hostCharacter(i) then
+            result = i
+        end
+    loop,
+
+    result
+]
+
+parseString: fn<private>(state: record) = [
+    result: string = "",
+    done: boolean = false,
+
+    state.pos += 1,
+
+    for [reading: boolean = true, reading, reading = reading]
+        if state.pos >= state.source.length() then
+            error(state, "Unterminated string")
+        end
+
+        character: string = state.source.slice(state.pos, 1)
+        state.pos += 1
+
+        if character == "\"" then
+            reading = false
+            done = true
+        else if character == "\\" then
+            if state.pos >= state.source.length() then
+                error(state, "Unterminated escape sequence")
+            end
+
+            escape: string = state.source.slice(state.pos, 1)
+            state.pos += 1
+
+            when
+                escape == "\"" then
+                    result += "\""
+                escape == "\\" then
+                    result += "\\"
+                escape == "/" then
+                    result += "/"
+                escape == "b" then
+                    result += hostCharacter(8)
+                escape == "f" then
+                    result += hostCharacter(12)
+                escape == "n" then
+                    result += "\n"
+                escape == "r" then
+                    result += "\r"
+                escape == "t" then
+                    result += "\t"
+                escape == "u" then
+                    result += parseUnicodeEscape(state)
+                otherwise
+                    error(state, "Invalid string escape")
+            end
+        else if controlCode(character) >= 0 then
+            error(state, "Unescaped control character in string")
+        else
+            result += character
+        end
+    loop,
+
+    if not done then
+        error(state, "Unterminated string")
+    end,
+
+    result
+]
+
+parseNumber: fn<private>(state: record) = [
+    start: number = state.pos,
+    character: string = peek(state),
+
+    if character == "-" then
+        state.pos += 1
+        character = peek(state)
+    end,
+
+    if character == "0" then
+        state.pos += 1
+        if isDigit(peek(state)) then
+            error(state, "Numbers cannot contain leading zeroes")
+        end
+    else if isNonZeroDigit(character) then
+        for [digits: boolean = true, digits, digits = digits]
+            if isDigit(peek(state)) then
+                state.pos += 1
+            else
+                digits = false
+            end
+        loop
+    else
+        error(state, "Expected a digit")
+    end,
+
+    if peek(state) == "." then
+        state.pos += 1
+        if not isDigit(peek(state)) then
+            error(state, "Fraction requires at least one digit")
+        end
+        for [fraction: boolean = true, fraction, fraction = fraction]
+            if isDigit(peek(state)) then
+                state.pos += 1
+            else
+                fraction = false
+            end
+        loop
+    end,
+
+    character = peek(state),
+    if character == "e" or character == "E" then
+        state.pos += 1
+        character = peek(state)
+        if character == "+" or character == "-" then
+            state.pos += 1
+        end
+        if not isDigit(peek(state)) then
+            error(state, "Exponent requires at least one digit")
+        end
+        for [exponent: boolean = true, exponent, exponent = exponent]
+            if isDigit(peek(state)) then
+                state.pos += 1
+            else
+                exponent = false
+            end
+        loop
+    end,
+
+    raw: string = state.source.slice(start, state.pos - start),
+    value: number = number(raw),
+    rendered: string = "{value}",
+
+    if rendered == "NaN" or rendered == "Infinity" or rendered == "-Infinity" then
+        error(state, "Number is outside Beacon's finite Number range")
+    end,
+
+    value
+]
+
+expectLiteral: fn<private>(state: record, literal: string) = [
+    for [i: number = 0, i < literal.length(), i += 1]
+        if state.pos >= state.source.length() or
+            state.source.slice(state.pos, 1) != literal.slice(i, 1) then
+            error(state, "Invalid literal")
+        end
+        state.pos += 1
+    loop,
+
+    null
+]
+
+parseArray: fn<private>(state: record) = [
+    result: list = [],
+    done: boolean = false,
+
+    state.pos += 1,
+    skipWhitespace(state),
+
+    if peek(state) == "]" then
+        state.pos += 1
+        done = true
+    end,
+
+    for [reading: boolean = not done, reading, reading = reading]
+        result.push(parseValue(state))
+        skipWhitespace(state)
+
+        character: string = peek(state)
+        if character == "," then
+            state.pos += 1
+            skipWhitespace(state)
+        else if character == "]" then
+            state.pos += 1
+            reading = false
+        else
+            error(state, "Expected ',' or ']' in array")
+        end
+    loop,
+
+    result
+]
+
+parseObject: fn<private>(state: record) = [
+    result: record = {},
+    done: boolean = false,
+
+    state.pos += 1,
+    skipWhitespace(state),
+
+    if peek(state) == "}" then
+        state.pos += 1
+        done = true
+    end,
+
+    for [reading: boolean = not done, reading, reading = reading]
+        if peek(state) != "\"" then
+            error(state, "Object keys must be strings")
+        end
+
+        key: string = parseString(state)
+        skipWhitespace(state)
+
+        if peek(state) != ":" then
+            error(state, "Expected ':' after object key")
+        end
+        state.pos += 1
+        skipWhitespace(state)
+
+        result.set(key, parseValue(state))
+        skipWhitespace(state)
+
+        character: string = peek(state)
+        if character == "," then
+            state.pos += 1
+            skipWhitespace(state)
+        else if character == "}" then
+            state.pos += 1
+            reading = false
+        else
+            error(state, "Expected ',' or '}' in object")
+        end
+    loop,
+
+    result
+]
+
+parseValue: fn<private>(state: record) = [
+    skipWhitespace(state),
+    character: string = peek(state),
+    result: atom | list | record = null,
+
+    when
+        character == "\"" then
+            result = parseString(state)
+        character == "[" then
+            result = parseArray(state)
+        character == "{" then
+            result = parseObject(state)
+        character == "t" then
+            expectLiteral(state, "true")
+            result = true
+        character == "f" then
+            expectLiteral(state, "false")
+            result = false
+        character == "n" then
+            expectLiteral(state, "null")
+            result = null
+        character == "-" or isDigit(character) then
+            result = parseNumber(state)
+        otherwise
+            error(state, "Expected a JSON value")
+    end,
+
+    result
+]
+
+parse: fn(source: string) = [
+    state: record = {
+        source: source
+        pos: 0
+    },
+
+    value: atom | list | record = parseValue(state),
+    skipWhitespace(state),
+
+    if state.pos != source.length() then
+        error(state, "Unexpected trailing content")
+    end,
+
+    value
+]
+
+hexDigit: fn<private>(value: number) =
+    "0123456789abcdef".slice(value, 1)
+
+controlEscape: fn<private>(code: number) =
+    when
+        code == 8 then
+            "\\b"
+        code == 9 then
+            "\\t"
+        code == 10 then
+            "\\n"
+        code == 12 then
+            "\\f"
+        code == 13 then
+            "\\r"
+        otherwise
+            if code < 16 then
+                "\\u000" + hexDigit(code)
+            else
+                "\\u001" + hexDigit(code - 16)
+            end
+    end
+
+encodeString: fn<private>(value: string) = [
+    result: string = "\"",
+
+    for [i: number = 0, i < value.length(), i += 1]
+        character: string = value.slice(i, 1)
+        if character == "\"" then
+            result += "\\\""
+        else if character == "\\" then
+            result += "\\\\"
+        else
+            control: number = controlCode(character)
+            if control >= 0 then
+                result += controlEscape(control)
+            else
+                result += character
+            end
+        end
+    loop,
+
+    result + "\""
+]
+
+containsIdentity: fn<private>(values: list, target: list | record) = [
+    found: boolean = false,
+
+    for [i: number = 0, i < values.length() and not found, i += 1]
+        if values@i == target then
+            found = true
+        end
+    loop,
+
+    found
+]
+
+encodeNumber: fn<private>(value: number) = [
+    result: string = "{value}",
+
+    if result == "NaN" or result == "Infinity" or result == "-Infinity" then
+        fail("json.stringify() cannot encode a non-finite Number")
+    end,
+
+    result
+]
+
+encodeList: fn<private>(value: list, active: list) = [
+    if containsIdentity(active, value) then
+        fail("json.stringify() cannot encode a cyclic List or Record")
+    end,
+
+    active.push(value),
+    result: string = "[",
+
+    for [i: number = 0, i < value.length(), i += 1]
+        if i > 0 then
+            result += ","
+        end
+        result += encode(value@i, active)
+    loop,
+
+    active.pop(),
+    result + "]"
+]
+
+encodeRecord: fn<private>(value: record, active: list) = [
+    if containsIdentity(active, value) then
+        fail("json.stringify() cannot encode a cyclic List or Record")
+    end,
+
+    active.push(value),
+    keys: list = value.keys(),
+    result: string = "{",
+
+    for [i: number = 0, i < keys.length(), i += 1]
+        key: string = keys@i
+        if i > 0 then
+            result += ","
+        end
+        result += encodeString(key) + ":" + encode(value.get(key), active)
+    loop,
+
+    active.pop(),
+    result + "}"
+]
+
+encode: fn<private>(value: atom | list | record | fn | type, active: list) = [
+    valueKind: string = kind(value),
+    result: string = "",
+
+    when
+        valueKind == "null" then
+            result = "null"
+        valueKind == "boolean" then
+            if value then
+                result = "true"
+            else
+                result = "false"
+            end
+        valueKind == "number" then
+            result = encodeNumber(value)
+        valueKind == "string" then
+            result = encodeString(value)
+        valueKind == "list" then
+            result = encodeList(value, active)
+        valueKind == "record" then
+            result = encodeRecord(value, active)
+        otherwise
+            fail("json.stringify() cannot encode Beacon value of kind {valueKind}")
+    end,
+
+    result
+]
+
+stringify: fn(value: atom | list | record | fn | type) =
+    encode(value, [])

@@ -399,7 +399,7 @@ emitNamespace: fn(node: list) = [
 
     for [i: number = 0, i < childKeys.length(), i += 1]
         key: string = childKeys@i
-        if listContainsString(names, key) then
+        if programHasDefinition(body, key) then
             fail("Standard-library namespace member conflicts with child namespace: " + key)
         end
         childPlans.push({
@@ -607,6 +607,11 @@ emitCall: fn(node: list) = [
     if not handled and kind(callee) == "symbol" and callee.name == "hostEnvironment" then
         result = args@0
         result.push({ op: "call", arg: "Runtime.HostEnvironment" })
+        handled = true
+    end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostCharacter" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostCharacter" })
         handled = true
     end,
 

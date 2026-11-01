@@ -1,0 +1,73 @@
+name: std.json
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  std-json:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify std.json behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/std-json.beacon)"
+          expected=$'Ada\ntrue\n1\n2.5\n-300\nnull\nAΩ\n😃\n3\n{"name":"Ada","active":true,"values":[1,2,null]}\n"line\\nquote\\"slash\\\\control\\u0001"\n{"nested":[{"x":1}],"ok":true}'
+          if [ "$actual" != "$expected" ]; then
+            echo 'Unexpected std.json output:' >&2
+            printf '%s\n' "$actual" >&2
+            exit 1
+          fi
+
+      - name: Reject malformed JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          cases=(
+            '01'
+            '1.'
+            '1e'
+            '1e9999'
+            '{"a":1} trailing'
+            '"\uD800"'
+            '[1,]'
+            '{"a":}'
+          )
+
+          for source in "${cases[@]}"; do
+            cat > /tmp/invalid-json.beacon <<EOF
+          include std.json
+          json.parse("$(printf '%s' "$source" | sed 's/\\/\\\\/g; s/"/\\"/g')")
+          EOF
+            if bash ./beacon.sh /tmp/invalid-json.beacon >/tmp/std-json.out 2>/tmp/std-json.err; then
+              echo "Expected malformed JSON to fail: $source" >&2
+              exit 1
+            fi
+          done
+
+      - name: Reject cyclic values
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/cyclic-json.beacon <<'EOF'
+          include std.json
+          value: list = []
+          value.push(value)
+          json.stringify(value)
+          EOF
+          if bash ./beacon.sh /tmp/cyclic-json.beacon >/tmp/std-json.out 2>/tmp/std-json.err; then
+            echo 'Expected cyclic value to fail json.stringify()' >&2
+            exit 1
+          fi
