@@ -1,0 +1,135 @@
+name: std.window and std.ui
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  portable-surface:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify fixed-point self-hosting
+        run: bash ./beacon.sh self-host
+
+      - name: Verify portable window availability and structural UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/window-ui-portable.beacon <<'BEACON'
+          include std.window
+          include std.ui
+
+          clicked: fn() = null
+          changed: fn(value: string) = null
+
+          view: record = ui.column([
+              ui.heading("Inspector"),
+              ui.text("Ready"),
+              ui.row([
+                  ui.button("Open", clicked),
+                  ui.input("Search", changed)
+              ]),
+              ui.spacer(8)
+          ])
+
+          print(window.available())
+          print(window.platform())
+          print(view.kind)
+          print(view.children.length())
+          print(view.children@2.kind)
+          BEACON
+
+          actual="$(bash ./beacon.sh /tmp/window-ui-portable.beacon)"
+          expected=$'false\nunsupported\ncolumn\n4\nrow'
+          if [ "$actual" != "$expected" ]; then
+            echo 'Unexpected portable std.window/std.ui output:' >&2
+            printf '%s\n' "$actual" >&2
+            exit 1
+          fi
+
+      - name: Verify Inspector portable path
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/inspector-ui.beacon)"
+          expected='Beacon Inspector UI is not available on unsupported'
+          [ "$actual" = "$expected" ]
+
+  windows-native:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify native window and UI mounting
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/window-ui-native.beacon <<'BEACON'
+          include std.window
+          include std.ui
+
+          clicked: fn() = null
+          changed: fn(value: string) = null
+
+          app: record = window.create({
+              title: "Beacon UI regression"
+              width: 640
+              height: 480
+          })
+
+          view: record = ui.column([
+              ui.heading("Beacon Inspector"),
+              ui.text("Native UI regression"),
+              ui.row([
+                  ui.button("Open", clicked),
+                  ui.button("Refresh", clicked)
+              ]),
+              ui.input("Search", changed),
+              ui.textArea("source", 120),
+              ui.panel([
+                  ui.text("Inspection")
+              ])
+          ])
+
+          ui.mount(app, view)
+          window.show(app)
+          window.close(app)
+
+          closed: boolean = false
+          for [tick: number = 0, not closed, tick += 1]
+              event: record = window.nextEvent(app)
+              if event.type == "close" then
+                  closed = true
+              end
+          loop
+
+          print(window.available())
+          print(window.platform())
+          print(closed)
+          BEACON
+
+          actual="$(bash ./beacon.sh /tmp/window-ui-native.beacon)"
+          expected=$'true\nwindows\ntrue'
+          if [ "$actual" != "$expected" ]; then
+            echo 'Unexpected Windows std.window/std.ui output:' >&2
+            printf '%s\n' "$actual" >&2
+            exit 1
+          fi
