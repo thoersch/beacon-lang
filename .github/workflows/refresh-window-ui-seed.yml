@@ -1,4 +1,5 @@
 # One-time Stage-0 refresh for the native desktop boundary.
+# Retry after validating the portable Inspector path.
 name: Refresh Stage-0 for std.window and std.ui
 
 on:
