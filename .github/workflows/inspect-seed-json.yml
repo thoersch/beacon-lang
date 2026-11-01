@@ -29,11 +29,15 @@ jobs:
           python3 /tmp/migrate-fs-path-boundary.py seed
           python3 /tmp/patch-seed-secondary-host-table.py
 
-      - name: Show global native function surface
+      - name: Show host primitive emission points
         shell: bash
         run: |
           PROGRAM=tools/seed-refresh/Beacon.Compiler/Program.cs
-          grep -n -E 'Number|Symbol|Kind|Fail|Print|NativeMethod|GetVar|Global|Built|static class Runtime|class Runtime' "$PROGRAM" | head -n 260
-          echo '--- Runtime context ---'
-          line="$(grep -n 'class Runtime' "$PROGRAM" | head -1 | cut -d: -f1)"
-          sed -n "${line},$((line+420))p" "$PROGRAM"
+          echo '--- Primary MethodInfo table ---'
+          sed -n '1330,1395p' "$PROGRAM"
+          echo '--- Primary runtime method resolver ---'
+          sed -n '1775,1830p' "$PROGRAM"
+          echo '--- Secondary MethodInfo table ---'
+          sed -n '1850,1905p' "$PROGRAM"
+          echo '--- Call lowering ---'
+          sed -n '2105,2245p' "$PROGRAM"
