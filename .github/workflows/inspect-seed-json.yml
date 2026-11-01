@@ -1,0 +1,26 @@
+name: Inspect Stage-0 JSON primitive surface
+
+on:
+  push:
+    branches:
+      - feature/std-json
+    paths:
+      - .github/workflows/inspect-seed-json.yml
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct current Stage-0 source lineage
+        run: |
+          git show d6680d72646aed04cda62fdb76c74325c640cd94:tools/reconstruct-current-seed.py > /tmp/reconstruct-current-seed.py
+          python /tmp/reconstruct-current-seed.py
+
+      - name: Show global native function surface
+        run: |
+          grep -n -E 'Number|Symbol|Kind|Fail|Print|NativeMethod|GetVar|Global|Built' tools/seed-refresh/Beacon.Compiler/Program.cs | head -n 220
