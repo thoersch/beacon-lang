@@ -17,10 +17,23 @@ jobs:
           fetch-depth: 0
 
       - name: Reconstruct current Stage-0 source lineage
+        shell: bash
         run: |
-          git show d6680d72646aed04cda62fdb76c74325c640cd94:tools/reconstruct-current-seed.py > /tmp/reconstruct-current-seed.py
-          python /tmp/reconstruct-current-seed.py
+          set -euo pipefail
+          MIGRATION=d6680d72646aed04cda62fdb76c74325c640cd94
+          BASE="https://raw.githubusercontent.com/thoersch/beacon-lang/$MIGRATION"
+          curl -fsSL "$BASE/tools/reconstruct-current-seed.py" -o /tmp/reconstruct-current-seed.py
+          curl -fsSL "$BASE/tools/migrate-fs-path-boundary.py" -o /tmp/migrate-fs-path-boundary.py
+          curl -fsSL "$BASE/tools/patch-seed-secondary-host-table.py" -o /tmp/patch-seed-secondary-host-table.py
+          python3 /tmp/reconstruct-current-seed.py
+          python3 /tmp/migrate-fs-path-boundary.py seed
+          python3 /tmp/patch-seed-secondary-host-table.py
 
       - name: Show global native function surface
+        shell: bash
         run: |
-          grep -n -E 'Number|Symbol|Kind|Fail|Print|NativeMethod|GetVar|Global|Built' tools/seed-refresh/Beacon.Compiler/Program.cs | head -n 220
+          PROGRAM=tools/seed-refresh/Beacon.Compiler/Program.cs
+          grep -n -E 'Number|Symbol|Kind|Fail|Print|NativeMethod|GetVar|Global|Built|static class Runtime|class Runtime' "$PROGRAM" | head -n 260
+          echo '--- Runtime context ---'
+          line="$(grep -n 'class Runtime' "$PROGRAM" | head -1 | cut -d: -f1)"
+          sed -n "${line},$((line+420))p" "$PROGRAM"
