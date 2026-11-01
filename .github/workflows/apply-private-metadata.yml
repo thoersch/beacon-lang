@@ -88,17 +88,16 @@ jobs:
           unzip -p "beacon-lang-$VERSION.vsix" extension/syntaxes/beacon.tmLanguage.json > /tmp/beacon-packaged-grammar.json
           diff -u syntaxes/beacon.tmLanguage.json /tmp/beacon-packaged-grammar.json
 
-      - name: Commit implementation and remove migration machinery
+      - name: Commit implementation
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm tools/apply-private-metadata.py .github/workflows/apply-private-metadata.yml
           git add compiler/parser.beacon compiler/core.beacon compiler/emitter.beacon \
             std/json.beacon docs/src/content/docs/language/syntax.md \
             docs/src/content/docs/standard-library/json.md \
             editors/vscode/syntaxes/beacon.tmLanguage.json editors/vscode/check-syntax.mjs \
-            editors/vscode/beacon-lang-0.1.1.vsix .github/workflows/std-json.yml
+            editors/vscode/beacon-lang-0.1.1.vsix
           git commit -m "Add private function metadata"
           git push origin HEAD:feature/std-json
