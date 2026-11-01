@@ -1,0 +1,44 @@
+include std.window
+include std.ui
+
+openSource: fn() =
+    print("Open source requested")
+
+refresh: fn() =
+    print("Refresh requested")
+
+searchChanged: fn(value: string) =
+    print("Search: {value}")
+
+if not window.available() then
+    print("Beacon Inspector UI is not available on " + window.platform())
+else
+    app: record = window.create({
+        title: "Beacon Inspector"
+        width: 1180
+        height: 760
+    })
+
+    view: record = ui.column([
+        ui.heading("Beacon Inspector"),
+        ui.text("Inspect Beacon source, structural Core, and generated CLR plans."),
+        ui.row([
+            ui.button("Open source", openSource),
+            ui.button("Refresh", refresh)
+        ]),
+        ui.panel([
+            ui.heading("Source"),
+            ui.input("Search source", searchChanged),
+            ui.textArea("name: string = \"Ada\"\nage: number = 42\nprint(name)\nprint(age)", 260)
+        ]),
+        ui.panel([
+            ui.heading("Inspection"),
+            ui.text("The Inspector will drive the next capabilities added to Beacon."),
+            ui.textArea("Core and CLR plan output will live here as the app grows.", 180)
+        ])
+    ])
+
+    ui.mount(app, view)
+    window.show(app)
+    ui.run(app)
+end

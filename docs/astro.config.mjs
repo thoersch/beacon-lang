@@ -46,7 +46,11 @@ export default defineConfig({
         },
         {
           label: 'Standard library',
-          items: [{ label: 'JSON', slug: 'standard-library/json' }],
+          items: [
+            { label: 'JSON', slug: 'standard-library/json' },
+            { label: 'Window', slug: 'standard-library/window' },
+            { label: 'UI', slug: 'standard-library/ui' },
+          ],
         },
       ],
       expressiveCode: {
