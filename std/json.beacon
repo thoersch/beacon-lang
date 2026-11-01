@@ -12,8 +12,6 @@ _jsonIsWhitespace: fn(character: string) =
     character == " " or character == "\t" or character == "\n" or character == "\r"
 
 _jsonSkipWhitespace: fn(state: record) = [
-    scanning: boolean = true,
-
     for [keep: boolean = true, keep, keep = keep]
         character: string = _jsonPeek(state)
         if character != "" and _jsonIsWhitespace(character) then
@@ -176,10 +174,9 @@ _jsonParseString: fn(state: record) = [
                 otherwise
                     _jsonError(state, "Invalid string escape")
             end
+        else if _jsonControlCode(character) >= 0 then
+            _jsonError(state, "Unescaped control character in string")
         else
-            if _jsonControlCode(character) >= 0 then
-                _jsonError(state, "Unescaped control character in string")
-            end
             result += character
         end
     loop,
