@@ -1,0 +1,227 @@
+name: Refresh Stage-0 for std.json Unicode primitive
+
+on:
+  push:
+    branches:
+      - feature/std-json
+    paths:
+      - .github/workflows/refresh-json-seed.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/std-json
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Finalize Beacon-side JSON source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          json_path = Path('std/json.beacon')
+          text = json_path.read_text()
+          old = '''        otherwise "\\\\u00" + _jsonHexDigit((code - code % 16) / 16) + _jsonHexDigit(code % 16)'''
+          new = '''        otherwise
+            if code < 16 then
+                "\\\\u000" + _jsonHexDigit(code)
+            else
+                "\\\\u001" + _jsonHexDigit(code - 16)
+            end'''
+          if old not in text:
+              raise SystemExit('Expected temporary control-escape expression was not found')
+          json_path.write_text(text.replace(old, new, 1))
+
+          emitter_path = Path('compiler/emitter.beacon')
+          text = emitter_path.read_text()
+          anchor = '''    if not handled and kind(callee) == "symbol" and callee.name == "hostEnvironment" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostEnvironment" })
+        handled = true
+    end,
+'''
+          addition = anchor + '''    if not handled and kind(callee) == "symbol" and callee.name == "hostCharacter" then
+        result = args@0
+        result.push({ op: "call", arg: "Runtime.HostCharacter" })
+        handled = true
+    end,
+'''
+          if anchor not in text:
+              raise SystemExit('Expected hostEnvironment emitter block was not found')
+          emitter_path.write_text(text.replace(anchor, addition, 1))
+          PY
+
+      - name: Reconstruct current Stage-0 source lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIGRATION=d6680d72646aed04cda62fdb76c74325c640cd94
+          BASE="https://raw.githubusercontent.com/thoersch/beacon-lang/$MIGRATION"
+          curl -fsSL "$BASE/tools/reconstruct-current-seed.py" -o /tmp/reconstruct-current-seed.py
+          curl -fsSL "$BASE/tools/migrate-fs-path-boundary.py" -o /tmp/migrate-fs-path-boundary.py
+          curl -fsSL "$BASE/tools/patch-seed-secondary-host-table.py" -o /tmp/patch-seed-secondary-host-table.py
+          python3 /tmp/reconstruct-current-seed.py
+          python3 /tmp/migrate-fs-path-boundary.py seed
+          python3 /tmp/patch-seed-secondary-host-table.py
+
+      - name: Preserve flattened else-if parser support
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('tools/seed-refresh/Beacon.Compiler/Program.cs')
+          text = path.read_text()
+          pattern = re.compile(
+              r'''    private Core ParseIf\(\)\n    \{\n.*?\n    \}\n\n    private Core ParseFor\(\)''',
+              re.S,
+          )
+          matches = list(pattern.finditer(text))
+          if len(matches) != 1:
+              raise SystemExit(f'Expected exactly one ParseIf block, found {len(matches)}')
+
+          replacement = '''    private Core ParseIf()\n    {\n        ConsumeIdentifier("if", "Expected 'if'");\n        var conditions = new List<Core>();\n        var bodies = new List<Core>();\n        Core elseBody = new ListCore(new List<Core> { Atom.Symbol("do") });\n\n        ParseIfClause(conditions, bodies);\n\n        var chaining = true;\n        while (chaining && MatchIdentifier("else"))\n        {\n            if (MatchIdentifier("if"))\n            {\n                ParseIfClause(conditions, bodies);\n            }\n            else\n            {\n                RequireNewLine("Expected newline after 'else'");\n                elseBody = ParseStatementsUntil("end");\n                chaining = false;\n            }\n        }\n\n        ConsumeIdentifier("end", "Expected 'end' to close if");\n\n        Core result = CoreForms.Form("if", conditions[^1], bodies[^1], elseBody);\n        for (var i = conditions.Count - 2; i >= 0; i--)\n        {\n            result = CoreForms.Form(\n                "if",\n                conditions[i],\n                bodies[i],\n                new ListCore(new List<Core> { Atom.Symbol("do"), result }));\n        }\n        return result;\n    }\n\n    private void ParseIfClause(List<Core> conditions, List<Core> bodies)\n    {\n        var condition = ParseExpression();\n        ConsumeIdentifier("then", "Expected 'then' after if condition");\n        RequireNewLine("Expected newline after 'then'");\n        conditions.Add(condition);\n        bodies.Add(ParseStatementsUntil("else", "end"));\n    }\n\n    private Core ParseFor()'''
+
+          path.write_text(pattern.sub(replacement, text, count=1))
+          PY
+
+      - name: Add irreducible Unicode scalar construction primitive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('tools/seed-refresh/Beacon.Compiler/Program.cs')
+          text = path.read_text()
+
+          runtime_anchor = '    private static string PathArgument(object? value, string functionName) =>\n'
+          runtime_method = '''    public static string HostCharacter(object? value)\n    {\n        if (value is not double number || number != Math.Truncate(number) ||\n            number < 0 || number > 0x10FFFF || (number >= 0xD800 && number <= 0xDFFF))\n            throw new Exception("hostCharacter() expects a valid Unicode scalar Number");\n        return char.ConvertFromUtf32((int)number);\n    }\n\n'''
+          if text.count(runtime_anchor) != 1:
+              raise SystemExit('Expected one Runtime PathArgument anchor')
+          text = text.replace(runtime_anchor, runtime_method + runtime_anchor, 1)
+
+          lines = text.splitlines()
+          updated = []
+          method_info_count = 0
+          for line in lines:
+              updated.append(line)
+              if 'private static readonly ' in line and 'NumberMethod = Method(nameof(Runtime.Number), typeof(object));' in line:
+                  updated.append(line.replace('NumberMethod', 'HostCharacterMethod').replace('Runtime.Number', 'Runtime.HostCharacter'))
+                  method_info_count += 1
+          if method_info_count != 2:
+              raise SystemExit(f'Expected two Number MethodInfo anchors, found {method_info_count}')
+          text = '\n'.join(updated) + '\n'
+
+          resolver_anchor = '        "Runtime.Number" => NumberMethod,\n'
+          if text.count(resolver_anchor) != 1:
+              raise SystemExit('Expected one Runtime.Number resolver entry')
+          text = text.replace(
+              resolver_anchor,
+              resolver_anchor + '        "Runtime.HostCharacter" => HostCharacterMethod,\n',
+              1,
+          )
+
+          number_call = re.compile(
+              r'''(        if \(callee is Atom \{ Kind: AtomKind\.Symbol \} numberAtom && numberAtom\.Text == "number"\)\n        \{\n.*?            return;\n        \}\n)''',
+              re.S,
+          )
+          matches = list(number_call.finditer(text))
+          if len(matches) != 1:
+              raise SystemExit(f'Expected one direct number() call block, found {len(matches)}')
+          host_call = '''\n        if (callee is Atom { Kind: AtomKind.Symbol } hostCharacterAtom && hostCharacterAtom.Text == "hostCharacter")\n        {\n            if (args.Length != 1) throw new Exception("hostCharacter() expects one argument");\n            EmitExpr(args[0], ctx);\n            ctx.IL.Emit(System.Reflection.Emit.OpCodes.Call, HostCharacterMethod);\n            return;\n        }\n'''
+          text = number_call.sub(lambda match: match.group(1) + host_call, text, count=1)
+
+          path.write_text(text)
+          PY
+
+      - name: Verify Stage-0 boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROGRAM=tools/seed-refresh/Beacon.Compiler/Program.cs
+          grep -F 'public static string HostCharacter' "$PROGRAM"
+          grep -F '"Runtime.HostCharacter" => HostCharacterMethod' "$PROGRAM"
+          for removed in AppendFile DeletePath CopyFile ListFiles ListDirectories ParentPath FileName PathExtension PathIsAbsolute CombinePath DirectoryName FileExists ReadFile AbsolutePath EnvironmentValue; do
+            if grep -F "Runtime.$removed" "$PROGRAM"; then
+              echo "Old high-level runtime call returned during reconstruction: Runtime.$removed" >&2
+              exit 1
+            fi
+          done
+
+      - name: Build refreshed Stage-0 seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/beacon-stage0
+          dotnet publish tools/seed-refresh/Beacon.Compiler/Beacon.Compiler.csproj -c Release -o /tmp/beacon-stage0 -p:UseAppHost=false
+          rm -f /tmp/beacon-stage0/*.pdb
+
+      - name: Install refreshed seed and verify canonical compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf bootstrap/stage0
+          mkdir -p bootstrap/stage0
+          cp /tmp/beacon-stage0/Beacon.Compiler.dll bootstrap/stage0/
+          cp /tmp/beacon-stage0/Beacon.Compiler.deps.json bootstrap/stage0/
+          cp /tmp/beacon-stage0/Beacon.Compiler.runtimeconfig.json bootstrap/stage0/
+          cat > bootstrap/stage0/PROVENANCE.txt <<EOF
+          Beacon Stage-0 bootstrap seed
+          =============================
+
+          Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
+          Seed refresh: adds hostCharacter(Number), the irreducible CLR primitive for constructing a String from a Unicode scalar. JSON parsing, JSON serialization, escape handling, number grammar, Unicode surrogate handling, and validation remain Beacon code under std/json.beacon. Flattened 'else if' parser support and the reduced filesystem/path host boundary are preserved unchanged.
+          Historical implementation language: C#
+          Source branch: feature/std-json
+          .NET SDK: $(dotnet --version)
+
+          The one-time C# refresh source was reconstructed from the verified historical migration lineage and removed after this seed was built and fixed-point verified.
+          The canonical compiler implementation remains Beacon source under compiler/.
+          EOF
+          (cd bootstrap/stage0 && sha256sum Beacon.Compiler.dll Beacon.Compiler.deps.json Beacon.Compiler.runtimeconfig.json PROVENANCE.txt > SHA256SUMS)
+
+          export BEACON_HOME="$PWD"
+          bash ./beacon.sh self-host
+          bash ./beacon.sh examples/std-json.beacon
+
+      - name: Remove one-time refresh machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf tools/seed-refresh
+          rm -f .github/workflows/inspect-seed-json.yml
+          rm -f .github/workflows/refresh-json-seed.yml
+
+          if find . -path './.git' -prune -o \( -name '*.cs' -o -name '*.csproj' \) -print | grep -q .; then
+            echo 'C# source remains after seed refresh.' >&2
+            find . -path './.git' -prune -o \( -name '*.cs' -o -name '*.csproj' \) -print >&2
+            exit 1
+          fi
+
+      - name: Commit verified seed refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add compiler/emitter.beacon std/json.beacon bootstrap/stage0 .github/workflows/inspect-seed-json.yml .github/workflows/refresh-json-seed.yml
+          git commit -m 'Add Unicode scalar host primitive for std.json'
+          git push origin HEAD:feature/std-json
