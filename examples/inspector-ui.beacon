@@ -29,7 +29,7 @@ else
         ui.panel([
             ui.heading("Source"),
             ui.input("Search source", searchChanged),
-            ui.textArea("person: type = {\n    name: string\n    age: number\n}\n\nada: person = {\n    name: \"Ada\"\n    age: 42\n}", 260)
+            ui.textArea("name: string = \"Ada\"\nage: number = 42\nprint(name)\nprint(age)", 260)
         ]),
         ui.panel([
             ui.heading("Inspection"),
