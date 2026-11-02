@@ -3,6 +3,11 @@ text: fn(value: string) = {
     text: value
 }
 
+muted: fn(value: string) = {
+    kind: "muted"
+    text: value
+}
+
 heading: fn(value: string) = {
     kind: "heading"
     text: value
@@ -10,18 +15,32 @@ heading: fn(value: string) = {
 
 button: fn(label: string, onClick: fn) = {
     kind: "button"
+    variant: "secondary"
     text: label
     callback: onClick
 }
 
-input: fn(value: string, onChange: fn) = {
+primaryButton: fn(label: string, onClick: fn) = {
+    kind: "button"
+    variant: "primary"
+    text: label
+    callback: onClick
+}
+
+input: fn(placeholder: string, onChange: fn) = {
     kind: "input"
-    text: value
+    placeholder: placeholder
     callback: onChange
 }
 
 textArea: fn(value: string, height: number) = {
     kind: "textArea"
+    text: value
+    height: height
+}
+
+code: fn(value: string, height: number) = {
+    kind: "code"
     text: value
     height: height
 }
@@ -46,30 +65,42 @@ panel: fn(children: list) = {
     children: children
 }
 
+preferredWidth: fn<private>(node: record) = [
+    result: number = -1,
+
+    if node.kind == "button" then
+        result = node.text.length() * 8 + 40
+        if result < 96 then
+            result = 96
+        end
+        if result > 240 then
+            result = 240
+        end
+    end,
+
+    result
+]
+
 measureHeight: fn<private>(node: record, width: number) = [
     result: number = 0,
 
     if node.kind == "text" then
         result = 24
+    else if node.kind == "muted" then
+        result = 22
     else if node.kind == "heading" then
         result = 34
     else if node.kind == "button" then
-        result = 34
+        result = 38
     else if node.kind == "input" then
-        result = 32
-    else if node.kind == "textArea" then
+        result = 40
+    else if node.kind == "textArea" or node.kind == "code" then
         result = node.height
     else if node.kind == "spacer" then
         result = node.height
     else if node.kind == "row" then
-        count: number = node.children.length()
-        childWidth: number = width
-        if count > 0 then
-            childWidth = (width - (count - 1) * 8) / count
-        end
-
-        for [i: number = 0, i < count, i += 1]
-            childHeight: number = measureHeight(node.children@i, childWidth)
+        for [i: number = 0, i < node.children.length(), i += 1]
+            childHeight: number = measureHeight(node.children@i, width)
             if childHeight > result then
                 result = childHeight
             end
@@ -77,7 +108,7 @@ measureHeight: fn<private>(node: record, width: number) = [
     else if node.kind == "column" then
         for [i: number = 0, i < node.children.length(), i += 1]
             if i > 0 then
-                result += 8
+                result += 12
             end
             result += measureHeight(node.children@i, width)
         loop
@@ -85,11 +116,11 @@ measureHeight: fn<private>(node: record, width: number) = [
         contentHeight: number = 0
         for [i: number = 0, i < node.children.length(), i += 1]
             if i > 0 then
-                contentHeight += 8
+                contentHeight += 12
             end
-            contentHeight += measureHeight(node.children@i, width - 24)
+            contentHeight += measureHeight(node.children@i, width - 40)
         loop
-        result = contentHeight + 24
+        result = contentHeight + 40
     else
         fail("Unknown std.ui node kind: {node.kind}")
     end,
@@ -109,29 +140,37 @@ registerCallback: fn<private>(state: record, callback: fn, mode: string) = [
     key
 ]
 
-layoutNode: fn<private>(node: record, x: number, y: number, width: number, controls: list, state: record) = [
+pushTextControl: fn<private>(node: record, x: number, y: number, width: number, height: number, surface: boolean, controls: list) = [
+    controls.push({
+        kind: node.kind
+        x: x
+        y: y
+        width: width
+        height: height
+        text: node.text
+        action: ""
+        surface: surface
+    }),
+    null
+]
+
+layoutNode: fn<private>(node: record, x: number, y: number, width: number, surface: boolean, controls: list, state: record) = [
     height: number = measureHeight(node, width),
 
-    if node.kind == "text" or node.kind == "heading" then
-        controls.push({
-            kind: node.kind
-            x: x
-            y: y
-            width: width
-            height: height
-            text: node.text
-            action: ""
-        })
+    if node.kind == "text" or node.kind == "muted" or node.kind == "heading" then
+        pushTextControl(node, x, y, width, height, surface, controls)
     else if node.kind == "button" then
         action: string = registerCallback(state, node.callback, "click")
         controls.push({
             kind: "button"
+            variant: node.variant
             x: x
             y: y
             width: width
             height: height
             text: node.text
             action: action
+            surface: surface
         })
     else if node.kind == "input" then
         action: string = registerCallback(state, node.callback, "input")
@@ -141,18 +180,21 @@ layoutNode: fn<private>(node: record, x: number, y: number, width: number, contr
             y: y
             width: width
             height: height
-            text: node.text
+            text: ""
+            placeholder: node.placeholder
             action: action
+            surface: surface
         })
-    else if node.kind == "textArea" then
+    else if node.kind == "textArea" or node.kind == "code" then
         controls.push({
-            kind: "textArea"
+            kind: node.kind
             x: x
             y: y
             width: width
             height: height
             text: node.text
             action: ""
+            surface: surface
         })
     else if node.kind == "spacer" then
         null
@@ -160,22 +202,48 @@ layoutNode: fn<private>(node: record, x: number, y: number, width: number, contr
         nextY: number = y
         for [i: number = 0, i < node.children.length(), i += 1]
             if i > 0 then
-                nextY += 8
+                nextY += 12
             end
             child: record = node.children@i
-            childHeight: number = layoutNode(child, x, nextY, width, controls, state)
+            childHeight: number = layoutNode(child, x, nextY, width, surface, controls, state)
             nextY += childHeight
         loop
     else if node.kind == "row" then
         count: number = node.children.length()
-        childWidth: number = width
-        if count > 0 then
-            childWidth = (width - (count - 1) * 8) / count
+        fixedWidth: number = 0
+        growCount: number = 0
+        gapWidth: number = 0
+
+        if count > 1 then
+            gapWidth = (count - 1) * 10
         end
 
         for [i: number = 0, i < count, i += 1]
-            childX: number = x + i * (childWidth + 8)
-            layoutNode(node.children@i, childX, y, childWidth, controls, state)
+            childPreferred: number = preferredWidth(node.children@i)
+            if childPreferred < 0 then
+                growCount += 1
+            else
+                fixedWidth += childPreferred
+            end
+        loop
+
+        growWidth: number = 0
+        if growCount > 0 then
+            growWidth = (width - fixedWidth - gapWidth) / growCount
+            if growWidth < 1 then
+                growWidth = 1
+            end
+        end
+
+        nextX: number = x
+        for [i: number = 0, i < count, i += 1]
+            child: record = node.children@i
+            childWidth: number = preferredWidth(child)
+            if childWidth < 0 then
+                childWidth = growWidth
+            end
+            layoutNode(child, nextX, y, childWidth, surface, controls, state)
+            nextX += childWidth + 10
         loop
     else if node.kind == "panel" then
         controls.push({
@@ -186,15 +254,16 @@ layoutNode: fn<private>(node: record, x: number, y: number, width: number, contr
             height: height
             text: ""
             action: ""
+            surface: true
         })
 
-        nextY: number = y + 12
+        nextY: number = y + 20
         for [i: number = 0, i < node.children.length(), i += 1]
             if i > 0 then
-                nextY += 8
+                nextY += 12
             end
             child: record = node.children@i
-            childHeight: number = layoutNode(child, x + 12, nextY, width - 24, controls, state)
+            childHeight: number = layoutNode(child, x + 20, nextY, width - 40, true, controls, state)
             nextY += childHeight
         loop
     else
@@ -210,13 +279,13 @@ mount: fn(app: record, root: record) = [
         next: 0
         handlers: {}
     },
-    width: number = app.width - 32,
+    width: number = app.width - 56,
 
     if width < 1 then
         width = 1
     end,
 
-    layoutNode(root, 16, 16, width, controls, state),
+    layoutNode(root, 28, 28, width, false, controls, state),
     hostWindow("controls", {
         id: app.id
         controls: controls
