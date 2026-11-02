@@ -22,7 +22,7 @@ jobs:
       - name: Verify fixed-point self-hosting
         run: bash ./beacon.sh self-host
 
-      - name: Verify portable window availability and structural UI
+      - name: Verify portable window availability and polished structural UI
         shell: bash
         run: |
           set -euo pipefail
@@ -35,23 +35,27 @@ jobs:
 
           view: record = ui.column([
               ui.heading("Inspector"),
-              ui.text("Ready"),
+              ui.muted("Ready"),
               ui.row([
-                  ui.button("Open", clicked),
-                  ui.input("Search", changed)
+                  ui.primaryButton("Open", clicked),
+                  ui.button("Refresh", clicked)
               ]),
-              ui.spacer(8)
+              ui.input("Search source", changed),
+              ui.code("name: string = \"Ada\"", 120)
           ])
 
           print(window.available())
           print(window.platform())
           print(view.kind)
           print(view.children.length())
-          print(view.children@2.kind)
+          print(view.children@1.kind)
+          print(view.children@2.children@0.variant)
+          print(view.children@3.placeholder)
+          print(view.children@4.kind)
           BEACON
 
           actual="$(bash ./beacon.sh /tmp/window-ui-portable.beacon)"
-          expected=$'false\nunsupported\ncolumn\n4\nrow'
+          expected=$'false\nunsupported\ncolumn\n5\nmuted\nprimary\nSearch source\ncode'
           if [ "$actual" != "$expected" ]; then
             echo 'Unexpected portable std.window/std.ui output:' >&2
             printf '%s\n' "$actual" >&2
@@ -78,7 +82,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Verify native window and UI mounting
+      - name: Verify polished native window and UI mounting
         shell: bash
         run: |
           set -euo pipefail
@@ -91,21 +95,24 @@ jobs:
 
           app: record = window.create({
               title: "Beacon UI regression"
-              width: 640
-              height: 480
+              width: 720
+              height: 560
           })
 
           view: record = ui.column([
               ui.heading("Beacon Inspector"),
-              ui.text("Native UI regression"),
+              ui.muted("Polished native UI regression"),
               ui.row([
-                  ui.button("Open", clicked),
+                  ui.primaryButton("Open", clicked),
                   ui.button("Refresh", clicked)
               ]),
-              ui.input("Search", changed),
-              ui.textArea("source", 120),
               ui.panel([
-                  ui.text("Inspection")
+                  ui.input("Search source", changed),
+                  ui.code("name: string = \"Ada\"", 140)
+              ]),
+              ui.panel([
+                  ui.text("Editable notes"),
+                  ui.textArea("notes", 100)
               ])
           ])
 
