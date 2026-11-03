@@ -28,7 +28,6 @@ else
         ]),
         ui.panel([
             ui.heading("Source"),
-            ui.muted("Search source"),
             ui.input("Search source", searchChanged),
             ui.code("name: string = \"Ada\"\nage: number = 42\nprint(name)\nprint(age)", 260)
         ]),
