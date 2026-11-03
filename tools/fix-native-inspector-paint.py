@@ -189,7 +189,7 @@ replace_once(
 ''',
 '''            // Win32 multiline EDIT controls require CRLF, not LF-only Beacon text.
             var nativeText = kind == "code" || kind == "textArea"
-                ? text.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", "\r\n")
+                ? text.Replace("\\r\\n", "\\n").Replace('\\r', '\\n').Replace("\\n", "\\r\\n")
                 : text;
             var handle = CreateWindowExW(
                 extendedStyle,
