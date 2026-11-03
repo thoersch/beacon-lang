@@ -77,16 +77,15 @@ compile: fn(program: list) = [
 
 emitStatement: fn(node: atom | list | record) = [
     result: list = [],
-    when
-        isForm(node, "for") then
-            result = emitFor(node)
-        isForm(node, "break") then
-            result = emitBreak()
-        isForm(node, "continue") then
-            result = emitContinue()
-        otherwise
-            result = emit(node)
-            result.push({ op: "pop" })
+    if isForm(node, "for") then
+        result = emitFor(node)
+    else if isForm(node, "break") then
+        result = emitBreak()
+    else if isForm(node, "continue") then
+        result = emitContinue()
+    else
+        result = emit(node)
+        result.push({ op: "pop" })
     end,
     result
 ]
@@ -148,35 +147,34 @@ emitAtom: fn(node: atom) = [
     nodeKind: string = kind(node),
     result: list = [],
 
-    when
-        nodeKind == "number" then
+    if nodeKind == "number" then
+        result = [
+            { op: "ldc.r8", arg: node },
+            { op: "box", arg: "number" }
+        ]
+    else if nodeKind == "string" then
+        result = [
+            { op: "interpolate", text: node }
+        ]
+    else if nodeKind == "boolean" then
+        result = [
+            { op: "ldbool", arg: node },
+            { op: "box", arg: "boolean" }
+        ]
+    else if nodeKind == "null" then
+        result = [{ op: "ldnull" }]
+    else if nodeKind == "symbol" then
+        if node.name == "self" then
+            result = [{ op: "ldself" }]
+        else
             result = [
-                { op: "ldc.r8", arg: node },
-                { op: "box", arg: "number" }
+                { op: "ldenv" },
+                { op: "ldstr", arg: node.name },
+                { op: "call", arg: "Runtime.GetVar" }
             ]
-        nodeKind == "string" then
-            result = [
-                { op: "interpolate", text: node }
-            ]
-        nodeKind == "boolean" then
-            result = [
-                { op: "ldbool", arg: node },
-                { op: "box", arg: "boolean" }
-            ]
-        nodeKind == "null" then
-            result = [{ op: "ldnull" }]
-        nodeKind == "symbol" then
-            if node.name == "self" then
-                result = [{ op: "ldself" }]
-            else
-                result = [
-                    { op: "ldenv" },
-                    { op: "ldstr", arg: node.name },
-                    { op: "call", arg: "Runtime.GetVar" }
-                ]
-            end
-        otherwise
-            fail("Unsupported Atom kind: {nodeKind}")
+        end
+    else
+        fail("Unsupported Atom kind: {nodeKind}")
     end,
 
     result
@@ -459,26 +457,25 @@ emitAssign: fn(node: list) = [
     value: atom | list | record = node@2,
     result: list = [],
 
-    when
-        kind(target) == "symbol" then
-            result = [
-                { op: "ldenv" },
-                { op: "ldstr", arg: target.name }
-            ]
-            result = result.concat(emit(value))
-            result.push({ op: "call", arg: "Runtime.SetVar" })
-        isForm(target, "get") then
-            result = emitTarget(target@1)
-            result.push({ op: "ldstr", arg: target@2 })
-            result = result.concat(emit(value))
-            result.push({ op: "call", arg: "Runtime.SetMember" })
-        isForm(target, "index") then
-            result = emit(target@1)
-            result = result.concat(emit(target@2))
-            result = result.concat(emit(value))
-            result.push({ op: "call", arg: "Runtime.SetIndex" })
-        otherwise
-            fail("Left side of = must be a variable, member, or indexed value")
+    if kind(target) == "symbol" then
+        result = [
+            { op: "ldenv" },
+            { op: "ldstr", arg: target.name }
+        ]
+        result = result.concat(emit(value))
+        result.push({ op: "call", arg: "Runtime.SetVar" })
+    else if isForm(target, "get") then
+        result = emitTarget(target@1)
+        result.push({ op: "ldstr", arg: target@2 })
+        result = result.concat(emit(value))
+        result.push({ op: "call", arg: "Runtime.SetMember" })
+    else if isForm(target, "index") then
+        result = emit(target@1)
+        result = result.concat(emit(target@2))
+        result = result.concat(emit(value))
+        result.push({ op: "call", arg: "Runtime.SetIndex" })
+    else
+        fail("Left side of = must be a variable, member, or indexed value")
     end,
 
     result

@@ -57,21 +57,18 @@ findTopLevelDeclaration: fn(tokens: list, name: string) = [
             end
         end
 
-        when
-            token.kind == "lbrace" then
-                braceDepth += 1
-            token.kind == "rbrace" then
-                braceDepth = braceDepth - 1
-            token.kind == "lbracket" then
-                bracketDepth += 1
-            token.kind == "rbracket" then
-                bracketDepth = bracketDepth - 1
-            token.kind == "lparen" then
-                parenDepth += 1
-            token.kind == "rparen" then
-                parenDepth = parenDepth - 1
-            otherwise
-                null
+        if token.kind == "lbrace" then
+            braceDepth += 1
+        else if token.kind == "rbrace" then
+            braceDepth = braceDepth - 1
+        else if token.kind == "lbracket" then
+            bracketDepth += 1
+        else if token.kind == "rbracket" then
+            bracketDepth = bracketDepth - 1
+        else if token.kind == "lparen" then
+            parenDepth += 1
+        else if token.kind == "rparen" then
+            parenDepth = parenDepth - 1
         end
     loop,
 

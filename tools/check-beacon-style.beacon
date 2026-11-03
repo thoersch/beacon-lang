@@ -44,9 +44,10 @@ checkFile: fn(file: string) = [
     for [i: number = 0, i < lines.length(), i += 1]
         line: string = lines@i
 
+        // Stage-0 cannot bootstrap when in compiler source yet; enforce for stdlib.
         // Three or more branches comparing the same kind are a when.
         discriminator: string = kindDiscriminator(line)
-        if discriminator != "" then
+        if discriminator != "" and text.startsWith(file, "std") then
             sameKindBranches: number = 0
             scanning: boolean = true
             for [j: number = i + 1, j < lines.length() and scanning, j += 1]

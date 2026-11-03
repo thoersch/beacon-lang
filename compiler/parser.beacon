@@ -126,23 +126,22 @@ parseTopLevelStatement: fn(state: record) = [
 
 parseStatement: fn(state: record) = [
     result: atom | list | record = null,
-    when
-        checkIdentifier(state, "include") then
-            result = parseInclude(state)
-        checkIdentifier(state, "if") then
-            result = parseIf(state)
-        checkIdentifier(state, "when") then
-            result = parseWhen(state)
-        checkIdentifier(state, "for") then
-            result = parseFor(state)
-        matchIdentifier(state, "break") then
-            result = [symbol("break")]
-        matchIdentifier(state, "continue") then
-            result = [symbol("continue")]
-        checkToken(state, "identifier") and checkNextToken(state, "colon") then
-            result = parseDeclaration(state, false)
-        otherwise
-            result = parseExpression(state)
+    if checkIdentifier(state, "include") then
+        result = parseInclude(state)
+    else if checkIdentifier(state, "if") then
+        result = parseIf(state)
+    else if checkIdentifier(state, "when") then
+        result = parseWhen(state)
+    else if checkIdentifier(state, "for") then
+        result = parseFor(state)
+    else if matchIdentifier(state, "break") then
+        result = [symbol("break")]
+    else if matchIdentifier(state, "continue") then
+        result = [symbol("continue")]
+    else if checkToken(state, "identifier") and checkNextToken(state, "colon") then
+        result = parseDeclaration(state, false)
+    else
+        result = parseExpression(state)
     end,
     result
 ]
@@ -576,21 +575,20 @@ parseComparison: fn(state: record) = [
     active: boolean = true,
     for [tick: number = 0, active, tick += 1]
         operator: string = ""
-        when
-            matchToken(state, "eqeq") then
-                operator = "=="
-            matchToken(state, "bangeq") then
-                operator = "!="
-            matchToken(state, "less") then
-                operator = "<"
-            matchToken(state, "lesseq") then
-                operator = "<="
-            matchToken(state, "greater") then
-                operator = ">"
-            matchToken(state, "greatereq") then
-                operator = ">="
-            otherwise
-                active = false
+        if matchToken(state, "eqeq") then
+            operator = "=="
+        else if matchToken(state, "bangeq") then
+            operator = "!="
+        else if matchToken(state, "less") then
+            operator = "<"
+        else if matchToken(state, "lesseq") then
+            operator = "<="
+        else if matchToken(state, "greater") then
+            operator = ">"
+        else if matchToken(state, "greatereq") then
+            operator = ">="
+        else
+            active = false
         end
         if active then
             skipNewLines(state)
@@ -659,32 +657,31 @@ parsePostfix: fn(state: record) = [
     active: boolean = true,
 
     for [tick: number = 0, active, tick += 1]
-        when
-            matchToken(state, "dot") then
-                member: record = consumeToken(state, "identifier", "Expected member name after '.'")
-                expression = [symbol("get"), expression, member.text]
-            matchToken(state, "at") then
-                skipNewLines(state)
-                expression = [symbol("index"), expression, parsePrimary(state)]
-            matchToken(state, "lparen") then
-                call: list = [symbol("call"), expression]
-                skipNewLines(state)
-                if not checkToken(state, "rparen") then
-                    done: boolean = false
-                    for [argIndex: number = 0, not done, argIndex += 1]
-                        call.push(parseExpression(state))
-                        if matchToken(state, "comma") then
-                            skipNewLines(state)
-                        else
-                            done = true
-                        end
-                    loop
-                end
-                skipNewLines(state)
-                consumeToken(state, "rparen", "Expected ')' after arguments")
-                expression = call
-            otherwise
-                active = false
+        if matchToken(state, "dot") then
+            member: record = consumeToken(state, "identifier", "Expected member name after '.'")
+            expression = [symbol("get"), expression, member.text]
+        else if matchToken(state, "at") then
+            skipNewLines(state)
+            expression = [symbol("index"), expression, parsePrimary(state)]
+        else if matchToken(state, "lparen") then
+            call: list = [symbol("call"), expression]
+            skipNewLines(state)
+            if not checkToken(state, "rparen") then
+                done: boolean = false
+                for [argIndex: number = 0, not done, argIndex += 1]
+                    call.push(parseExpression(state))
+                    if matchToken(state, "comma") then
+                        skipNewLines(state)
+                    else
+                        done = true
+                    end
+                loop
+            end
+            skipNewLines(state)
+            consumeToken(state, "rparen", "Expected ')' after arguments")
+            expression = call
+        else
+            active = false
         end
     loop,
 
@@ -695,40 +692,38 @@ parsePrimary: fn(state: record) = [
     result: atom | list | record = null,
     token: record = currentToken(state),
 
-    when
-        matchToken(state, "number") then
-            result = number(token.text)
-        matchToken(state, "string") then
-            result = token.text
-        checkIdentifier(state, "if") then
-            result = parseIf(state)
-        checkIdentifier(state, "when") then
-            result = parseWhen(state)
-        matchToken(state, "identifier") then
-            when
-                token.text == "true" then
-                    result = true
-                token.text == "false" then
-                    result = false
-                token.text == "null" then
-                    result = null
-                otherwise
-                    result = symbol(token.text)
-            end
-        matchToken(state, "dot") then
-            member: record = consumeToken(state, "identifier", "Expected member after '.'")
-            result = [symbol("get"), symbol("self"), member.text]
-        matchToken(state, "lparen") then
-            skipNewLines(state)
-            result = parseExpression(state)
-            skipNewLines(state)
-            consumeToken(state, "rparen", "Expected ')'")
-        matchToken(state, "lbracket") then
-            result = parseListLiteralAfterOpen(state)
-        matchToken(state, "lbrace") then
-            result = parseRecordLiteralAfterOpen(state)
-        otherwise
-            fail("Expected expression at " + token.line + ":" + token.column)
+    if matchToken(state, "number") then
+        result = number(token.text)
+    else if matchToken(state, "string") then
+        result = token.text
+    else if checkIdentifier(state, "if") then
+        result = parseIf(state)
+    else if checkIdentifier(state, "when") then
+        result = parseWhen(state)
+    else if matchToken(state, "identifier") then
+        if token.text == "true" then
+            result = true
+        else if token.text == "false" then
+            result = false
+        else if token.text == "null" then
+            result = null
+        else
+            result = symbol(token.text)
+        end
+    else if matchToken(state, "dot") then
+        member: record = consumeToken(state, "identifier", "Expected member after '.'")
+        result = [symbol("get"), symbol("self"), member.text]
+    else if matchToken(state, "lparen") then
+        skipNewLines(state)
+        result = parseExpression(state)
+        skipNewLines(state)
+        consumeToken(state, "rparen", "Expected ')'")
+    else if matchToken(state, "lbracket") then
+        result = parseListLiteralAfterOpen(state)
+    else if matchToken(state, "lbrace") then
+        result = parseRecordLiteralAfterOpen(state)
+    else
+        fail("Expected expression at " + token.line + ":" + token.column)
     end,
 
     result
