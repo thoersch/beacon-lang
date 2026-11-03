@@ -48,6 +48,8 @@ The returned Record contains the native window id plus the current title, width,
 
 `title`, `width`, and `height` are optional. Width and height must be positive.
 
+On Windows, Beacon applies its native desktop visual defaults automatically: dark title-bar integration, matching caption and border colors, and rounded system corners where the OS supports them. Applications do not need to configure raw Win32 appearance flags.
+
 ## Lifecycle
 
 ```beacon
@@ -84,4 +86,4 @@ The initial native event vocabulary includes:
 
 The Stage-0 runtime exposes one internal structured primitive for native desktop operations. `std.window` turns that primitive into Beacon-facing lifecycle and event behavior.
 
-The native backend does not define Beacon's UI model. Layout, UI structure, and callback routing belong to `std.ui` and remain Beacon code.
+The native backend owns only irreducible platform rendering and event plumbing. Beacon's UI tree, semantic visual roles, layout, spacing, and callback routing remain in `std.ui`.

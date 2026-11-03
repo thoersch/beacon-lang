@@ -21,20 +21,20 @@ else
 
     view: record = ui.column([
         ui.heading("Beacon Inspector"),
-        ui.text("Inspect Beacon source, structural Core, and generated CLR plans."),
+        ui.muted("Source, Core, and CLR inspection for the Beacon toolchain."),
         ui.row([
-            ui.button("Open source", openSource),
+            ui.primaryButton("Open source", openSource),
             ui.button("Refresh", refresh)
         ]),
         ui.panel([
             ui.heading("Source"),
             ui.input("Search source", searchChanged),
-            ui.textArea("name: string = \"Ada\"\nage: number = 42\nprint(name)\nprint(age)", 260)
+            ui.code("name: string = \"Ada\"\nage: number = 42\nprint(name)\nprint(age)", 260)
         ]),
         ui.panel([
             ui.heading("Inspection"),
-            ui.text("The Inspector will drive the next capabilities added to Beacon."),
-            ui.textArea("Core and CLR plan output will live here as the app grows.", 180)
+            ui.muted("The Inspector is the forcing function for Beacon's desktop UI surface."),
+            ui.code("Core and CLR plan output will live here as the app grows.", 180)
         ])
     ])
 

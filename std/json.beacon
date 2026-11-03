@@ -141,43 +141,44 @@ parseString: fn<private>(state: record) = [
         character: string = state.source.slice(state.pos, 1)
         state.pos += 1
 
-        if character == "\"" then
-            reading = false
-            done = true
-        else if character == "\\" then
-            if state.pos >= state.source.length() then
-                error(state, "Unterminated escape sequence")
-            end
+        when
+            character == "\"" then
+                reading = false
+                done = true
+            character == "\\" then
+                if state.pos >= state.source.length() then
+                    error(state, "Unterminated escape sequence")
+                end
 
-            escape: string = state.source.slice(state.pos, 1)
-            state.pos += 1
+                escape: string = state.source.slice(state.pos, 1)
+                state.pos += 1
 
-            when
-                escape == "\"" then
-                    result += "\""
-                escape == "\\" then
-                    result += "\\"
-                escape == "/" then
-                    result += "/"
-                escape == "b" then
-                    result += hostCharacter(8)
-                escape == "f" then
-                    result += hostCharacter(12)
-                escape == "n" then
-                    result += "\n"
-                escape == "r" then
-                    result += "\r"
-                escape == "t" then
-                    result += "\t"
-                escape == "u" then
-                    result += parseUnicodeEscape(state)
-                otherwise
-                    error(state, "Invalid string escape")
-            end
-        else if controlCode(character) >= 0 then
-            error(state, "Unescaped control character in string")
-        else
-            result += character
+                when
+                    escape == "\"" then
+                        result += "\""
+                    escape == "\\" then
+                        result += "\\"
+                    escape == "/" then
+                        result += "/"
+                    escape == "b" then
+                        result += hostCharacter(8)
+                    escape == "f" then
+                        result += hostCharacter(12)
+                    escape == "n" then
+                        result += "\n"
+                    escape == "r" then
+                        result += "\r"
+                    escape == "t" then
+                        result += "\t"
+                    escape == "u" then
+                        result += parseUnicodeEscape(state)
+                    otherwise
+                        error(state, "Invalid string escape")
+                end
+            controlCode(character) >= 0 then
+                error(state, "Unescaped control character in string")
+            otherwise
+                result += character
         end
     loop,
 
@@ -197,21 +198,22 @@ parseNumber: fn<private>(state: record) = [
         character = peek(state)
     end,
 
-    if character == "0" then
-        state.pos += 1
-        if isDigit(peek(state)) then
-            error(state, "Numbers cannot contain leading zeroes")
-        end
-    else if isNonZeroDigit(character) then
-        for [digits: boolean = true, digits, digits = digits]
+    when
+        character == "0" then
+            state.pos += 1
             if isDigit(peek(state)) then
-                state.pos += 1
-            else
-                digits = false
+                error(state, "Numbers cannot contain leading zeroes")
             end
-        loop
-    else
-        error(state, "Expected a digit")
+        isNonZeroDigit(character) then
+            for [digits: boolean = true, digits, digits = digits]
+                if isDigit(peek(state)) then
+                    state.pos += 1
+                else
+                    digits = false
+                end
+            loop
+        otherwise
+            error(state, "Expected a digit")
     end,
 
     if peek(state) == "." then
@@ -287,14 +289,15 @@ parseArray: fn<private>(state: record) = [
         skipWhitespace(state)
 
         character: string = peek(state)
-        if character == "," then
-            state.pos += 1
-            skipWhitespace(state)
-        else if character == "]" then
-            state.pos += 1
-            reading = false
-        else
-            error(state, "Expected ',' or ']' in array")
+        when
+            character == "," then
+                state.pos += 1
+                skipWhitespace(state)
+            character == "]" then
+                state.pos += 1
+                reading = false
+            otherwise
+                error(state, "Expected ',' or ']' in array")
         end
     loop,
 
@@ -331,14 +334,15 @@ parseObject: fn<private>(state: record) = [
         skipWhitespace(state)
 
         character: string = peek(state)
-        if character == "," then
-            state.pos += 1
-            skipWhitespace(state)
-        else if character == "}" then
-            state.pos += 1
-            reading = false
-        else
-            error(state, "Expected ',' or '}' in object")
+        when
+            character == "," then
+                state.pos += 1
+                skipWhitespace(state)
+            character == "}" then
+                state.pos += 1
+                reading = false
+            otherwise
+                error(state, "Expected ',' or '}' in object")
         end
     loop,
 
@@ -419,17 +423,18 @@ encodeString: fn<private>(value: string) = [
 
     for [i: number = 0, i < value.length(), i += 1]
         character: string = value.slice(i, 1)
-        if character == "\"" then
-            result += "\\\""
-        else if character == "\\" then
-            result += "\\\\"
-        else
-            control: number = controlCode(character)
-            if control >= 0 then
-                result += controlEscape(control)
-            else
-                result += character
-            end
+        when
+            character == "\"" then
+                result += "\\\""
+            character == "\\" then
+                result += "\\\\"
+            otherwise
+                control: number = controlCode(character)
+                if control >= 0 then
+                    result += controlEscape(control)
+                else
+                    result += character
+                end
         end
     loop,
 
