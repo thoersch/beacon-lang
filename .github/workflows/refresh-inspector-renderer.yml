@@ -1,4 +1,5 @@
 name: Refresh Stage-0 Inspector rendering
+# Rebuild with corrected escaped multiline editor literals.
 
 on:
   push:
