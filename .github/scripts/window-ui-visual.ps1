@@ -2,10 +2,9 @@ $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $env:BEACON_HOME = $root
 
-Add-Type -ReferencedAssemblies 'System.Drawing' -TypeDefinition @'
+Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -77,19 +76,6 @@ public static class BeaconVisualProbe
         finally { ReleaseDC(hwnd, dc); }
     }
 
-    public static bool Snapshot(IntPtr hwnd, string path)
-    {
-        using (var bitmap = new Bitmap(1180, 760))
-        using (var graphics = Graphics.FromImage(bitmap))
-        {
-            var dc = graphics.GetHdc();
-            bool success;
-            try { success = PrintWindow(hwnd, dc, 2); }
-            finally { graphics.ReleaseHdc(dc); }
-            if (success) bitmap.Save(path, System.Drawing.Imaging.ImageFormat.Png);
-            return success;
-        }
-    }
 }
 '@
 
@@ -107,7 +93,7 @@ $window = [IntPtr]::Zero
 try {
     for ($attempt = 0; $attempt -lt 100; $attempt++) {
         $window = [BeaconVisualProbe]::FindWindow($null, 'Beacon Inspector')
-        if ($window -ne [IntPtr]::Zero) { break }
+        if ($window -ne [IntPtr]::Zero -and [BeaconVisualProbe]::IsWindowVisible($window)) { break }
         Start-Sleep -Milliseconds 200
         if ($process.HasExited) {
             throw "Inspector terminated early (exit $($process.ExitCode)): $(Get-Content $stderr -Raw)"
@@ -157,11 +143,28 @@ try {
         throw ("Incorrect panel pixel: 0x{0:X6} expected 0x{1:X6}" -f $panel, $expectedPanel)
     }
 
-    $capture = Join-Path $env:RUNNER_TEMP 'beacon-inspector-visual.png'
-    if ([BeaconVisualProbe]::Snapshot($window, $capture)) {
-        Write-Host "Captured $capture"
-    } else {
-        Write-Warning 'PrintWindow snapshot unavailable; native pixel and control assertions passed'
+    $captureDir = Join-Path $root '.native-tests'
+    New-Item -ItemType Directory -Force -Path $captureDir | Out-Null
+    $capture = Join-Path $captureDir 'beacon-inspector-visual.png'
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $bitmap = [System.Drawing.Bitmap]::new(1180, 760)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        try {
+            $dc = $graphics.GetHdc()
+            try { $captured = [BeaconVisualProbe]::PrintWindow($window, $dc, 2) }
+            finally { $graphics.ReleaseHdc($dc) }
+            if ($captured) {
+                $bitmap.Save($capture, [System.Drawing.Imaging.ImageFormat]::Png)
+                Write-Host "Captured $capture"
+            } else {
+                Write-Warning 'PrintWindow unsupported on this runner; pixel assertions passed'
+            }
+        }
+        finally { $graphics.Dispose(); $bitmap.Dispose() }
+    }
+    catch {
+        Write-Warning "Native screenshot unavailable: $_"
     }
     Write-Host "Inspector visuals passed: $($statics.Count) labels, $($buttons.Count) buttons, $($edits.Count) edits, CRLF, parent/panel pixels."
 }
