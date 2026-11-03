@@ -99,7 +99,14 @@ try {
             throw "Inspector terminated early (exit $($process.ExitCode)): $(Get-Content $stderr -Raw)"
         }
     }
-    if ($window -eq [IntPtr]::Zero) { throw 'Inspector window never appeared' }
+    if ($window -eq [IntPtr]::Zero) {
+        Write-Host "Inspector PID $($process.Id), HasExited=$($process.HasExited)"
+        Get-Process -Id $process.Id -ErrorAction SilentlyContinue | Format-List Id,ProcessName,MainWindowHandle,MainWindowTitle,SessionId
+        if (Test-Path $stdout) { Write-Host "stdout:"; Get-Content $stdout }
+        if (Test-Path $stderr) { Write-Host "stderr:"; Get-Content $stderr }
+        Get-Process -Name dotnet -ErrorAction SilentlyContinue | Select-Object Id,MainWindowTitle,MainWindowHandle,SessionId | Format-Table
+        throw 'Inspector window never appeared'
+    }
     if (-not [BeaconVisualProbe]::IsWindowVisible($window)) { throw 'Inspector window is not visible' }
     [BeaconVisualProbe]::UpdateWindow($window) | Out-Null
     Start-Sleep -Milliseconds 300
