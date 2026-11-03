@@ -16,6 +16,7 @@ jobs:
       - name: Isolate changed compiler modules
         shell: bash
         run: |
+          set +e
           set -uo pipefail
           files='compiler/core.beacon compiler/lexer.beacon compiler/parser.beacon compiler/emitter.beacon compiler/source-map.beacon'
           for file in $files; do git show origin/master:"$file" > "$file"; done
