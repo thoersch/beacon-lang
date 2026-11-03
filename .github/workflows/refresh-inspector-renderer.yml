@@ -1,0 +1,110 @@
+name: Refresh Stage-0 Inspector rendering
+
+on:
+  push:
+    branches:
+      - fix/inspector-panel-and-text-rendering
+    paths:
+      - .github/workflows/refresh-inspector-renderer.yml
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/inspector-panel-and-text-rendering
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Reconstruct verified historical Stage-0 lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIGRATION=d6680d72646aed04cda62fdb76c74325c640cd94
+          BASE="https://raw.githubusercontent.com/thoersch/beacon-lang/$MIGRATION"
+          curl -fsSL "$BASE/tools/reconstruct-current-seed.py" -o /tmp/reconstruct-current-seed.py
+          curl -fsSL "$BASE/tools/migrate-fs-path-boundary.py" -o /tmp/migrate-fs-path-boundary.py
+          curl -fsSL "$BASE/tools/patch-seed-secondary-host-table.py" -o /tmp/patch-seed-secondary-host-table.py
+          python3 /tmp/reconstruct-current-seed.py
+          python3 /tmp/migrate-fs-path-boundary.py seed
+          python3 /tmp/patch-seed-secondary-host-table.py
+
+      - name: Reapply native desktop and polished dark theme
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/thoersch/beacon-lang/d2026b1c24b0287ccf0753cf2e88a0be05e16c92/tools/refresh-window-ui-seed.py -o /tmp/window-baseline.py
+          curl -fsSL https://raw.githubusercontent.com/thoersch/beacon-lang/40597cbd673736be2c437503bd39d8681ba05c89/tools/refine-window-ui-seed.py -o /tmp/window-refine.py
+          curl -fsSL https://raw.githubusercontent.com/thoersch/beacon-lang/40597cbd673736be2c437503bd39d8681ba05c89/tools/fix-window-ui-lazy-init.py -o /tmp/window-lazy.py
+          python3 /tmp/window-baseline.py seed
+          python3 /tmp/window-refine.py
+          python3 /tmp/window-lazy.py
+
+      - name: Fix native Inspector layout and text
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/fix-native-inspector-paint.py
+          SOURCE=tools/seed-refresh/Beacon.Compiler/Program.cs
+          grep -F 'PaintedPanels' "$SOURCE"
+          grep -F 'WS_CLIPCHILDREN' "$SOURCE"
+          grep -F 'BeaconWmEraseBackground' "$SOURCE"
+          grep -F 'nativeText' "$SOURCE"
+
+      - name: Rebuild frozen Stage-0 seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish tools/seed-refresh/Beacon.Compiler/Beacon.Compiler.csproj -c Release -o /tmp/beacon-new-stage0 -p:UseAppHost=false
+          rm -f /tmp/beacon-new-stage0/*.pdb
+          rm -rf bootstrap/stage0
+          mkdir -p bootstrap/stage0
+          cp /tmp/beacon-new-stage0/Beacon.Compiler.dll bootstrap/stage0/
+          cp /tmp/beacon-new-stage0/Beacon.Compiler.deps.json bootstrap/stage0/
+          cp /tmp/beacon-new-stage0/Beacon.Compiler.runtimeconfig.json bootstrap/stage0/
+          cat > bootstrap/stage0/PROVENANCE.txt <<EOF
+          Beacon Stage-0 bootstrap seed
+          =============================
+
+          Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
+          Seed refresh: corrects Win32 Inspector composition. Structural panels and editor frames are painted behind native child controls; WS_CLIPCHILDREN prevents parent overdraw; multi-line EDIT content uses CRLF; read-only code uses matching dark input colors. Existing dark chrome, native fonts, and semantic widget rendering are preserved.
+          Historical implementation language: C#
+          Source branch: fix/inspector-panel-and-text-rendering
+          .NET SDK: $(dotnet --version)
+
+          One-time host source was reconstructed from previously verified historical migration scripts and removed after fixed-point verification.
+          Beacon remains self-hosted under compiler/. The native hostWindow boundary is unchanged.
+          EOF
+          (cd bootstrap/stage0 && sha256sum Beacon.Compiler.dll Beacon.Compiler.deps.json Beacon.Compiler.runtimeconfig.json PROVENANCE.txt > SHA256SUMS)
+
+      - name: Verify Linux portability and fixed-point
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BEACON_HOME="$PWD"
+          bash ./beacon.sh self-host
+          actual="$(bash ./beacon.sh examples/inspector-ui.beacon)"
+          [ "$actual" = 'Beacon Inspector UI is not available on unsupported' ]
+
+      - name: Remove reconstructed C# and commit seed only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf tools/seed-refresh
+          if find . -path './.git' -prune -o \( -name '*.cs' -o -name '*.csproj' \) -print | grep -q .; then
+            echo 'Temporary C# files remain' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add bootstrap/stage0
+          git commit -m 'Repair Inspector Win32 surfaces and multiline text in Stage-0'
+          git push origin HEAD:fix/inspector-panel-and-text-rendering
