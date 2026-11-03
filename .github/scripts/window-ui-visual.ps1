@@ -151,6 +151,26 @@ try {
         throw ("Incorrect panel pixel: 0x{0:X6} expected 0x{1:X6}" -f $panel, $expectedPanel)
     }
 
+    # The dark Win32 theme previously rendered an entirely invisible cue banner.
+    # Read pixels from the native input HWND so the test fails on a blank field.
+    $searchHandle = @($edits | Where-Object { [BeaconVisualProbe]::Text($_) -eq '' })
+    if ($searchHandle.Count -ne 1) { throw 'Could not identify the empty search input' }
+    $hintPixels = 0
+    for ($x = 10; $x -lt 135; $x += 2) {
+        for ($y = 4; $y -lt 25; $y += 2) {
+            $pixel = [BeaconVisualProbe]::Pixel($searchHandle[0], $x, $y)
+            $red = [int]($pixel -band 255)
+            $green = [int](($pixel -shr 8) -band 255)
+            $blue = [int](($pixel -shr 16) -band 255)
+            if ($red -ge 100 -and $red -le 190 -and
+                $green -ge 110 -and $green -le 205 -and
+                $blue -ge 130 -and $blue -le 230) {
+                $hintPixels += 1
+            }
+        }
+    }
+    if ($hintPixels -lt 5) { throw "Native search placeholder is invisible ($hintPixels text-colored pixels)" }
+
     $captureDir = Join-Path $root '.native-tests'
     New-Item -ItemType Directory -Force -Path $captureDir | Out-Null
     $capture = Join-Path $captureDir 'beacon-inspector-visual.png'
@@ -174,7 +194,7 @@ try {
     catch {
         Write-Warning "Native screenshot unavailable: $_"
     }
-    Write-Host "Inspector visuals passed: $($statics.Count) labels, $($buttons.Count) buttons, $($edits.Count) edits, CRLF, parent/panel pixels."
+    Write-Host "Inspector visuals passed: $($statics.Count) labels, $($buttons.Count) buttons, $($edits.Count) edits, CRLF, parent/panel pixels, $hintPixels placeholder pixels."
 }
 finally {
     if ($window -ne [IntPtr]::Zero) {
