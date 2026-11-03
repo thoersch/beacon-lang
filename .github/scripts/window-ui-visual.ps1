@@ -92,7 +92,8 @@ $process = Start-Process -FilePath 'dotnet' -ArgumentList @(
 $window = [IntPtr]::Zero
 try {
     for ($attempt = 0; $attempt -lt 100; $attempt++) {
-        $window = [BeaconVisualProbe]::FindWindow($null, 'Beacon Inspector')
+        $process.Refresh()
+        $window = $process.MainWindowHandle
         if ($window -ne [IntPtr]::Zero -and [BeaconVisualProbe]::IsWindowVisible($window)) { break }
         Start-Sleep -Milliseconds 200
         if ($process.HasExited) {
