@@ -142,21 +142,22 @@ resolveIncludePath: fn(currentFile: string, spec: record) = [
         fail("Include paths omit the .beacon extension: " + includeName)
     end,
 
-    if includeKind == "local" then
-        result = hostAbsolutePath(compilerJoinPath(compilerParentPath(currentFile), includeName + ".beacon"))
-    else if includeKind == "named" then
-        parts: list = splitDottedName(includeName)
-        if parts.length() < 2 or parts@0 != "std" then
-            fail("Named includes are reserved for the standard library and must begin with 'std.': " + includeName)
-        end
+    when
+        includeKind == "local" then
+            result = hostAbsolutePath(compilerJoinPath(compilerParentPath(currentFile), includeName + ".beacon"))
+        includeKind == "named" then
+            parts: list = splitDottedName(includeName)
+            if parts.length() < 2 or parts@0 != "std" then
+                fail("Named includes are reserved for the standard library and must begin with 'std.': " + includeName)
+            end
 
-        root: string = hostEnvironment("BEACON_HOME")
-        if root == "" then
-            fail("Standard-library includes require BEACON_HOME to be set")
-        end
-        result = hostAbsolutePath(compilerJoinPath(root, namedIncludePath(includeName) + ".beacon"))
-    else
-        fail("Unknown include kind: " + includeKind)
+            root: string = hostEnvironment("BEACON_HOME")
+            if root == "" then
+                fail("Standard-library includes require BEACON_HOME to be set")
+            end
+            result = hostAbsolutePath(compilerJoinPath(root, namedIncludePath(includeName) + ".beacon"))
+        otherwise
+            fail("Unknown include kind: " + includeKind)
     end,
 
     result

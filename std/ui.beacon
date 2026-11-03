@@ -84,45 +84,46 @@ preferredWidth: fn<private>(node: record) = [
 measureHeight: fn<private>(node: record, width: number) = [
     result: number = 0,
 
-    if node.kind == "text" then
-        result = 24
-    else if node.kind == "muted" then
-        result = 22
-    else if node.kind == "heading" then
-        result = 34
-    else if node.kind == "button" then
-        result = 38
-    else if node.kind == "input" then
-        result = 40
-    else if node.kind == "textArea" or node.kind == "code" then
-        result = node.height
-    else if node.kind == "spacer" then
-        result = node.height
-    else if node.kind == "row" then
-        for [i: number = 0, i < node.children.length(), i += 1]
-            childHeight: number = measureHeight(node.children@i, width)
-            if childHeight > result then
-                result = childHeight
-            end
-        loop
-    else if node.kind == "column" then
-        for [i: number = 0, i < node.children.length(), i += 1]
-            if i > 0 then
-                result += 12
-            end
-            result += measureHeight(node.children@i, width)
-        loop
-    else if node.kind == "panel" then
-        contentHeight: number = 0
-        for [i: number = 0, i < node.children.length(), i += 1]
-            if i > 0 then
-                contentHeight += 12
-            end
-            contentHeight += measureHeight(node.children@i, width - 40)
-        loop
-        result = contentHeight + 40
-    else
-        fail("Unknown std.ui node kind: {node.kind}")
+    when
+        node.kind == "text" then
+            result = 24
+        node.kind == "muted" then
+            result = 22
+        node.kind == "heading" then
+            result = 34
+        node.kind == "button" then
+            result = 38
+        node.kind == "input" then
+            result = 40
+        node.kind == "textArea" or node.kind == "code" then
+            result = node.height
+        node.kind == "spacer" then
+            result = node.height
+        node.kind == "row" then
+            for [i: number = 0, i < node.children.length(), i += 1]
+                childHeight: number = measureHeight(node.children@i, width)
+                if childHeight > result then
+                    result = childHeight
+                end
+            loop
+        node.kind == "column" then
+            for [i: number = 0, i < node.children.length(), i += 1]
+                if i > 0 then
+                    result += 12
+                end
+                result += measureHeight(node.children@i, width)
+            loop
+        node.kind == "panel" then
+            contentHeight: number = 0
+            for [i: number = 0, i < node.children.length(), i += 1]
+                if i > 0 then
+                    contentHeight += 12
+                end
+                contentHeight += measureHeight(node.children@i, width - 40)
+            loop
+            result = contentHeight + 40
+        otherwise
+            fail("Unknown std.ui node kind: {node.kind}")
     end,
 
     result
@@ -157,117 +158,118 @@ pushTextControl: fn<private>(node: record, x: number, y: number, width: number, 
 layoutNode: fn<private>(node: record, x: number, y: number, width: number, surface: boolean, controls: list, state: record) = [
     height: number = measureHeight(node, width),
 
-    if node.kind == "text" or node.kind == "muted" or node.kind == "heading" then
-        pushTextControl(node, x, y, width, height, surface, controls)
-    else if node.kind == "button" then
-        action: string = registerCallback(state, node.callback, "click")
-        controls.push({
-            kind: "button"
-            variant: node.variant
-            x: x
-            y: y
-            width: width
-            height: height
-            text: node.text
-            action: action
-            surface: surface
-        })
-    else if node.kind == "input" then
-        action: string = registerCallback(state, node.callback, "input")
-        controls.push({
-            kind: "input"
-            x: x
-            y: y
-            width: width
-            height: height
-            text: ""
-            placeholder: node.placeholder
-            action: action
-            surface: surface
-        })
-    else if node.kind == "textArea" or node.kind == "code" then
-        controls.push({
-            kind: node.kind
-            x: x
-            y: y
-            width: width
-            height: height
-            text: node.text
-            action: ""
-            surface: surface
-        })
-    else if node.kind == "spacer" then
-        null
-    else if node.kind == "column" then
-        nextY: number = y
-        for [i: number = 0, i < node.children.length(), i += 1]
-            if i > 0 then
-                nextY += 12
-            end
-            child: record = node.children@i
-            childHeight: number = layoutNode(child, x, nextY, width, surface, controls, state)
-            nextY += childHeight
-        loop
-    else if node.kind == "row" then
-        count: number = node.children.length()
-        fixedWidth: number = 0
-        growCount: number = 0
-        gapWidth: number = 0
+    when
+        node.kind == "text" or node.kind == "muted" or node.kind == "heading" then
+            pushTextControl(node, x, y, width, height, surface, controls)
+        node.kind == "button" then
+            action: string = registerCallback(state, node.callback, "click")
+            controls.push({
+                kind: "button"
+                variant: node.variant
+                x: x
+                y: y
+                width: width
+                height: height
+                text: node.text
+                action: action
+                surface: surface
+            })
+        node.kind == "input" then
+            action: string = registerCallback(state, node.callback, "input")
+            controls.push({
+                kind: "input"
+                x: x
+                y: y
+                width: width
+                height: height
+                text: ""
+                placeholder: node.placeholder
+                action: action
+                surface: surface
+            })
+        node.kind == "textArea" or node.kind == "code" then
+            controls.push({
+                kind: node.kind
+                x: x
+                y: y
+                width: width
+                height: height
+                text: node.text
+                action: ""
+                surface: surface
+            })
+        node.kind == "spacer" then
+            null
+        node.kind == "column" then
+            nextY: number = y
+            for [i: number = 0, i < node.children.length(), i += 1]
+                if i > 0 then
+                    nextY += 12
+                end
+                child: record = node.children@i
+                childHeight: number = layoutNode(child, x, nextY, width, surface, controls, state)
+                nextY += childHeight
+            loop
+        node.kind == "row" then
+            count: number = node.children.length()
+            fixedWidth: number = 0
+            growCount: number = 0
+            gapWidth: number = 0
 
-        if count > 1 then
-            gapWidth = (count - 1) * 10
-        end
-
-        for [i: number = 0, i < count, i += 1]
-            childPreferred: number = preferredWidth(node.children@i)
-            if childPreferred < 0 then
-                growCount += 1
-            else
-                fixedWidth += childPreferred
+            if count > 1 then
+                gapWidth = (count - 1) * 10
             end
-        loop
 
-        growWidth: number = 0
-        if growCount > 0 then
-            growWidth = (width - fixedWidth - gapWidth) / growCount
-            if growWidth < 1 then
-                growWidth = 1
-            end
-        end
+            for [i: number = 0, i < count, i += 1]
+                childPreferred: number = preferredWidth(node.children@i)
+                if childPreferred < 0 then
+                    growCount += 1
+                else
+                    fixedWidth += childPreferred
+                end
+            loop
 
-        nextX: number = x
-        for [i: number = 0, i < count, i += 1]
-            child: record = node.children@i
-            childWidth: number = preferredWidth(child)
-            if childWidth < 0 then
-                childWidth = growWidth
+            growWidth: number = 0
+            if growCount > 0 then
+                growWidth = (width - fixedWidth - gapWidth) / growCount
+                if growWidth < 1 then
+                    growWidth = 1
+                end
             end
-            layoutNode(child, nextX, y, childWidth, surface, controls, state)
-            nextX += childWidth + 10
-        loop
-    else if node.kind == "panel" then
-        controls.push({
-            kind: "panel"
-            x: x
-            y: y
-            width: width
-            height: height
-            text: ""
-            action: ""
-            surface: true
-        })
 
-        nextY: number = y + 20
-        for [i: number = 0, i < node.children.length(), i += 1]
-            if i > 0 then
-                nextY += 12
-            end
-            child: record = node.children@i
-            childHeight: number = layoutNode(child, x + 20, nextY, width - 40, true, controls, state)
-            nextY += childHeight
-        loop
-    else
-        fail("Unknown std.ui node kind: {node.kind}")
+            nextX: number = x
+            for [i: number = 0, i < count, i += 1]
+                child: record = node.children@i
+                childWidth: number = preferredWidth(child)
+                if childWidth < 0 then
+                    childWidth = growWidth
+                end
+                layoutNode(child, nextX, y, childWidth, surface, controls, state)
+                nextX += childWidth + 10
+            loop
+        node.kind == "panel" then
+            controls.push({
+                kind: "panel"
+                x: x
+                y: y
+                width: width
+                height: height
+                text: ""
+                action: ""
+                surface: true
+            })
+
+            nextY: number = y + 20
+            for [i: number = 0, i < node.children.length(), i += 1]
+                if i > 0 then
+                    nextY += 12
+                end
+                child: record = node.children@i
+                childHeight: number = layoutNode(child, x + 20, nextY, width - 40, true, controls, state)
+                nextY += childHeight
+            loop
+        otherwise
+            fail("Unknown std.ui node kind: {node.kind}")
     end,
 
     height

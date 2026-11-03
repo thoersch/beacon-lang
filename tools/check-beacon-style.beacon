@@ -17,12 +17,57 @@ nextSignificantLine: fn(lines: list, start: number) = [
     result
 ]
 
+// Multiway dispatch by the same kind belongs in when / otherwise.
+kindDiscriminator: fn<private>(line: string) = [
+    value: string = text.trim(line),
+    condition: string = "",
+    if text.startsWith(value, "if ") then
+        condition = value.slice(3, value.length() - 3)
+    else if text.startsWith(value, "else if ") then
+        condition = value.slice(8, value.length() - 8)
+    end,
+    parts: list = text.split(condition, " == "),
+    result: string = "",
+    if parts.length() > 1 then
+        left: string = parts@0
+        if text.endsWith(left, ".kind") or text.endsWith(left, "Kind") then
+            result = left
+        end
+    end,
+    result
+]
+
 checkFile: fn(file: string) = [
     lines: list = text.lines(fs.readText(file)),
     violations: number = 0,
 
     for [i: number = 0, i < lines.length(), i += 1]
         line: string = lines@i
+
+        // Three or more branches comparing the same kind are a when.
+        discriminator: string = kindDiscriminator(line)
+        if discriminator != "" then
+            sameKindBranches: number = 0
+            scanning: boolean = true
+            for [j: number = i + 1, j < lines.length() and scanning, j += 1]
+                candidate: string = lines@j
+                if indentWidth(candidate) == indentWidth(line) then
+                    candidateText: string = text.trim(candidate)
+                    if candidateText == "end" or candidateText == "end," then
+                        scanning = false
+                    else if text.startsWith(candidateText, "else if ") then
+                        if kindDiscriminator(candidateText) == discriminator then
+                            sameKindBranches += 1
+                        end
+                    end
+                end
+            loop
+            if sameKindBranches >= 2 then
+                issueLine: number = i + 1
+                print("{file}:{issueLine}: multiway kind dispatch should use when / otherwise")
+                violations += 1
+            end
+        end
 
         if text.trim(line) == "else" then
             child: number = nextSignificantLine(lines, i + 1)
@@ -73,5 +118,5 @@ for [i: number = 0, i < roots.length(), i += 1]
 loop
 
 if violations > 0 then
-    fail("Beacon style requires an if that directly follows else to use flattened 'else if' syntax.")
+    fail("Beacon style requires flat 'else if' and 'when' for multiway kind dispatch.")
 end
