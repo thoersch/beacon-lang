@@ -21,3 +21,27 @@ jobs:
 
       - name: Require flattened else-if chains
         run: bash ./beacon.sh tools/check-beacon-style.beacon
+
+      - name: Reject multiway kind dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > std/_style-dispatch-test.beacon <<'BEACON'
+          probe: fn(node: record) = [
+              result: number = 0,
+              if node.kind == "text" then
+                  result = 1
+              else if node.kind == "heading" then
+                  result = 2
+              else if node.kind == "button" then
+                  result = 3
+              end,
+              result
+          ]
+          BEACON
+          trap 'rm -f std/_style-dispatch-test.beacon' EXIT
+          if bash ./beacon.sh tools/check-beacon-style.beacon > /tmp/style-guard-output 2>&1; then
+            echo 'Expected multiway kind dispatch to violate Beacon style' >&2
+            exit 1
+          fi
+          grep -F 'multiway kind dispatch should use when / otherwise' /tmp/style-guard-output

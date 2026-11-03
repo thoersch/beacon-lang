@@ -299,24 +299,27 @@ mount: fn(app: record, root: record) = [
 ]
 
 dispatchEvent: fn<private>(app: record, event: record) = [
-    if event.type == "resize" then
-        app.width = event.width
-        app.height = event.height
-        if app.has("uiRoot") then
-            mount(app, app.get("uiRoot"))
-        end
-    else if event.type == "action" or event.type == "input" then
-        if app.has("uiHandlers") then
-            handlers: record = app.get("uiHandlers")
-            if handlers.has(event.action) then
-                handler: record = handlers.get(event.action)
-                if handler.mode == "input" then
-                    handler.callback(event.value)
-                else
-                    handler.callback()
+    when
+        event.type == "resize" then
+            app.width = event.width
+            app.height = event.height
+            if app.has("uiRoot") then
+                mount(app, app.get("uiRoot"))
+            end
+        event.type == "action" or event.type == "input" then
+            if app.has("uiHandlers") then
+                handlers: record = app.get("uiHandlers")
+                if handlers.has(event.action) then
+                    handler: record = handlers.get(event.action)
+                    if handler.mode == "input" then
+                        handler.callback(event.value)
+                    else
+                        handler.callback()
+                    end
                 end
             end
-        end
+        otherwise
+            null
     end,
     null
 ]

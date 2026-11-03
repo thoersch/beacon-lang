@@ -14,12 +14,13 @@ join: fn(left: string, right: string) = [
             leftSeparated: boolean = leftLast == separator or (separator == "\\" and leftLast == "/")
             rightSeparated: boolean = rightFirst == separator or (separator == "\\" and rightFirst == "/")
 
-            if leftSeparated and rightSeparated then
-                left + right.slice(1)
-            else if leftSeparated or rightSeparated then
-                left + right
-            else
-                left + separator + right
+            when
+                leftSeparated and rightSeparated then
+                    left + right.slice(1)
+                leftSeparated or rightSeparated then
+                    left + right
+                otherwise
+                    left + separator + right
             end
     end
 ]

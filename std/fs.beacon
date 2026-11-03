@@ -18,10 +18,13 @@ delete: fn(path: string) = [
     entryKind: string = hostPathKind(path),
     removed: boolean = false,
 
-    if entryKind == "file" then
-        removed = hostRemoveFile(path)
-    else if entryKind == "directory" then
-        removed = hostRemoveDirectory(path)
+    when
+        entryKind == "file" then
+            removed = hostRemoveFile(path)
+        entryKind == "directory" then
+            removed = hostRemoveDirectory(path)
+        otherwise
+            null
     end,
 
     removed
