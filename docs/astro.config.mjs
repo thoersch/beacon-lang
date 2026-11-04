@@ -50,6 +50,7 @@ export default defineConfig({
             { label: 'JSON', slug: 'standard-library/json' },
             { label: 'Window', slug: 'standard-library/window' },
             { label: 'UI', slug: 'standard-library/ui' },
+            { label: 'Inspect', slug: 'standard-library/inspect' },
           ],
         },
       ],

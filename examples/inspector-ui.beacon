@@ -1,44 +1,120 @@
 include std.window
 include std.ui
+include std.fs
+include std.inspect
 
-openSource: fn() =
-    print("Open source requested")
+sessionPid: number = 0
+sourcePath: string = "examples/inspector-target.beacon"
+pidInput: string = ""
+connectionStatus: string = "Disconnected"
+inspectedSource: string = "Launch the sample application or attach to an inspection-enabled PID."
+inspectedValues: list = []
+expanded: boolean = true
 
-refresh: fn() =
-    print("Refresh requested")
+renderValue: fn(node: record, indent: string) = [
+    result: string = indent + node.name + ": " + node.kind + " = " + node.preview + "\n",
+    if expanded then
+        for [i: number = 0, i < node.children.length(), i += 1]
+            result += renderValue(node.children@i, indent + "  ")
+        loop
+        if node.truncated then
+            result += indent + "  …\n"
+        end
+    end,
+    result
+]
 
-searchChanged: fn(value: string) =
-    print("Search: {value}")
+variableText: fn() = [
+    result: string = "",
+    for [i: number = 0, i < inspectedValues.length(), i += 1]
+        result += renderValue(inspectedValues@i, "")
+    loop,
+    if result == "" then
+        result = "No variables available. Connect to a running Beacon application."
+    end,
+    result
+]
+
+inspectorView: fn() = ui.column([
+    ui.heading("Beacon Inspector"),
+    ui.muted("Read-only live inspection of an opted-in Beacon process."),
+    ui.row([
+        ui.primaryButton("Launch sample", launchSample),
+        ui.button("Refresh", refresh),
+        ui.button("Expand / collapse", toggleExpanded)
+    ]),
+    ui.muted(connectionStatus),
+    ui.row([
+        ui.panel([
+            ui.heading("Source"),
+            ui.muted("Application source file"),
+            ui.code(inspectedSource, 330)
+        ]),
+        ui.panel([
+            ui.heading("Live variables"),
+            ui.muted("Top-level bindings and nested Beacon values"),
+            ui.code(variableText(), 330)
+        ])
+    ]),
+    ui.row([
+        ui.muted("Attach to an inspection-enabled PID:"),
+        ui.input("Process ID", pidChanged),
+        ui.button("Attach", attach)
+    ])
+])
+
+redraw: fn() = ui.mount(app, inspectorView())
+
+refresh: fn() = [
+    if sessionPid > 0 then
+        state: record = inspect.snapshot(sessionPid)
+        if state.connected then
+            connectionStatus = "Connected to PID {sessionPid}  |  {state.source}"
+            inspectedValues = state.values
+            inspectedSource = fs.readText(state.source)
+        else
+            connectionStatus = "Disconnected from PID {sessionPid}: {state.error}"
+            inspectedValues = []
+        end
+    end,
+    redraw(),
+    null
+]
+
+launchSample: fn() = [
+    sessionPid = inspect.launch(sourcePath),
+    connectionStatus = "Started PID {sessionPid}. Press Refresh to inspect live values.",
+    refresh()
+]
+
+pidChanged: fn(value: string) = [
+    pidInput = value,
+    null
+]
+
+attach: fn() = [
+    if pidInput != "" then
+        sessionPid = number(pidInput)
+        refresh()
+    end,
+    null
+]
+
+toggleExpanded: fn() = [
+    expanded = not expanded,
+    redraw(),
+    null
+]
 
 if not window.available() then
     print("Beacon Inspector UI is not available on " + window.platform())
 else
     app: record = window.create({
         title: "Beacon Inspector"
-        width: 1180
-        height: 760
+        width: 1220
+        height: 800
     })
-
-    view: record = ui.column([
-        ui.heading("Beacon Inspector"),
-        ui.muted("Source, Core, and CLR inspection for the Beacon toolchain."),
-        ui.row([
-            ui.primaryButton("Open source", openSource),
-            ui.button("Refresh", refresh)
-        ]),
-        ui.panel([
-            ui.heading("Source"),
-            ui.input("Search source", searchChanged),
-            ui.code("name: string = \"Ada\"\nage: number = 42\nprint(name)\nprint(age)", 260)
-        ]),
-        ui.panel([
-            ui.heading("Inspection"),
-            ui.muted("The Inspector is the forcing function for Beacon's desktop UI surface."),
-            ui.code("Core and CLR plan output will live here as the app grows.", 180)
-        ])
-    ])
-
-    ui.mount(app, view)
+    ui.mount(app, inspectorView())
     window.show(app)
     ui.run(app)
 end

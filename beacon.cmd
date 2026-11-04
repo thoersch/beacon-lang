@@ -13,6 +13,12 @@ if not exist "%HOST%" (
 
 if "%~1"=="" goto :usage
 
+if /I "%~1"=="inspect" (
+  if "%~2"=="" goto :usage
+  dotnet "%HOST%" "%COMPILER%" --stage1-run "%~f2" --inspect
+  exit /b %ERRORLEVEL%
+)
+
 if /I "%~1"=="self-host" (
   dotnet "%HOST%" "%COMPILER%" --self-host
   exit /b %ERRORLEVEL%
@@ -38,5 +44,6 @@ echo Usage:
 echo   beacon file.beacon
 echo   beacon run file.beacon
 echo   beacon plan file.beacon
+echo   beacon inspect file.beacon
 echo   beacon self-host
 exit /b 2

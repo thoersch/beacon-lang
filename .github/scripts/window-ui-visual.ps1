@@ -122,26 +122,24 @@ try {
     if ($staticLabels -contains '') {
         throw "Empty STATIC child window (covering-panel regression): $($staticLabels -join ', ')"
     }
-    foreach ($expected in @('Beacon Inspector', 'Source', 'Inspection')) {
+    foreach ($expected in @('Beacon Inspector', 'Source', 'Live variables')) {
         if ($staticLabels -notcontains $expected) {
             throw "Missing visible label '$expected'; found $($staticLabels -join ', ')"
         }
     }
     if ($edits.Count -ne 3) { throw "Expected search plus two code EDIT controls, got $($edits.Count)" }
-    if ($buttons.Count -ne 2) { throw "Expected Open and Refresh buttons, got $($buttons.Count)" }
+    if ($buttons.Count -ne 4) { throw "Expected Launch, Refresh, Expand and Attach buttons, got $($buttons.Count)" }
 
     $editTexts = @($edits | ForEach-Object { [BeaconVisualProbe]::Text($_) })
-    $sourceText = @($editTexts | Where-Object { $_ -like 'name: string*' })
-    if ($sourceText.Count -ne 1) { throw "Source editor not found: $($editTexts -join ' | ')" }
-    $crlf = [string][char]13 + [char]10
-    $expectedLines = 'age: number = 42' + $crlf + 'print(name)' + $crlf + 'print(age)'
-    if (-not $sourceText[0].Contains($crlf + $expectedLines)) {
-        throw 'Multiline source editor did not preserve Windows CRLF separators'
+    $sourceText = @($editTexts | Where-Object { $_ -like 'Launch the sample application*' })
+    if ($sourceText.Count -ne 1) { throw "Disconnected source panel not found: $($editTexts -join ' | ')" }
+    if ($editTexts -notcontains 'No variables available. Connect to a running Beacon application.') {
+        throw 'Inspector missing the disconnected live-variable message'
     }
 
     # Compare real pixels from the parent and first panel's unobstructed edge.
     $background = [BeaconVisualProbe]::Pixel($window, 4, 4)
-    $panel = [BeaconVisualProbe]::Pixel($window, 35, 165)
+    $panel = [BeaconVisualProbe]::Pixel($window, 35, 200)
     $expectedBackground = [uint32](12 -bor (16 -shl 8) -bor (22 -shl 16))
     $expectedPanel = [uint32](21 -bor (27 -shl 8) -bor (36 -shl 16))
     if ($background -ne $expectedBackground) {
@@ -176,7 +174,7 @@ try {
     $capture = Join-Path $captureDir 'beacon-inspector-visual.png'
     try {
         Add-Type -AssemblyName System.Drawing
-        $bitmap = [System.Drawing.Bitmap]::new(1180, 760)
+        $bitmap = [System.Drawing.Bitmap]::new(1220, 800)
         $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
         try {
             $dc = $graphics.GetHdc()
@@ -194,7 +192,7 @@ try {
     catch {
         Write-Warning "Native screenshot unavailable: $_"
     }
-    Write-Host "Inspector visuals passed: $($statics.Count) labels, $($buttons.Count) buttons, $($edits.Count) edits, CRLF, parent/panel pixels, $hintPixels placeholder pixels."
+    Write-Host "Inspector visuals passed: $($statics.Count) labels, $($buttons.Count) buttons, $($edits.Count) edits, parent/panel pixels, $hintPixels placeholder pixels."
 }
 finally {
     if ($window -ne [IntPtr]::Zero) {

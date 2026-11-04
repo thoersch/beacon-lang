@@ -623,6 +623,15 @@ emitCall: fn(node: list) = [
         result.push({ op: "call", arg: "Runtime.HostWindow" })
         handled = true
     end,
+    if not handled and kind(callee) == "symbol" and callee.name == "hostInspect" then
+        if args.length() != 2 then
+            fail("hostInspect() expects two arguments")
+        end
+        result = args@0
+        result = result.concat(args@1)
+        result.push({ op: "call", arg: "Runtime.HostInspect" })
+        handled = true
+    end,
 
     if not handled then
         if isForm(callee, "get") then

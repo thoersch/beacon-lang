@@ -1,0 +1,4 @@
+include std.inspect
+
+pid: number = inspect.launch("examples/inspector-target.beacon")
+print(pid)

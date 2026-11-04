@@ -13,11 +13,18 @@ if ($args.Count -eq 0) {
     Write-Host "  ./beacon.ps1 file.beacon"
     Write-Host "  ./beacon.ps1 run file.beacon"
     Write-Host "  ./beacon.ps1 plan file.beacon"
+    Write-Host "  ./beacon.ps1 inspect file.beacon"
     Write-Host "  ./beacon.ps1 self-host"
     exit 2
 }
 
 switch ($args[0]) {
+    "inspect" {
+        if ($args.Count -lt 2) { throw "inspect requires a Beacon source file" }
+        $Target = (Resolve-Path $args[1]).Path
+        & dotnet $HostAssembly $Compiler --stage1-run $Target --inspect
+        exit $LASTEXITCODE
+    }
     "self-host" {
         & dotnet $HostAssembly $Compiler --self-host
         exit $LASTEXITCODE
