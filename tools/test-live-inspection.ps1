@@ -54,10 +54,13 @@ public static class BeaconInspectionProbe
 
 $target = $null
 try {
-    $launchOutput = @(& dotnet $seed $compiler '--stage1-run' $launcher)
-    if ($LASTEXITCODE -ne 0) { throw "inspect.launch failed: $($launchOutput -join '; ')" }
-    $targetPid = [int]$launchOutput[-1]
-    $target = Get-Process -Id $targetPid -ErrorAction Stop
+    # Start the opted-in target independently. Capturing stdout from a nested
+    # launcher can keep PowerShell's pipe open while the child GUI is alive.
+    $targetSource = Join-Path $root 'examples/inspector-target.beacon'
+    $target = Start-Process -FilePath 'dotnet' -ArgumentList @(
+        $seed, $compiler, '--stage1-run', $targetSource, '--inspect'
+    ) -WorkingDirectory $root -PassThru
+    $targetPid = $target.Id
     $env:BEACON_INSPECT_PID = "$targetPid"
     Write-Host "Inspection target PID: $targetPid"
 
@@ -69,7 +72,7 @@ try {
 
     $first = @()
     $window = [IntPtr]::Zero
-    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+    for ($attempt = 0; $attempt -lt 15; $attempt++) {
         $target.Refresh()
         if ($target.HasExited) { throw "Target process exited before inspection (code $($target.ExitCode))" }
         $window = $target.MainWindowHandle
