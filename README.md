@@ -134,6 +134,7 @@ include std.path
 include std.json
 include std.window
 include std.ui
+include std.inspect
 ```
 
 For example:
@@ -151,6 +152,8 @@ print(name)
 print(root)
 print(payload.name)
 ```
+
+Beacon also supports opt-in live runtime inspection. Start an instrumented app with `./beacon.sh inspect examples/inspector-target.beacon`, or run `examples/inspector-ui.beacon` on Windows and click **Launch sample** to inspect the target in another process.
 
 Beacon also has the first native desktop foundation used by the Beacon Inspector. `std.window` owns application-window lifecycle and events, while `std.ui` represents UI as ordinary Beacon Records and Lists and owns layout and callback routing. The first native window backend is Win32; programs can use `window.available()` before creating a window on other platforms.
 
@@ -247,7 +250,7 @@ Already working:
 - user-defined types
 - control flow and loops
 - local and standard-library includes
-- text, math, filesystem, path, JSON, window, and structural UI libraries
+- text, math, filesystem, path, JSON, window, structural UI, and runtime inspection libraries
 - initial native Win32 desktop backend
 - VS Code syntax support
 - structured compiler diagnostics
