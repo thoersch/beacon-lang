@@ -98,6 +98,13 @@ For shell-specific setup and troubleshooting, see the [installation guide](https
 
 **Status:** actively evolving. Desktop windows currently require Windows. Packaging, a broader standard library, and richer debugging remain works in progress.
 
+### Typed collections and inline values
+
+Beacon Lists remain heterogeneous by default, and can opt into pipe-delimited element type constraints such as `list<number>` and `list<item|weapon>`. Named typed Records can be constructed inline with `item { ... }`, while plain Record literals inherit an unambiguous type from their surrounding declaration or List constraint.
+
+[See the RPG inventory example](examples/rpg-typed-inventory.beacon) · [Read the type syntax](https://thoersch.github.io/beacon-lang/language/syntax/#constrained-lists)
+
+
 ## A real application: Beacon Inspector
 
 Beacon Inspector is a native developer tool built in Beacon. It can launch an inspection-enabled application, connect to its process, display source and live variables, and refresh values as the application changes.
