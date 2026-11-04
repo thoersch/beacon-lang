@@ -1,0 +1,6 @@
+// Local, read-only inspection sessions. An inspected process must opt in.
+launch: fn(path: string) = hostInspect("launch", path)
+
+snapshot: fn(pid: number) = hostInspect("snapshot", pid)
+
+connect: fn(pid: number) = snapshot(pid)
