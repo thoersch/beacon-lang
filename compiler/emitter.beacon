@@ -253,6 +253,10 @@ emitForm: fn(node: list) = [
         result = emitList(node)
         handled = true
     end,
+    if form == "typed" then
+        result = emitTypedRecord(node)
+        handled = true
+    end,
     if form == "namespace" then
         result = emitNamespace(node)
         handled = true
@@ -388,6 +392,19 @@ emitList: fn(node: list) = [
         items.push(emit(node@i))
     loop,
     [{ op: "list", items: items }]
+]
+
+// A typed inline Record is an expression, not a variable declaration.
+// Runtime.CheckType supplies named identity and recursively checks fields.
+emitTypedRecord: fn(node: list) = [
+    typeName: symbol = node@1,
+    ops: list = [
+        { op: "ldenv" },
+        { op: "ldstr", arg: typeName.name }
+    ],
+    ops = ops.concat(emit(node@2)),
+    ops.push({ op: "call", arg: "Runtime.CheckType" }),
+    ops
 ]
 
 emitNamespace: fn(node: list) = [
