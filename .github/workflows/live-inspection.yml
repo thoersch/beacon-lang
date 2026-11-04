@@ -39,3 +39,6 @@ jobs:
       - name: Launch, attach, change Beacon variable, observe and disconnect
         shell: pwsh
         run: ./tools/test-live-inspection.ps1
+      - name: Inspect a launched Beacon app through the real GUI
+        shell: pwsh
+        run: ./tools/test-inspector-ui.ps1
