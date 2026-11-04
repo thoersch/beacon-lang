@@ -1,4 +1,5 @@
 name: Build frozen live-inspection runtime
+# Rebuild after aligning the inspection agent namespace.
 on:
   push:
     branches:
