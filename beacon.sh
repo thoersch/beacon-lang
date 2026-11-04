@@ -17,6 +17,7 @@ Usage:
   ./beacon.sh file.beacon
   ./beacon.sh run file.beacon
   ./beacon.sh plan file.beacon
+  ./beacon.sh inspect file.beacon
   ./beacon.sh self-host
 USAGE
   exit 2
@@ -25,6 +26,10 @@ USAGE
 [[ $# -gt 0 ]] || usage
 
 case "$1" in
+  inspect)
+    [[ $# -ge 2 ]] || usage
+    exec dotnet "$HOST" "$COMPILER" --stage1-run "$2" --inspect
+    ;;
   self-host)
     exec dotnet "$HOST" "$COMPILER" --self-host
     ;;
