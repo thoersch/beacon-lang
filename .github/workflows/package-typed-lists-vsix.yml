@@ -1,0 +1,40 @@
+name: Refresh Beacon VS Code VSIX for typed Lists
+on:
+  push:
+    branches:
+      - feature/typed-lists-inline-records
+    paths:
+      - .github/workflows/package-typed-lists-vsix.yml
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/typed-lists-inline-records
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Beacon grammar
+        working-directory: editors/vscode
+        run: node check-syntax.mjs
+      - name: Build VS Code extension
+        working-directory: editors/vscode
+        run: |
+          npm install --no-audit --no-fund
+          npm run package
+      - name: Commit refreshed VSIX
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f editors/vscode/beacon-lang-*.vsix
+          git diff --cached --quiet && { echo 'No VSIX changes'; exit 0; }
+          git commit -m 'Refresh Beacon VSIX for typed Lists and inline Records'
+          git fetch origin feature/typed-lists-inline-records
+          git rebase origin/feature/typed-lists-inline-records
+          git push origin HEAD:feature/typed-lists-inline-records
