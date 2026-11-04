@@ -1,5 +1,5 @@
 name: Build typed List runtime seed
-# Retry after Stage-0-compatible parser syntax fix.
+# Rerun after improving compiler diagnostics for anonymous typed Records.
 # One-time inspection runtime source is intentionally omitted from the source-free final tree.
 on:
   push:
