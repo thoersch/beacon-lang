@@ -1,0 +1,41 @@
+name: Live runtime inspection
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Fixed-point self-hosting
+        run: bash ./beacon.sh self-host
+      - name: Opt-in inspection stays unavailable without a live target
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BEACON_HOME="$PWD"
+          cat >/tmp/disconnected-inspection.beacon <<'BEACON'
+          include std.inspect
+          result: record = inspect.snapshot(999999)
+          print(result.connected)
+          BEACON
+          actual="$(bash ./beacon.sh /tmp/disconnected-inspection.beacon)"
+          [ "$actual" = false ]
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Launch, attach, change Beacon variable, observe and disconnect
+        shell: pwsh
+        run: ./tools/test-live-inspection.ps1
