@@ -3,16 +3,42 @@
   "name": "Beacon",
   "scopeName": "source.beacon",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#strings" },
-    { "include": "#includes" },
-    { "include": "#declarations" },
-    { "include": "#keywords" },
-    { "include": "#types" },
-    { "include": "#constants" },
-    { "include": "#numbers" },
-    { "include": "#operators" },
-    { "include": "#member-access" }
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#includes"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#generic-list"
+    },
+    {
+      "include": "#typed-constructor"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#member-access"
+    }
   ],
   "repository": {
     "comments": {
@@ -29,11 +55,15 @@
           "name": "string.quoted.double.beacon",
           "begin": "\"",
           "beginCaptures": {
-            "0": { "name": "punctuation.definition.string.begin.beacon" }
+            "0": {
+              "name": "punctuation.definition.string.begin.beacon"
+            }
           },
           "end": "\"",
           "endCaptures": {
-            "0": { "name": "punctuation.definition.string.end.beacon" }
+            "0": {
+              "name": "punctuation.definition.string.end.beacon"
+            }
           },
           "patterns": [
             {
@@ -44,11 +74,15 @@
               "name": "meta.interpolation.beacon",
               "begin": "\\{",
               "beginCaptures": {
-                "0": { "name": "punctuation.section.interpolation.begin.beacon" }
+                "0": {
+                  "name": "punctuation.section.interpolation.begin.beacon"
+                }
               },
               "end": "\\}",
               "endCaptures": {
-                "0": { "name": "punctuation.section.interpolation.end.beacon" }
+                "0": {
+                  "name": "punctuation.section.interpolation.end.beacon"
+                }
               },
               "patterns": [
                 {
@@ -67,16 +101,24 @@
           "name": "meta.include.local.beacon",
           "match": "\\b(include)\\s+(\"(?:[^\"\\\\]|\\\\.)*\")",
           "captures": {
-            "1": { "name": "keyword.control.import.include.beacon" },
-            "2": { "name": "string.quoted.double.include.beacon" }
+            "1": {
+              "name": "keyword.control.import.include.beacon"
+            },
+            "2": {
+              "name": "string.quoted.double.include.beacon"
+            }
           }
         },
         {
           "name": "meta.include.std.beacon",
           "match": "\\b(include)\\s+(std(?:\\.[A-Za-z_][A-Za-z0-9_]*)+)",
           "captures": {
-            "1": { "name": "keyword.control.import.include.beacon" },
-            "2": { "name": "support.module.beacon" }
+            "1": {
+              "name": "keyword.control.import.include.beacon"
+            },
+            "2": {
+              "name": "support.module.beacon"
+            }
           }
         }
       ]
@@ -87,32 +129,48 @@
           "name": "meta.function.declaration.beacon",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*(fn)\\b",
           "captures": {
-            "1": { "name": "entity.name.function.beacon" },
-            "2": { "name": "storage.type.function.beacon" }
+            "1": {
+              "name": "entity.name.function.beacon"
+            },
+            "2": {
+              "name": "storage.type.function.beacon"
+            }
           }
         },
         {
           "name": "meta.type.declaration.beacon",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*(type)\\b",
           "captures": {
-            "1": { "name": "entity.name.type.beacon" },
-            "2": { "name": "storage.type.beacon" }
+            "1": {
+              "name": "entity.name.type.beacon"
+            },
+            "2": {
+              "name": "storage.type.beacon"
+            }
           }
         },
         {
           "name": "meta.variable.declaration.beacon",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\s*\\|\\s*[A-Za-z_][A-Za-z0-9_]*)*)\\s*(?==)",
           "captures": {
-            "1": { "name": "variable.other.readwrite.beacon" },
-            "2": { "name": "entity.name.type.beacon" }
+            "1": {
+              "name": "variable.other.readwrite.beacon"
+            },
+            "2": {
+              "name": "entity.name.type.beacon"
+            }
           }
         },
         {
           "name": "meta.parameter.beacon",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\s*\\|\\s*[A-Za-z_][A-Za-z0-9_]*)*)",
           "captures": {
-            "1": { "name": "variable.parameter.beacon" },
-            "2": { "name": "entity.name.type.beacon" }
+            "1": {
+              "name": "variable.parameter.beacon"
+            },
+            "2": {
+              "name": "entity.name.type.beacon"
+            }
           }
         }
       ]
@@ -211,8 +269,63 @@
           "name": "meta.member.access.beacon",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\.([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
-            "1": { "name": "variable.other.object.beacon" },
-            "2": { "name": "variable.other.property.beacon" }
+            "1": {
+              "name": "variable.other.object.beacon"
+            },
+            "2": {
+              "name": "variable.other.property.beacon"
+            }
+          }
+        }
+      ]
+    },
+    "generic-list": {
+      "patterns": [
+        {
+          "name": "meta.type.parameterized-list.beacon",
+          "begin": "\\b(list)\\s*(<)",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.beacon"
+            },
+            "2": {
+              "name": "punctuation.definition.generic.begin.beacon"
+            }
+          },
+          "end": "(>)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.generic.end.beacon"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#generic-list"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "name": "keyword.operator.type-union.beacon",
+              "match": "\\|"
+            },
+            {
+              "name": "entity.name.type.beacon",
+              "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+            }
+          ]
+        }
+      ]
+    },
+    "typed-constructor": {
+      "patterns": [
+        {
+          "name": "meta.typed.record.constructor.beacon",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\{)",
+          "captures": {
+            "1": {
+              "name": "entity.name.type.beacon"
+            }
           }
         }
       ]
