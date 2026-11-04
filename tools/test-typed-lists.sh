@@ -179,4 +179,43 @@ bad "trailing pipe disallowed" '
 numbers: list<number|> = []
 ' 'Expected type name'
 
+bad "unknown type in empty typed List" '
+empty: list<Undeclared> = []
+' "Unknown type 'Undeclared'"
+
+bad "unknown nested type in empty typed List" '
+empty: list<list<Undeclared>> = []
+' "Unknown type 'Undeclared'"
+
+bad "typed List tail cannot accept wrong element" '
+values: list<number> = [1, 2]
+rest: list = values.tail()
+rest.push("invalid")
+' 'Expected number, got string'
+
+bad "typed List filter preserves the constraint" '
+positive: fn(v: number) = v > 0
+values: list<number> = [1, 2]
+filtered: list = values.filter(positive)
+filtered.push("invalid")
+' 'Expected number, got string'
+
+bad "typed List concat preserves the constraint" '
+values: list<number> = [1, 2]
+combined: list = values.concat([3])
+combined@0 = "invalid"
+' 'Expected number, got string'
+
+bad "typed List concat rejects incompatible input" '
+numbers: list<number> = [1, 2]
+strings: list<string> = ["x"]
+mixed: list = numbers.concat(strings)
+' 'mutable Lists are invariant'
+
+bad "named Record rejects arbitrary field mutation" '
+item: type = { name: string }
+potion: item = { name: "Potion" }
+potion.newField = 42
+' "Unknown field 'newField'"
+
 echo "All typed List and inline Record tests passed."
