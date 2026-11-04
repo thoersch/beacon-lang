@@ -1,0 +1,39 @@
+include std.window
+include std.ui
+
+counter: number = 0
+history: list = ["started"]
+settings: record = {
+    mode: "live"
+    active: true
+    limits: [5, 10, 25]
+}
+
+increment: fn() = [
+    counter += 1,
+    history.push(counter),
+    ui.mount(app, targetView()),
+    null
+]
+
+targetView: fn() = ui.column([
+    ui.heading("Beacon Counter"),
+    ui.muted("Increment this counter while the Inspector is connected."),
+    ui.panel([
+        ui.heading("Counter: {counter}"),
+        ui.primaryButton("Increment", increment)
+    ])
+])
+
+if window.available() then
+    app: record = window.create({
+        title: "Beacon Counter"
+        width: 520
+        height: 360
+    })
+    ui.mount(app, targetView())
+    window.show(app)
+    ui.run(app)
+else
+    print("The inspection demo requires the Windows UI backend")
+end
