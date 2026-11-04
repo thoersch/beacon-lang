@@ -32,7 +32,7 @@ splitTypeNames: fn(typeName: string) = [
         if character == "<" then
             depth += 1
         else if character == ">" then
-            depth += -1
+            depth = depth - 1
         end
         if character == "|" and depth == 0 then
             if current != "" then
