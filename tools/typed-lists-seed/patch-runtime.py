@@ -245,6 +245,27 @@ section(
         type.StartsWith("list<", StringComparison.Ordinal) &&
         type.EndsWith(">", StringComparison.Ordinal);
 
+    // Empty Lists still require valid element type annotations.
+    private static void VerifyElementTypes(BEnv env, string annotation)
+    {
+        foreach (var alternative in SplitTypeUnion(annotation))
+        {
+            if (alternative == "any")
+                throw new Exception("Beacon has no 'any' type");
+            if (IsConstrainedList(alternative))
+            {
+                VerifyElementTypes(env, alternative.Substring(5, alternative.Length - 6));
+                continue;
+            }
+            if (IsBuiltinTypeName(alternative)) continue;
+            object? definition;
+            try { definition = env.Get(alternative); }
+            catch { throw new Exception($"Unknown type '{alternative}' in List element constraint"); }
+            if (definition is not BType)
+                throw new Exception($"'{alternative}' is not a Beacon type");
+        }
+    }
+
     private static object? CheckListItem(List<object?> list, object? value) =>
         list is BList typed
             ? CheckType(typed.TypeEnvironment, typed.ElementType, value)
@@ -262,6 +283,7 @@ section(
             if (value is not List<object?> list)
                 throw new Exception($"Expected {type}, got {Kind(value)}");
             var elementType = type.Substring(5, type.Length - 6);
+            VerifyElementTypes(env, elementType);
             if (list is BList existing)
             {
                 if (existing.ElementType != elementType)
