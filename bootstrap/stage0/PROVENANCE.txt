@@ -2,9 +2,9 @@ Beacon Stage-0 bootstrap seed
 =============================
 
 Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
-Seed refresh: adds opt-in local inspection through hostInspect(action,payload). Target processes expose root Beacon environments over same-user named pipes when started with --inspect. Snapshots are read-only, recursively bounded, and serialized as Atom/List/Record-compatible values. The existing native window and polished dark control rendering remains intact.
+Seed refresh: preserves opt-in inspection, native Win32 UI and CLR assembly services while enabling list<T|U|W> runtime validation, List mutation invariance, nominal typed Record identity, contextual nested Record construction, and explicit anonymous Type { ... } expressions.
 Historical implementation language: C#
-Source branch: feature/live-runtime-inspection
+Source branch: feature/typed-lists-inline-records
 .NET SDK: 10.0.403
 
 The temporary reconstruction and C# source are removed after the frozen seed passes fixed-point verification.
