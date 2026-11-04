@@ -1,4 +1,5 @@
 name: Build typed List runtime seed
+# Refresh the typed List host boundary after validating all element annotations.
 # Rerun after improving compiler diagnostics for anonymous typed Records.
 # One-time inspection runtime source is intentionally omitted from the source-free final tree.
 on:
