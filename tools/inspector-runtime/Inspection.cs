@@ -211,7 +211,9 @@ public static partial class Runtime
             var compiler = Path.Combine(home, "compiler", "compiler.beacon");
             var start = new ProcessStartInfo("dotnet")
             {
-                UseShellExecute = false,
+                // Shell-launched Windows desktop apps must not inherit a caller's
+                // captured stdout pipe or the launcher can appear to hang.
+                UseShellExecute = OperatingSystem.IsWindows(),
                 WorkingDirectory = home,
             };
             start.ArgumentList.Add(seed);
@@ -219,7 +221,7 @@ public static partial class Runtime
             start.ArgumentList.Add("--stage1-run");
             start.ArgumentList.Add(source);
             start.ArgumentList.Add("--inspect");
-            start.Environment["BEACON_HOME"] = home;
+            if (!start.UseShellExecute) start.Environment["BEACON_HOME"] = home;
             using var process = Process.Start(start) ??
                 throw new Exception("Unable to launch Beacon inspection target");
             return (double)process.Id;
