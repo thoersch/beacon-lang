@@ -48,12 +48,12 @@ inspectorView: fn() = ui.column([
         ui.panel([
             ui.heading("Source"),
             ui.muted("Application source file"),
-            ui.code(inspectedSource, 410)
+            ui.code(inspectedSource, 330)
         ]),
         ui.panel([
             ui.heading("Live variables"),
             ui.muted("Top-level bindings and nested Beacon values"),
-            ui.code(variableText(), 410)
+            ui.code(variableText(), 330)
         ])
     ]),
     ui.row([
