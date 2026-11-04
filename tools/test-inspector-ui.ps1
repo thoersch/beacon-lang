@@ -139,8 +139,13 @@ try {
 
     $attached = $false
     for ($attempt = 0; $attempt -lt 15; $attempt++) {
+        # Launch/Refresh remounts all native controls; wait through the
+        # short interval when their old HWNDs have been destroyed.
         $refresh = [BeaconInspectorUiProbe]::FindControl($window, 'Button', 'Refresh')
-        if ($refresh -eq [IntPtr]::Zero) { throw 'Inspector Refresh button missing' }
+        if ($refresh -eq [IntPtr]::Zero) {
+            Start-Sleep -Milliseconds 150
+            continue
+        }
         [BeaconInspectorUiProbe]::Send($refresh, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
         Start-Sleep -Milliseconds 250
         if ([BeaconInspectorUiProbe]::HasText($window, 'Static', 'Connected to PID') -and
@@ -167,8 +172,13 @@ try {
 
     $updated = $false
     for ($attempt = 0; $attempt -lt 10; $attempt++) {
+        # Launch/Refresh remounts all native controls; wait through the
+        # short interval when their old HWNDs have been destroyed.
         $refresh = [BeaconInspectorUiProbe]::FindControl($window, 'Button', 'Refresh')
-        if ($refresh -eq [IntPtr]::Zero) { throw 'Refresh button disappeared after UI mount' }
+        if ($refresh -eq [IntPtr]::Zero) {
+            Start-Sleep -Milliseconds 150
+            continue
+        }
         [BeaconInspectorUiProbe]::Send($refresh, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
         Start-Sleep -Milliseconds 200
         if ([BeaconInspectorUiProbe]::HasText($window, 'Edit', 'counter: number = 1')) {
