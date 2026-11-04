@@ -67,7 +67,7 @@ try {
     function Snapshot {
         $output = @(& dotnet $seed $compiler '--stage1-run' $query)
         if ($LASTEXITCODE -ne 0) { throw "Inspection client failed: $($output -join '; ')" }
-        return ,$output
+        return $output
     }
 
     $first = @()
