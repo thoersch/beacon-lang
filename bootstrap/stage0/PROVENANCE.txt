@@ -2,10 +2,10 @@ Beacon Stage-0 bootstrap seed
 =============================
 
 Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
-Seed refresh: corrects Win32 Inspector composition and restores visible dark-themed input placeholder text. Structural panels and editor frames are painted behind native child controls; WS_CLIPCHILDREN prevents parent overdraw; multi-line EDIT content uses CRLF; read-only code uses matching dark input colors. Existing dark chrome, native fonts, and semantic widget rendering are preserved.
+Seed refresh: adds opt-in local inspection through hostInspect(action,payload). Target processes expose root Beacon environments over same-user named pipes when started with --inspect. Snapshots are read-only, recursively bounded, and serialized as Atom/List/Record-compatible values. The existing native window and polished dark control rendering remains intact.
 Historical implementation language: C#
-Source branch: fix/inspector-panel-and-text-rendering
+Source branch: feature/live-runtime-inspection
 .NET SDK: 10.0.403
 
-One-time host source was reconstructed from previously verified historical migration scripts and removed after fixed-point verification.
-Beacon remains self-hosted under compiler/. The native hostWindow boundary is unchanged.
+The temporary reconstruction and C# source are removed after the frozen seed passes fixed-point verification.
+Beacon's canonical compiler remains under compiler/.
