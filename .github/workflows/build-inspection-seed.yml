@@ -1,5 +1,5 @@
 name: Build frozen live-inspection runtime
-# One-time inspection runtime source is intentionally omitted from the source-free final tree.
+# Rebuild isolated Windows child process launch and preserve CLI stdout behavior.
 on:
   push:
     branches:
