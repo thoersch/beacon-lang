@@ -393,21 +393,28 @@ parseDeclaration: fn(state: record, moduleLevel: boolean) = [
     result
 ]
 
-parseTypeAnnotation: fn(state: record) = [
+// Type annotations use | for unions, including list<T|U|W>.
+parseTypeMember: fn(state: record) = [
     first: record = consumeToken(state, "identifier", "Expected type name"),
     result: string = first.text,
     if result == "any" then
         fail("Beacon has no 'any' type; use an explicit type or union")
     end,
-
-    for [more: boolean = matchToken(state, "pipe"), more, more = matchToken(state, "pipe")]
-        nextType: record = consumeToken(state, "identifier", "Expected type name after '|'")
-        if nextType.text == "any" then
-            fail("Beacon has no 'any' type; use an explicit type or union")
+    if matchToken(state, "less") then
+        if result != "list" then
+            fail("Only list<T|U|W> supports type parameters at " + first.line + ":" + first.column)
         end
-        result = result + "|" + nextType.text
-    loop,
+        result = "list<" + parseTypeAnnotation(state) + ">"
+        consumeToken(state, "greater", "Expected '>' after List element type")
+    end,
+    result
+]
 
+parseTypeAnnotation: fn(state: record) = [
+    result: string = parseTypeMember(state),
+    for [more: boolean = matchToken(state, "pipe"), more, more = matchToken(state, "pipe")]
+        result += "|" + parseTypeMember(state)
+    loop,
     result
 ]
 
@@ -707,6 +714,9 @@ parsePrimary: fn(state: record) = [
             result = false
         else if token.text == "null" then
             result = null
+        else if matchToken(state, "lbrace") then
+            // Explicit anonymous value: item { name: "Potion" }
+            result = [symbol("typed"), symbol(token.text), parseRecordLiteralAfterOpen(state)]
         else
             result = symbol(token.text)
         end

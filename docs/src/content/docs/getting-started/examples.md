@@ -21,6 +21,7 @@ For more examples, try this progression:
 | [`function-clauses.beacon`](https://github.com/thoersch/beacon-lang/blob/master/examples/function-clauses.beacon) | Ordered function clauses |
 | [`list-functional-methods.beacon`](https://github.com/thoersch/beacon-lang/blob/master/examples/list-functional-methods.beacon) | List transformation, filtering, and retrieval |
 | [`multiline-expressions.beacon`](https://github.com/thoersch/beacon-lang/blob/master/examples/multiline-expressions.beacon) | Expression continuation across lines |
+| [`rpg-typed-inventory.beacon`](https://github.com/thoersch/beacon-lang/blob/master/examples/rpg-typed-inventory.beacon) | Constrained Lists, contextual Record typing, and inline typed values |
 
 ## Standard-library examples
 

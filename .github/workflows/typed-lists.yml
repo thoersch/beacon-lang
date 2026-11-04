@@ -1,0 +1,31 @@
+name: Typed Lists and inline Records
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Self-host compiler fixed point
+        run: bash ./beacon.sh self-host
+      - name: Test constrained Lists and inline typed Records
+        run: bash tools/test-typed-lists.sh
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Test constrained Lists on Windows CLR
+        shell: bash
+        run: bash tools/test-typed-lists.sh

@@ -111,6 +111,30 @@ Lists are ordered and require commas:
 values: list = [10, 20, 30]
 ```
 
+### Constrained Lists
+
+A plain `list` remains heterogeneous: it can contain values of different types. Add angle brackets to constrain every element. **Unions inside a List use the same pipe delimiter as Beacon's other type annotations:**
+
+```beacon
+scores: list<number> = [100, 85, 92]
+inventory: list<item|weapon|armor> = []
+mixed: list<string|number> = ["coins", 42]
+matrix: list<list<number>> = [[1, 2], [3, 4]]
+maybeScores: list<number>|null = null
+```
+
+Constraints apply when values are created, passed to functions, reassigned, pushed, or assigned through `@`. A typed List also retains its constraint when accessed through a broad `list` alias. The List implementations of `filter`, `tail`, and `concat` preserve element constraints; `map` returns an unconstrained List until its result is checked against an expected type.
+
+Mutable Lists are **invariant**: `list<number>` cannot be assigned to `list<atom>`, even though an individual Number is an Atom. This prevents introducing invalid elements through an alias.
+
+```beacon
+scores: list<number> = [90, 95]
+scores.push(100)        // valid
+scores.push("perfect")  // type error
+scores@0 = "failed"     // type error
+```
+
+
 Positional access uses `@`:
 
 ```beacon
@@ -173,6 +197,47 @@ person.set(field, "Grace")
 ```
 
 Record field order is not part of the value's meaning.
+
+### Inline typed Records and contextual typing
+
+A named type can be constructed inline without declaring a separate variable:
+
+```beacon
+item: type = {
+    name: string
+    quantity: number
+}
+
+inventory: list<item> = [
+    item { name: "Potion", quantity: 1 },
+    item { name: "Axe", quantity: 1 }
+]
+```
+
+An explicit constructor, `item { ... }`, is an ordinary value expression; it isn't a discarded binding or a new fundamental Core data kind.
+
+When the expected type is known, Beacon can also type a plain Record literal from context. In a `list<item>`, each Record automatically becomes an `item` after its shape is validated:
+
+```beacon
+inventory: list<item> = [
+    { name: "Potion", quantity: 1 },
+    { name: "Axe", quantity: 1 }
+]
+```
+
+If a List admits multiple named types, an untagged Record is accepted only when **exactly one** type matches its shape. Otherwise use an explicit constructor:
+
+```beacon
+inventory: list<item|weapon> = [
+    item { name: "Potion", quantity: 1 },
+    weapon { name: "Axe", damage: 12 }
+]
+```
+
+Named instances preserve their type identity. A `weapon` value cannot be silently reinterpreted as an `item` merely because both currently have similar fields. Nested typed Records and Lists are checked recursively, including field and List mutations.
+
+[Run the RPG inventory example](https://github.com/thoersch/beacon-lang/blob/master/examples/rpg-typed-inventory.beacon).
+
 
 ## Types
 
