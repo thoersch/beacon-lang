@@ -48,6 +48,23 @@ public static class BeaconInspectorUiProbe
         return found;
     }
 
+    public static string Describe(IntPtr parent)
+    {
+        var lines = new List<string>();
+        ChildCallback callback = (child, _) =>
+        {
+            var type = new StringBuilder(128);
+            GetClass(child, type, type.Capacity);
+            var label = Label(child).Replace("\r", "<CR>").Replace("\n", "<LF>");
+            if (label.Length > 240) label = label.Substring(0, 240);
+            lines.Add(type.ToString() + ": " + label);
+            return true;
+        };
+        EnumChildWindows(parent, callback, IntPtr.Zero);
+        GC.KeepAlive(callback);
+        return string.Join("\n", lines);
+    }
+
     public static bool HasText(IntPtr parent, string controlClass, string fragment)
     {
         bool found = false;
@@ -105,16 +122,22 @@ try {
     if ($targetWindow -eq [IntPtr]::Zero) { throw 'Inspector failed to launch the Beacon Counter app' }
     Write-Host "Inspector launched target process $($target.Id)"
 
-    $refresh = [BeaconInspectorUiProbe]::FindControl($window, 'Button', 'Refresh')
-    if ($refresh -eq [IntPtr]::Zero) { throw 'Inspector Refresh button missing' }
-    [BeaconInspectorUiProbe]::Send($refresh, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
-    Start-Sleep -Milliseconds 250
-
-    if (-not [BeaconInspectorUiProbe]::HasText($window, 'Static', 'Connected to PID')) {
-        throw 'Inspector does not show an attached runtime session'
+    $attached = $false
+    for ($attempt = 0; $attempt -lt 15; $attempt++) {
+        $refresh = [BeaconInspectorUiProbe]::FindControl($window, 'Button', 'Refresh')
+        if ($refresh -eq [IntPtr]::Zero) { throw 'Inspector Refresh button missing' }
+        [BeaconInspectorUiProbe]::Send($refresh, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        Start-Sleep -Milliseconds 250
+        if ([BeaconInspectorUiProbe]::HasText($window, 'Static', 'Connected to PID') -and
+            [BeaconInspectorUiProbe]::HasText($window, 'Edit', 'counter: number = 0')) {
+            $attached = $true
+            break
+        }
     }
-    if (-not [BeaconInspectorUiProbe]::HasText($window, 'Edit', 'counter: number = 0')) {
-        throw 'Inspector did not render live counter = 0'
+    if (-not $attached) {
+        Write-Host 'Inspector control dump:'
+        Write-Host ([BeaconInspectorUiProbe]::Describe($window))
+        throw 'Inspector did not show its attached counter after repeated Refresh attempts'
     }
 
     $increment = [BeaconInspectorUiProbe]::FindControl($targetWindow, 'Button', 'Increment')
