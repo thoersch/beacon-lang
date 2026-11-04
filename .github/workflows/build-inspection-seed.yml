@@ -1,5 +1,5 @@
 name: Build frozen live-inspection runtime
-# Rebuild after aligning the inspection agent namespace.
+# One-time inspection runtime source is intentionally omitted from the source-free final tree.
 on:
   push:
     branches:
@@ -93,7 +93,7 @@ jobs:
           echo 'print(result.connected)' >>/tmp/inspect-offline.beacon
           result="$(bash ./beacon.sh /tmp/inspect-offline.beacon)"
           [ "$result" = false ]
-          if find . -path './.git' -prune -o -path './tools/seed-refresh' -prune -o -name '*.cs' -print | grep -q .; then
+          if find . -path './.git' -prune -o -path './tools/seed-refresh' -prune -o -path './tools/inspector-runtime' -prune -o -name '*.cs' -print | grep -q .; then
             echo 'Unexpected C# source outside temporary seed folder' >&2
             exit 1
           fi
