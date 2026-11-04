@@ -1,4 +1,5 @@
 name: Build typed List runtime seed
+# Retry after Stage-0-compatible parser syntax fix.
 # One-time inspection runtime source is intentionally omitted from the source-free final tree.
 on:
   push:
