@@ -1,0 +1,37 @@
+name: Bug report
+description: Report an unexpected Beacon compiler, runtime, or editor behavior.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the behavior and why it was unexpected.
+      placeholder: The compiler fails when...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal Beacon reproduction
+      description: Include a runnable .beacon example and the command used.
+      render: beacon
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, .NET version, and Beacon commit or branch.
+  - type: textarea
+    id: output
+    attributes:
+      label: Diagnostics / screenshots
+      description: Paste relevant output or attach a screenshot.

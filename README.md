@@ -1,28 +1,35 @@
+<div align="center">
+
 # Beacon
 
-**Beacon is a compiled, homoiconic-inspired, and self-hosted programming language, targeting the CLR.**
+### A compiled, self-hosted programming language for the CLR.
 
-Beacon combines an explicit, familiar surface syntax with a deliberately small structural foundation. Its compiler is written in Beacon itself, and programs ultimately reduce to three fundamental shapes: Beacon's canonical program representation has only three structural forms:
+A familiar, explicitly typed syntax. A small structural core. A compiler written in the language it compiles.
 
-- **Atom** — a literal or symbol
-- **List** — ordered structure
-- **Record** — named structure
+[**Documentation**](https://thoersch.github.io/beacon-lang/) · [**Quickstart**](https://thoersch.github.io/beacon-lang/getting-started/installation/) · [**Syntax guide**](https://thoersch.github.io/beacon-lang/language/syntax/) · [**Examples**](examples/) · [**Live Inspector**](https://thoersch.github.io/beacon-lang/tools/inspector/)
 
-## What does Beacon look like?
+[![Compiler](https://github.com/thoersch/beacon-lang/actions/workflows/compiler.yml/badge.svg?branch=master)](https://github.com/thoersch/beacon-lang/actions/workflows/compiler.yml)
+[![Documentation](https://github.com/thoersch/beacon-lang/actions/workflows/docs.yml/badge.svg?branch=master)](https://github.com/thoersch/beacon-lang/actions/workflows/docs.yml)
+[![Native UI](https://github.com/thoersch/beacon-lang/actions/workflows/window-ui.yml/badge.svg?branch=master)](https://github.com/thoersch/beacon-lang/actions/workflows/window-ui.yml)
+[![Live inspection](https://github.com/thoersch/beacon-lang/actions/workflows/live-inspection.yml/badge.svg?branch=master)](https://github.com/thoersch/beacon-lang/actions/workflows/live-inspection.yml)
+[![Code style](https://github.com/thoersch/beacon-lang/actions/workflows/style.yml/badge.svg?branch=master)](https://github.com/thoersch/beacon-lang/actions/workflows/style.yml)
 
-Here's enough Beacon to get a feel for the language:
+</div>
+
+---
+
+Beacon is an experimental language that compiles to the **Common Language Runtime (CLR)**. It provides ordinary language features—functions, types, records, lists, conditionals, modules—and an intentionally minimal compiler representation built from **Atoms, Lists, and Records**.
+
+The canonical compiler is written in Beacon itself. A frozen Stage-0 CLR assembly handles bootstrapping and the current native runtime boundary.
+
+## See the language
 
 ```beacon
 person: type = {
     name: string
     age: number
 
-    greet: fn() = "Hi, I'm {.name}"
-
-    birthday: fn() = [
-        .age += 1,
-        .age
-    ]
+    greet: fn() = "Hello, {.name}!"
 }
 
 ada: person = {
@@ -30,248 +37,141 @@ ada: person = {
     age: 42
 }
 
-numbers: list = [1, 2, 3, 4]
-
+scores: list = [18, 24, 42]
 double: fn(value: number) = value * 2
 
 print(ada.greet())
-print(numbers.map(double))
-
-if ada.age >= 18 then
-    print("{ada.name} is an adult")
-end
+print(scores.map(double))
 ```
-
-Output:
 
 ```text
-Hi, I'm Ada
-[2, 4, 6, 8]
-Ada is an adult
+Hello, Ada!
+[36, 48, 84]
 ```
 
-A few things are visible even in this small example:
+Declarations are explicitly typed; functions can be values; Lists have positional access via `@`, while Records have named members via `.`. Higher-level syntax lowers into the same three structural Core forms.
 
-- declarations are explicitly typed
-- functions are values
-- Lists are ordered and use `@` for positional access
-- Records and typed values use named fields
-- types can define both structure and behavior
-- string interpolation is built in
-- multi-expression function bodies are Lists
-- control flow remains explicit
+[Explore the syntax →](https://thoersch.github.io/beacon-lang/language/syntax/)
 
-The full language guide belongs in the Beacon documentation.
+## Quickstart
 
-## Documentation
-
-The full Beacon documentation is available at **[thoersch.github.io/beacon-lang](https://thoersch.github.io/beacon-lang/)**.
-
-It covers installation, VS Code integration, and a practical tour of Beacon's syntax and language features.
-
-## Getting started
-
-Beacon currently runs directly from a source checkout.
-
-### Requirements
-
-You'll need:
-
-- Git
-- .NET 8 or newer (Windows, macOS, or Linux)
-
-Verify .NET:
-
-```bash
-dotnet --info
-```
-
-### Clone Beacon
+**Requirements:** Git and .NET 8 or newer. Beacon currently runs directly from a source checkout; there is no global installer.
 
 ```bash
 git clone https://github.com/thoersch/beacon-lang.git
 cd beacon-lang
+./beacon.sh examples/hello.beacon
 ```
 
-## Write a program
+On Windows, use `.\beacon.ps1 examples/hello.beacon` in PowerShell or `beacon.cmd examples\hello.beacon` in Command Prompt.
 
-Create `hello.beacon`:
+To compile and execute your own program, save it as `hello.beacon` and run:
 
 ```beacon
 name: string = "world"
 
-greet: fn(value: string) =
-    "Hello, {value}!"
+greet: fn(value: string) = "Hello, {value}!"
 
 print(greet(name))
 ```
-
-Run it:
 
 ```bash
 ./beacon.sh hello.beacon
 ```
 
-Output:
-
 ```text
 Hello, world!
 ```
 
-The repository's `examples/` directory contains additional runnable programs covering types, Lists, control flow, function clauses, the standard library, and other language features.
+For shell-specific setup and troubleshooting, see the [installation guide](https://thoersch.github.io/beacon-lang/getting-started/installation/).
 
-## Standard library
+## What works today
 
-Beacon's standard library is written in Beacon too.
+| Area | Current capability |
+| --- | --- |
+| **Language** | Explicit types and unions, functions and ordered clauses, user-defined types, Lists and Records, interpolation, conditionals, loops, and modules |
+| **Compiler** | Self-hosted Beacon compiler, structured diagnostics, symbolic CLR plans, fixed-point verification |
+| **Standard library** | `std.text`, `std.math`, `std.fs`, `std.path`, `std.json` |
+| **Desktop** | `std.window` and `std.ui`, with a native Windows backend and structural UI built in Beacon |
+| **Inspection** | `std.inspect` for opt-in, read-only snapshots of a running Beacon process |
+| **Editor** | VS Code extension with a Beacon TextMate grammar and language configuration |
 
-Current modules include:
+**Status:** actively evolving. Desktop windows currently require Windows. Packaging, a broader standard library, and richer debugging remain works in progress.
 
-```beacon
-include std.text
-include std.math
-include std.fs
-include std.path
-include std.json
-include std.window
-include std.ui
-include std.inspect
-```
+## A real application: Beacon Inspector
 
-For example:
+Beacon Inspector is a native developer tool built in Beacon. It can launch an inspection-enabled application, connect to its process, display source and live variables, and refresh values as the application changes.
 
-```beacon
-include std.text
-include std.math
-include std.json
-
-name: string = text.trim("  Beacon  ")
-root: number = math.sqrt(81)
-payload: record = json.parse("{\"name\":\"Ada\",\"active\":true}")
-
-print(name)
-print(root)
-print(payload.name)
-```
-
-Beacon also supports opt-in live runtime inspection. Start an instrumented app with `./beacon.sh inspect examples/inspector-target.beacon`, or run `examples/inspector-ui.beacon` on Windows and click **Launch sample** to inspect the target in another process.
-
-Beacon also has the first native desktop foundation used by the Beacon Inspector. `std.window` owns application-window lifecycle and events, while `std.ui` represents UI as ordinary Beacon Records and Lists and owns layout and callback routing. The first native window backend is Win32; programs can use `window.available()` before creating a window on other platforms.
-
-Beacon keeps native/runtime operations deliberately small. Higher-level functionality belongs in Beacon source when it can be expressed there.
-
-## VS Code support
-
-Beacon includes a VS Code extension with syntax highlighting and editor configuration.
-
-macOS, Linux, or Git Bash:
-
-```bash
-./tools/install-vscode.sh
-```
-
-PowerShell:
+On Windows:
 
 ```powershell
-./tools/install-vscode.ps1
+./beacon.ps1 examples/inspector-ui.beacon
 ```
 
-Reload VS Code after installation.
+Select **Launch sample**, change the counter in the separate Beacon application, then select **Refresh** to see its live state in the Inspector.
 
-## Self-hosting
+[Inspector guide](https://thoersch.github.io/beacon-lang/tools/inspector/) · [Inspector source](examples/inspector-ui.beacon) · [Counter demo](examples/inspector-target.beacon)
 
-Beacon's compiler is written in Beacon.
-
-The canonical compiler begins at:
+## How Beacon works
 
 ```text
-compiler/compiler.beacon
+Beacon source
+    ↓
+Lexer and parser
+    ↓
+Atom / List / Record Core
+    ↓
+Beacon CLR planner
+    ↓
+Symbolic CLR plan
+    ↓
+Stage-0 assembler / runtime
+    ↓
+CLR execution
 ```
 
-You can verify the compiler's self-hosting fixed point with:
+The compiler's implementation is split across `compiler/` and composed by [`compiler/compiler.beacon`](compiler/compiler.beacon). Stage-0 under `bootstrap/stage0/` is the frozen bootstrap boundary, not the language's canonical compiler source.
+
+Verify the self-hosting fixed point:
 
 ```bash
 ./beacon.sh self-host
 ```
 
-## How Beacon reaches the CLR
+[Read the architecture](https://thoersch.github.io/beacon-lang/concepts/architecture/)
 
-Beacon compiles directly toward the CLR:
+## Explore the project
 
-```text
-Beacon source
-    ↓
-Lexer + Parser
-    ↓
-Atom / List / Record Core
-    ↓
-Beacon IL planner
-    ↓
-Symbolic CLR plan
-    ↓
-Stage-0 CLR assembler/runtime
-    ↓
-CLR
-```
+| Resource | Start here |
+| --- | --- |
+| **Getting started** | [Installation](https://thoersch.github.io/beacon-lang/getting-started/installation/) and [runnable examples](https://thoersch.github.io/beacon-lang/getting-started/examples/) |
+| **Language reference** | [Syntax tour](https://thoersch.github.io/beacon-lang/language/syntax/) |
+| **Libraries** | [JSON](https://thoersch.github.io/beacon-lang/standard-library/json/), [window](https://thoersch.github.io/beacon-lang/standard-library/window/), [UI](https://thoersch.github.io/beacon-lang/standard-library/ui/), [inspection](https://thoersch.github.io/beacon-lang/standard-library/inspect/) |
+| **Tooling** | [VS Code setup](https://thoersch.github.io/beacon-lang/getting-started/vscode/) and [Inspector](https://thoersch.github.io/beacon-lang/tools/inspector/) |
+| **Contributing** | [Contribution guide](CONTRIBUTING.md) and [architecture](https://thoersch.github.io/beacon-lang/concepts/architecture/) |
 
-A small frozen Stage-0 binary lives under:
+### Repository layout
 
 ```text
-bootstrap/stage0/
+compiler/          Self-hosted compiler sources
+std/               Beacon standard library
+examples/          Runnable Beacon programs and Inspector demos
+bootstrap/stage0/  Frozen CLR bootstrap/runtime artifact
+editors/vscode/    Beacon grammar and packaged editor extension
+docs/              Documentation site (Astro + Starlight)
+tools/             Development and validation tooling
 ```
 
-It solves the bootstrap problem and provides the irreducible boundary to the CLR and operating system.
+## Syntax highlighting on GitHub
 
-There is no active C# compiler source in the repository. Beacon's canonical compiler implementation is Beacon.
+Beacon code blocks use the `beacon` language identifier. The [documentation site](https://thoersch.github.io/beacon-lang/) and the [VS Code extension](editors/vscode/) share the same syntax grammar and provide full highlighting today.
 
-## Repository layout
+GitHub's own file highlighting and language-percentage bar require **upstream GitHub Linguist recognition**. A repository-local attribute cannot register a previously unknown language. See [GitHub language recognition](https://thoersch.github.io/beacon-lang/community/language-recognition/) for the current status and contribution path.
 
-```text
-compiler/              Beacon compiler source
-std/                   standard library
-examples/              runnable Beacon programs
-bootstrap/stage0/      frozen CLR bootstrap/runtime
-editors/vscode/        VS Code support
-tools/                 development tooling
+---
 
-beacon.sh
-beacon.ps1
-beacon.cmd
-```
+<div align="center">
 
-## Project status
+**[Read the documentation](https://thoersch.github.io/beacon-lang/) · [Browse the source](compiler/) · [Open an issue](https://github.com/thoersch/beacon-lang/issues)**
 
-Already working:
-
-- self-hosted compiler
-- direct CLR execution
-- explicit typing and unions
-- functions and ordered function clauses
-- Lists and Records
-- user-defined types
-- control flow and loops
-- local and standard-library includes
-- text, math, filesystem, path, JSON, window, structural UI, and runtime inspection libraries
-- initial native Win32 desktop backend
-- VS Code syntax support
-- structured compiler diagnostics
-
-Still evolving:
-
-- broader type-system capabilities
-- package and dependency management
-- standard-library breadth
-- richer desktop UI driven by the Beacon Inspector
-- executable distribution
-- developer tooling
-- networking and process APIs
-- metaprogramming and reflection
-
-## Explore Beacon
-
-The easiest place to start is:
-
-```bash
-./beacon.sh examples/hello.beacon
-```
-
-Then browse `examples/`, read the documentation, or take a look at `compiler/compiler.beacon` to see a compiler written in the language it compiles.
+</div>

@@ -1,0 +1,5 @@
+# Beacon is a first-class source language in this repository.
+# GitHub Linguist must recognize Beacon upstream before it can appear in
+# GitHub's language percentages or receive native GitHub highlighting.
+# These attributes prepare classification without mislabeling Beacon as another language.
+*.beacon linguist-language=Beacon linguist-detectable

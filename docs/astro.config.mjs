@@ -38,11 +38,16 @@ export default defineConfig({
             { label: 'Overview', slug: '' },
             { label: 'Installation', slug: 'getting-started/installation' },
             { label: 'VS Code', slug: 'getting-started/vscode' },
+            { label: 'Examples', slug: 'getting-started/examples' },
           ],
         },
         {
           label: 'Language',
           items: [{ label: 'Syntax tour', slug: 'language/syntax' }],
+        },
+        {
+          label: 'Under the hood',
+          items: [{ label: 'Compiler architecture', slug: 'concepts/architecture' }],
         },
         {
           label: 'Standard library',
@@ -52,6 +57,14 @@ export default defineConfig({
             { label: 'UI', slug: 'standard-library/ui' },
             { label: 'Inspect', slug: 'standard-library/inspect' },
           ],
+        },
+        {
+          label: 'Developer tools',
+          items: [{ label: 'Live Inspector', slug: 'tools/inspector' }],
+        },
+        {
+          label: 'Project',
+          items: [{ label: 'GitHub language recognition', slug: 'community/language-recognition' }],
         },
       ],
       expressiveCode: {
