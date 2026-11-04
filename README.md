@@ -24,7 +24,7 @@ The canonical compiler is written in Beacon itself. A frozen Stage-0 CLR assembl
 
 ## See the language
 
-\`\`\`beacon
+```beacon
 person: type = {
     name: string
     age: number
@@ -42,14 +42,14 @@ double: fn(value: number) = value * 2
 
 print(ada.greet())
 print(scores.map(double))
-\`\`\`
+```
 
-\`\`\`text
+```text
 Hello, Ada!
 [36, 48, 84]
-\`\`\`
+```
 
-Declarations are explicitly typed; functions can be values; Lists have positional access via \`@\`, while Records have named members via \`.\`. Higher-level syntax lowers into the same three structural Core forms.
+Declarations are explicitly typed; functions can be values; Lists have positional access via `@`, while Records have named members via `.`. Higher-level syntax lowers into the same three structural Core forms.
 
 [Explore the syntax →](https://thoersch.github.io/beacon-lang/language/syntax/)
 
@@ -57,31 +57,31 @@ Declarations are explicitly typed; functions can be values; Lists have positiona
 
 **Requirements:** Git and .NET 8 or newer. Beacon currently runs directly from a source checkout; there is no global installer.
 
-\`\`\`bash
+```bash
 git clone https://github.com/thoersch/beacon-lang.git
 cd beacon-lang
 ./beacon.sh examples/hello.beacon
-\`\`\`
+```
 
-On Windows, use \`.\beacon.ps1 examples/hello.beacon\` in PowerShell or \`beacon.cmd examples\hello.beacon\` in Command Prompt.
+On Windows, use `.\beacon.ps1 examples/hello.beacon` in PowerShell or `beacon.cmd examples\hello.beacon` in Command Prompt.
 
-To compile and execute your own program, save it as \`hello.beacon\` and run:
+To compile and execute your own program, save it as `hello.beacon` and run:
 
-\`\`\`beacon
+```beacon
 name: string = "world"
 
 greet: fn(value: string) = "Hello, {value}!"
 
 print(greet(name))
-\`\`\`
+```
 
-\`\`\`bash
+```bash
 ./beacon.sh hello.beacon
-\`\`\`
+```
 
-\`\`\`text
+```text
 Hello, world!
-\`\`\`
+```
 
 For shell-specific setup and troubleshooting, see the [installation guide](https://thoersch.github.io/beacon-lang/getting-started/installation/).
 
@@ -91,9 +91,9 @@ For shell-specific setup and troubleshooting, see the [installation guide](https
 | --- | --- |
 | **Language** | Explicit types and unions, functions and ordered clauses, user-defined types, Lists and Records, interpolation, conditionals, loops, and modules |
 | **Compiler** | Self-hosted Beacon compiler, structured diagnostics, symbolic CLR plans, fixed-point verification |
-| **Standard library** | \`std.text\`, \`std.math\`, \`std.fs\`, \`std.path\`, \`std.json\` |
-| **Desktop** | \`std.window\` and \`std.ui\`, with a native Windows backend and structural UI built in Beacon |
-| **Inspection** | \`std.inspect\` for opt-in, read-only snapshots of a running Beacon process |
+| **Standard library** | `std.text`, `std.math`, `std.fs`, `std.path`, `std.json` |
+| **Desktop** | `std.window` and `std.ui`, with a native Windows backend and structural UI built in Beacon |
+| **Inspection** | `std.inspect` for opt-in, read-only snapshots of a running Beacon process |
 | **Editor** | VS Code extension with a Beacon TextMate grammar and language configuration |
 
 **Status:** actively evolving. Desktop windows currently require Windows. Packaging, a broader standard library, and richer debugging remain works in progress.
@@ -104,9 +104,9 @@ Beacon Inspector is a native developer tool built in Beacon. It can launch an in
 
 On Windows:
 
-\`\`\`powershell
+```powershell
 ./beacon.ps1 examples/inspector-ui.beacon
-\`\`\`
+```
 
 Select **Launch sample**, change the counter in the separate Beacon application, then select **Refresh** to see its live state in the Inspector.
 
@@ -114,7 +114,7 @@ Select **Launch sample**, change the counter in the separate Beacon application,
 
 ## How Beacon works
 
-\`\`\`text
+```text
 Beacon source
     ↓
 Lexer and parser
@@ -128,15 +128,15 @@ Symbolic CLR plan
 Stage-0 assembler / runtime
     ↓
 CLR execution
-\`\`\`
+```
 
-The compiler's implementation is split across \`compiler/\` and composed by [\`compiler/compiler.beacon\`](compiler/compiler.beacon). Stage-0 under \`bootstrap/stage0/\` is the frozen bootstrap boundary, not the language's canonical compiler source.
+The compiler's implementation is split across `compiler/` and composed by [`compiler/compiler.beacon`](compiler/compiler.beacon). Stage-0 under `bootstrap/stage0/` is the frozen bootstrap boundary, not the language's canonical compiler source.
 
 Verify the self-hosting fixed point:
 
-\`\`\`bash
+```bash
 ./beacon.sh self-host
-\`\`\`
+```
 
 [Read the architecture](https://thoersch.github.io/beacon-lang/concepts/architecture/)
 
@@ -152,7 +152,7 @@ Verify the self-hosting fixed point:
 
 ### Repository layout
 
-\`\`\`text
+```text
 compiler/          Self-hosted compiler sources
 std/               Beacon standard library
 examples/          Runnable Beacon programs and Inspector demos
@@ -160,11 +160,11 @@ bootstrap/stage0/  Frozen CLR bootstrap/runtime artifact
 editors/vscode/    Beacon grammar and packaged editor extension
 docs/              Documentation site (Astro + Starlight)
 tools/             Development and validation tooling
-\`\`\`
+```
 
 ## Syntax highlighting on GitHub
 
-Beacon code blocks use the \`beacon\` language identifier. The [documentation site](https://thoersch.github.io/beacon-lang/) and the [VS Code extension](editors/vscode/) share the same syntax grammar and provide full highlighting today.
+Beacon code blocks use the `beacon` language identifier. The [documentation site](https://thoersch.github.io/beacon-lang/) and the [VS Code extension](editors/vscode/) share the same syntax grammar and provide full highlighting today.
 
 GitHub's own file highlighting and language-percentage bar require **upstream GitHub Linguist recognition**. A repository-local attribute cannot register a previously unknown language. See [GitHub language recognition](https://thoersch.github.io/beacon-lang/community/language-recognition/) for the current status and contribution path.
 
