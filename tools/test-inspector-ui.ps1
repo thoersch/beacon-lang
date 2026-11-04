@@ -134,6 +134,12 @@ try {
             break
         }
     }
+    if ($attached) {
+        $crlf = [string][char]13 + [char]10
+        if (-not [BeaconInspectorUiProbe]::HasText($window, 'Edit', ('include std.window' + $crlf + 'include std.ui'))) {
+            throw 'Loaded source did not retain Win32 multiline CRLF separators'
+        }
+    }
     if (-not $attached) {
         Write-Host 'Inspector control dump:'
         Write-Host ([BeaconInspectorUiProbe]::Describe($window))
