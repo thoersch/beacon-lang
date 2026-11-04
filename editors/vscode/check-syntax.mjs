@@ -100,6 +100,22 @@ for (const check of checks) {
     }
 }
 
+// Parameterized Lists and anonymous typed Records are first-class syntax.
+const listPattern = grammar.repository?.["generic-list"]?.patterns?.find(
+    pattern => pattern.name === "meta.type.parameterized-list.beacon"
+)
+if (!listPattern || !(new RegExp(listPattern.begin)).test("list<number|weapon>") ||
+    !listPattern.patterns?.some(pattern => pattern.include === "#generic-list") ||
+    !listPattern.patterns?.some(pattern => pattern.name === "keyword.operator.type-union.beacon")) {
+    failures.push("list<T|U> and nested list<list<T>> must be highlighted as Beacon types")
+}
+const constructorPattern = grammar.repository?.["typed-constructor"]?.patterns?.find(
+    pattern => pattern.name === "meta.typed.record.constructor.beacon"
+)
+if (!constructorPattern || !(new RegExp(constructorPattern.match)).test("item {")) {
+    failures.push("Type { ... } anonymous typed constructors must be highlighted")
+}
+
 if (failures.length > 0) {
     console.error("Beacon VS Code grammar is missing syntax coverage:")
     for (const failure of failures) {
