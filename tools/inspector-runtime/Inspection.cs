@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 
+namespace Beacon.Compiler;
+
 // The only new host boundary is read-only local transport and runtime state
 // observation. Values, tree presentation, and session UI remain Beacon-owned.
 public static partial class Runtime
