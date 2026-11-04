@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export BEACON_HOME="$PWD"
-run() { bash ./beacon.sh "$1"; }
+# .NET Console.WriteLine emits CRLF on Windows; compare canonical LF text.
+run() { bash ./beacon.sh "$1" | tr -d '\r'; }
 good() {
   local label="$1" source="$2" expected="$3"
   local file="/tmp/beacon-typed-good-$$.beacon"
