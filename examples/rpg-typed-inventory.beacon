@@ -1,0 +1,51 @@
+// Contextual Records and explicit anonymous items in a typed RPG inventory.
+item: type = {
+    name: string
+    description: string
+    quantity: number
+}
+
+weapon: type = {
+    name: string
+    damage: number
+}
+
+hero: type = {
+    name: string
+    level: number
+    experience: number
+    experienceToLevel: number
+    inventory: list<item|weapon>
+    achievements: list<list<string>>
+}
+
+jon: hero = {
+    name: "Jon"
+    level: 4
+    experience: 100
+    experienceToLevel: 125
+    inventory: [
+        {
+            name: "Potion"
+            description: "A small potion with limited healing capabilities"
+            quantity: 1
+        },
+        weapon {
+            name: "Axe"
+            damage: 12
+        }
+    ]
+    achievements: [["Level 1", "First quest"], ["Defeated the troll"]]
+}
+
+print(jon.name)
+print(jon.inventory@0.name)
+print(jon.inventory@1.damage)
+print(jon.achievements@1@0)
+
+jon.inventory.push(item {
+    name: "Elixir"
+    description: "Restores stamina"
+    quantity: 2
+})
+print(jon.inventory.length())
