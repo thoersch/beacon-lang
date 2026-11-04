@@ -21,13 +21,20 @@ collectTypeDefinitions: fn(program: list) = [
     types
 ]
 
+// Only split unions at top level: list<item|weapon> is one type option.
 splitTypeNames: fn(typeName: string) = [
     result: list = [],
     current: string = "",
+    depth: number = 0,
 
     for [i: number = 0, i < typeName.length(), i += 1]
         character: string = typeName.slice(i, 1)
-        if character == "|" then
+        if character == "<" then
+            depth += 1
+        else if character == ">" then
+            depth += -1
+        end
+        if character == "|" and depth == 0 then
             if current != "" then
                 result.push(current)
                 current = ""
@@ -40,9 +47,14 @@ splitTypeNames: fn(typeName: string) = [
     if current != "" then
         result.push(current)
     end,
-
     result
 ]
+
+isListType: fn(typeName: string) = [
+    typeName.length() > 6 and typeName.slice(0, 5) == "list<" and typeName.slice(typeName.length() - 1, 1) == ">"
+]
+
+listElementType: fn(typeName: string) = typeName.slice(5, typeName.length() - 6)
 
 staticTypeName: fn(value: atom | list | record) = [
     valueKind: string = kind(value),
@@ -55,6 +67,9 @@ staticTypeName: fn(value: atom | list | record) = [
             result = "list"
         else if isForm(value, "fn") then
             result = "fn"
+        else if isForm(value, "typed") then
+            annotation: symbol = value@1
+            result = annotation.name
         end
     end,
 
@@ -165,18 +180,42 @@ appendTypeMismatch: fn(diagnostics: list, sources: list, path: list, expectedTyp
     diagnostics
 ]
 
+// Literal values are checked here; dynamic variables are checked by Runtime.
 validateValueAgainstType: fn(value: atom | list | record, expectedType: string, path: list, types: record, sources: list, diagnostics: list) = [
     options: list = splitTypeNames(expectedType),
     actual: string = staticTypeName(value),
     namedMembers: atom | list | record | null = null,
 
+    // A bare symbol is an expression referring to a variable, not a Symbol
+    // literal. Its runtime value is the source of truth for its element type.
+    if kind(value) == "symbol" and expectedType != "symbol" then
+        actual = ""
+    end,
+
+    if isForm(value, "typed") then
+        constructorName: symbol = value@1
+        constructorMembers: atom | list | record | null = namedTypeMembers(types, constructorName.name)
+        if kind(constructorMembers) == "record" then
+            validateRecordAgainstType(value@2, constructorName.name, constructorMembers, path, types, sources, diagnostics)
+        end
+    end,
+
     if options.length() == 1 then
         namedMembers = namedTypeMembers(types, expectedType)
 
-        if kind(namedMembers) == "record" then
+        if isListType(expectedType) then
+            if isForm(value, "list") then
+                elementType: string = listElementType(expectedType)
+                for [i: number = 1, i < value.length(), i += 1]
+                    validateValueAgainstType(value@i, elementType, path.concat(["@" + (i - 1)]), types, sources, diagnostics)
+                loop
+            else if actual != "" and actual != "list" then
+                appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
+            end
+        else if kind(namedMembers) == "record" then
             if kind(value) == "record" then
                 validateRecordAgainstType(value, expectedType, namedMembers, path, types, sources, diagnostics)
-            else if actual != "" then
+            else if actual != "" and actual != expectedType then
                 appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
             end
         else if actual != "" then
@@ -186,13 +225,14 @@ validateValueAgainstType: fn(value: atom | list | record, expectedType: string, 
             end
         end
     else if actual != "" then
-        // Union validation remains conservative. If the static type matches any
-        // primitive option, the value is valid. Named-record unions are deferred.
         matched: boolean = false
         for [i: number = 0, i < options.length(), i += 1]
-            if primitiveTypeMatches(options@i, actual) then
+            option: string = options@i
+            if primitiveTypeMatches(option, actual) then
                 matched = true
-            else if types.has(options@i) and actual == "record" then
+            else if types.has(option) and (actual == "record" or option == actual) then
+                matched = true
+            else if isListType(option) and actual == "list" then
                 matched = true
             end
         loop
@@ -200,7 +240,6 @@ validateValueAgainstType: fn(value: atom | list | record, expectedType: string, 
             appendTypeMismatch(diagnostics, sources, path, expectedType, actual)
         end
     end,
-
     diagnostics
 ]
 
