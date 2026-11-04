@@ -140,3 +140,15 @@ jobs:
             printf '%s\n' "$actual" >&2
             exit 1
           fi
+
+      - name: Verify Inspector native painting, labels and multiline text
+        shell: pwsh
+        run: ./.github/scripts/window-ui-visual.ps1
+
+      - name: Upload Inspector native screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inspector-native-render
+          path: .native-tests/beacon-inspector-visual.png
+          if-no-files-found: ignore
