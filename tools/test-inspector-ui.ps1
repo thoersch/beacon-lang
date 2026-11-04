@@ -101,8 +101,23 @@ try {
     }
     if ($window -eq [IntPtr]::Zero) { throw 'Inspector window did not appear' }
 
-    $launch = [BeaconInspectorUiProbe]::FindControl($window, 'Button', 'Launch sample')
-    if ($launch -eq [IntPtr]::Zero) { throw 'Inspector Launch sample button missing' }
+    # The top-level HWND may exist before the Beacon UI finishes mounting
+    # its child controls, especially on busy hosted Windows runners.
+    $launch = [IntPtr]::Zero
+    for ($attempt = 0; $attempt -lt 60; $attempt++) {
+        $inspector.Refresh()
+        if ($inspector.HasExited) { throw "Inspector exited before UI mount: $($inspector.ExitCode)" }
+        $window = $inspector.MainWindowHandle
+        if ($window -ne [IntPtr]::Zero) {
+            $launch = [BeaconInspectorUiProbe]::FindControl($window, 'Button', 'Launch sample')
+            if ($launch -ne [IntPtr]::Zero) { break }
+        }
+        Start-Sleep -Milliseconds 150
+    }
+    if ($launch -eq [IntPtr]::Zero) {
+        Write-Host ([BeaconInspectorUiProbe]::Describe($window))
+        throw 'Inspector Launch sample button did not mount'
+    }
     Write-Host 'Inspector window and Launch sample control appeared.'
 
     [BeaconInspectorUiProbe]::Send($launch, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
