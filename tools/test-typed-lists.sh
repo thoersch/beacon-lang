@@ -64,8 +64,9 @@ print(contents@1.damage)
 
 good "typed lists survive filter, tail and concat" '
 numbers: list<number> = [1, 2, 3]
+greaterThanOne: fn(value: number) = value > 1
 tail: list<number> = numbers.tail()
-positives: list<number> = numbers.filter(fn(value: number) = value > 1)
+positives: list<number> = numbers.filter(greaterThanOne)
 more: list<number> = numbers.concat([4, 5])
 print(tail@0)
 print(positives@0)
