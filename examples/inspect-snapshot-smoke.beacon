@@ -1,0 +1,14 @@
+include std.inspect
+
+pid: number = number(hostEnvironment("BEACON_INSPECT_PID"))
+state: record = inspect.snapshot(pid)
+print(state.connected)
+if state.connected then
+    print(state.source)
+    for [i: number = 0, i < state.values.length(), i += 1]
+        entry: record = state.values@i
+        if entry.name == "counter" then
+            print(entry.preview)
+        end
+    loop
+end
