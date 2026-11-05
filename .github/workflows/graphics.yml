@@ -43,8 +43,8 @@ jobs:
           set -euo pipefail
           (cd native/opengl && tr -d '\r' < SHA256SUMS | sha256sum -c -)
           dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o "$RUNNER_TEMP/graphics-build" -p:UseAppHost=false
-          # Exercise the current source build; frozen distribution DLL is refreshed after validation.
-          cp "$RUNNER_TEMP/graphics-build/Beacon.Native.opengl.dll" native/opengl/Beacon.Native.opengl.dll
+          # The next test uses the *checked-in, checksum-verified* module DLL.
+          # Building its source independently must not change the runtime artifact.
       - name: Create WGL context, render triangle, sample framebuffer, dispose
         shell: bash
         run: |
