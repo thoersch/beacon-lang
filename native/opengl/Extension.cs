@@ -241,12 +241,20 @@ public static class Extension
 
     private static object Destroy(JsonElement request)
     {
-        var state = Current(request);
+        var id = Integer(request, "id");
+        if (!Contexts.TryGetValue(id, out var state))
+            throw new InvalidOperationException($"OpenGL context {id} has already been destroyed");
+        if (state.OwnerThread != Environment.CurrentManagedThreadId)
+            throw new InvalidOperationException("OpenGL context must be destroyed on its owner thread");
+
+        // The window may already be gone after a WM_CLOSE event; teardown
+        // must still be possible and must not try to rebind a dead HWND.
         wglMakeCurrent(IntPtr.Zero, IntPtr.Zero);
         if (!wglDeleteContext(state.Glrc))
             throw new InvalidOperationException($"Failed to release WGL context ({Marshal.GetLastWin32Error()})");
-        ReleaseDC(state.Window, state.Dc);
-        Contexts.Remove(state.Id);
+        if (IsWindow(state.Window))
+            ReleaseDC(state.Window, state.Dc);
+        Contexts.Remove(id);
         return new { ok = true };
     }
 
