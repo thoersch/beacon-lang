@@ -47,7 +47,10 @@ export default defineConfig({
         },
         {
           label: 'Under the hood',
-          items: [{ label: 'Compiler architecture', slug: 'concepts/architecture' }],
+          items: [
+            { label: 'Compiler architecture', slug: 'concepts/architecture' },
+            { label: 'Native extensions', slug: 'concepts/native-extensions' },
+          ],
         },
         {
           label: 'Standard library',
@@ -56,6 +59,7 @@ export default defineConfig({
             { label: 'Window', slug: 'standard-library/window' },
             { label: 'UI', slug: 'standard-library/ui' },
             { label: 'Inspect', slug: 'standard-library/inspect' },
+            { label: 'Graphics / OpenGL', slug: 'standard-library/graphics' },
           ],
         },
         {
