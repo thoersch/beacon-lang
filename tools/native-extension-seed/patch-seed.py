@@ -34,5 +34,10 @@ swap(
 ''',
 "platform-neutral native window handle export")
 
+swap(
+    "            style = 0,\n            lpfnWndProc =",
+    "            style = 0x0020, // CS_OWNDC: persistent DC for native graphics contexts\n            lpfnWndProc =",
+    "dedicated native window device context")
+
 path.write_text(source)
 print("Native module ABI and generic window handle access installed.")
