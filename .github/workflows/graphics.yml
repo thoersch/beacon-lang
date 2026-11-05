@@ -28,7 +28,7 @@ jobs:
           set -euo pipefail
           dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o /tmp/graphics-build -p:UseAppHost=false
           test -f /tmp/graphics-build/Beacon.Native.opengl.dll
-          sha256sum -c native/opengl/SHA256SUMS
+          (cd native/opengl && sha256sum -c SHA256SUMS)
 
   windows:
     runs-on: windows-latest
