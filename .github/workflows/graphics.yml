@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd native/opengl && sha256sum -c SHA256SUMS)
+          (cd native/opengl && tr -d '\r' < SHA256SUMS | sha256sum -c -)
           dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o "$RUNNER_TEMP/graphics-build" -p:UseAppHost=false
       - name: Create WGL context, render triangle, sample framebuffer, dispose
         shell: bash
