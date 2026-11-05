@@ -85,6 +85,10 @@ public static class Extension
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetPixelFormat(IntPtr dc, int format, ref PixelFormatDescriptor descriptor);
     [DllImport("gdi32.dll", SetLastError = true)]
+    private static extern int GetPixelFormat(IntPtr dc);
+    [DllImport("gdi32.dll", SetLastError = true)]
+    private static extern int DescribePixelFormat(IntPtr dc, int format, uint descriptorSize, ref PixelFormatDescriptor descriptor);
+    [DllImport("gdi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SwapBuffers(IntPtr dc);
 
@@ -203,16 +207,27 @@ public static class Extension
                 nVersion = 1,
                 dwFlags = PfdDrawToWindow | PfdSupportOpenGl | PfdDoubleBuffer,
                 iPixelType = 0, // PFD_TYPE_RGBA
-                cColorBits = 32,
-                cDepthBits = 24,
+                // Start with GLFW's legacy-context baseline; software WGL
+                // implementations on CI often prefer 24-bit color, no depth.
+                cColorBits = 24,
+                cDepthBits = 0,
                 iLayerType = 0 // PFD_MAIN_PLANE
             };
             var format = ChoosePixelFormat(dc, ref descriptor);
             if (format == 0 || !SetPixelFormat(dc, format, ref descriptor))
                 throw new InvalidOperationException($"Failed to select an OpenGL pixel format ({Marshal.GetLastWin32Error()})");
+            var activeFormat = GetPixelFormat(dc);
+            var activeDescription = new PixelFormatDescriptor();
+            var formats = DescribePixelFormat(dc, activeFormat, (uint)Marshal.SizeOf<PixelFormatDescriptor>(), ref activeDescription);
             glrc = wglCreateContext(dc);
-            if (glrc == IntPtr.Zero || !wglMakeCurrent(dc, glrc))
-                throw new InvalidOperationException($"Failed to create a WGL context ({Marshal.GetLastWin32Error()})");
+            if (glrc == IntPtr.Zero)
+                throw new InvalidOperationException(
+                    $"Failed to create a WGL context ({Marshal.GetLastWin32Error()}); " +
+                    $"requested={format}, active={activeFormat}, count={formats}, " +
+                    $"flags=0x{activeDescription.dwFlags:X}, rgba={activeDescription.iPixelType}, " +
+                    $"colorBits={activeDescription.cColorBits}, depthBits={activeDescription.cDepthBits}");
+            if (!wglMakeCurrent(dc, glrc))
+                throw new InvalidOperationException($"wglMakeCurrent failed ({Marshal.GetLastWin32Error()})");
 
             var version = Marshal.PtrToStringAnsi(GlGetString(GlVersion)) ?? "unknown";
             var id = NextId++;
