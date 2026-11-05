@@ -1,0 +1,44 @@
+// Backend-neutral graphics coordination. A renderer is a discoverable descriptor.
+renderer: record = {
+    opengl: {
+        id: "opengl"
+        api: "Beacon graphics renderer"
+    }
+}
+
+available: fn() = hostWindow("available", null)
+
+createContext: fn(app: record, options: record) = [
+    if not available() then
+        fail("std.graphics requires a supported native window backend")
+    end,
+    if not options.has("renderer") then
+        fail("graphics.createContext() requires a renderer; use graphics.renderer.opengl")
+    end,
+    requested: record = options.renderer,
+    if not requested.has("id") or requested.id != renderer.opengl.id then
+        fail("Unsupported graphics renderer; use graphics.renderer.opengl")
+    end,
+
+    // The native HWND is exchanged only between standard-library modules.
+    // Application code interacts with Beacon window/context IDs.
+    response: record = hostNative("opengl", {
+        action: "create"
+        nativeHandle: hostWindow("nativeHandle", app.id)
+    }),
+    {
+        id: response.id
+        renderer: renderer.opengl
+        version: response.version
+    }
+]
+
+present: fn(context: record) = [
+    hostNative("opengl", { action: "present", id: context.id }),
+    null
+]
+
+destroyContext: fn(context: record) = [
+    hostNative("opengl", { action: "destroy", id: context.id }),
+    null
+]

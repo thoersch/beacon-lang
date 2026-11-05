@@ -1,0 +1,43 @@
+include std.window
+include std.graphics
+include std.graphics.gl
+
+if not graphics.available() then
+    print("OpenGL example requires the Windows native window backend")
+else
+    app: record = window.create({
+        title: "Beacon OpenGL — Native Triangle"
+        width: 840
+        height: 640
+    })
+    context: record = graphics.createContext(app, {
+        renderer: graphics.renderer.opengl
+    })
+
+    draw: fn() = [
+        graphics.gl.clearColor(context, 0.06, 0.08, 0.13, 1.0),
+        graphics.gl.clear(context, graphics.gl.buffer.color),
+        graphics.gl.drawLegacyTriangle(context),
+        graphics.present(context),
+        null
+    ]
+
+    window.show(app)
+    draw()
+    print("OpenGL version: " + context.version)
+
+    running: boolean = true
+    for [tick: number = 0, running, tick += 1]
+        event: record = window.nextEvent(app)
+        if event.type == "resize" then
+            app.width = event.width
+            app.height = event.height
+            graphics.gl.viewport(context, 0, 0, app.width, app.height)
+            draw()
+        else if event.type == "close" then
+            running = false
+        end
+    loop
+
+    graphics.destroyContext(context)
+end

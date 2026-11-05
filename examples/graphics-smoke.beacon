@@ -1,0 +1,40 @@
+include std.window
+include std.graphics
+include std.graphics.gl
+
+if not window.available() then
+    print(graphics.available())
+    print(graphics.gl.available())
+    print(graphics.renderer.opengl.id)
+else
+    app: record = window.create({
+        title: "Beacon OpenGL smoke"
+        width: 640
+        height: 480
+    })
+    context: record = graphics.createContext(app, {
+        renderer: graphics.renderer.opengl
+    })
+    window.show(app)
+
+    graphics.gl.clearColor(context, 0.05, 0.06, 0.10, 1.0)
+    graphics.gl.clear(context, graphics.gl.buffer.color)
+    graphics.gl.drawLegacyTriangle(context)
+
+    // A pixel inside the triangle must differ materially from clearColor.
+    pixel: record = graphics.gl.samplePixel(context, 320, 220)
+    triangleRendered: boolean = pixel.red > 0.14 and pixel.green > 0.20 and pixel.blue > 0.14
+    print(triangleRendered)
+    print(context.renderer.id)
+    graphics.present(context)
+    graphics.destroyContext(context)
+    window.close(app)
+    closed: boolean = false
+    for [tick: number = 0, not closed, tick += 1]
+        event: record = window.nextEvent(app)
+        if event.type == "close" then
+            closed = true
+        end
+    loop
+    print(closed)
+end
