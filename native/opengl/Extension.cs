@@ -22,6 +22,16 @@ public static class Extension
         public required string Version { get; init; }
     }
 
+    // Force the Windows OpenGL ICD to initialize BEFORE selecting a pixel
+    // format. .NET P/Invoke libraries load lazily; without preloading opengl32
+    // SetPixelFormat can report success while GetPixelFormat still returns 0.
+    private static IntPtr OpenGlModule;
+    private static void EnsureOpenGlLoaded()
+    {
+        if (OpenGlModule == IntPtr.Zero)
+            OpenGlModule = NativeLibrary.Load("opengl32.dll");
+    }
+
     private static readonly Dictionary<int, Context> Contexts = new();
     private static int NextId = 1;
 
@@ -194,6 +204,7 @@ public static class Extension
         if (hwnd == IntPtr.Zero || !IsWindow(hwnd))
             throw new ArgumentException("A live Beacon window is required for OpenGL context creation");
 
+        EnsureOpenGlLoaded();
         var dc = GetDC(hwnd);
         if (dc == IntPtr.Zero)
             throw new InvalidOperationException($"GetDC failed ({Marshal.GetLastWin32Error()})");
