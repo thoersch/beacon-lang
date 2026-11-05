@@ -1,4 +1,5 @@
 name: Build native extension bootstrap
+# Refresh window class with CS_OWNDC for stable WGL contexts.
 on:
   push:
     branches: [feature/graphics-opengl-native-extension]
