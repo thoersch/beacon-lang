@@ -43,20 +43,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Rebuild independent OpenGL extension from source
+      - name: Verify direct Beacon invocation starts with stale bundled DLL
         shell: pwsh
         run: |
-          dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o "$env:RUNNER_TEMP/rpg-opengl-build" -p:UseAppHost=false
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item "$env:RUNNER_TEMP/rpg-opengl-build/Beacon.Native.opengl.dll" native/opengl/Beacon.Native.opengl.dll -Force
-      - name: Inspect freshly built extension ABI
-        shell: pwsh
-        run: |
-          $path = (Resolve-Path native/opengl/Beacon.Native.opengl.dll).Path
-          $assembly = [System.Reflection.Assembly]::LoadFile($path)
-          Write-Host "Extension: $path"
-          $assembly.GetExportedTypes() | ForEach-Object { Write-Host "Exported type: $($_.FullName)" }
-          if (-not $assembly.GetType('Beacon.Native.Extension')) { throw "OpenGL extension ABI entry type is missing" }
+          # The tracked binary predates batch rendering. No manual build here:
+          # beacon.sh must recognize graphics usage and refresh it itself.
+          $dll = "native/opengl/Beacon.Native.opengl.dll"
+          if (-not (Test-Path $dll)) { throw "Missing tracked graphics module" }
+          Write-Host "Starting with bundled DLL sha256: $((Get-FileHash $dll).Hash)"
       - name: Verify geometry, bitmap font, context teardown
         shell: bash
         run: |
