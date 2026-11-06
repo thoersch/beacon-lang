@@ -175,7 +175,7 @@ step: fn(game: record, action: string) = [
             action == "right" then
                 dx = 1
             action == "potion" then
-                potions: record = game.player.inventory@0,
+                potions: record = game.player.inventory@0
                 if potions.quantity > 0 and game.player.health < game.player.maxHealth then
                     potions.quantity = potions.quantity - 1
                     game.player.health += 6
