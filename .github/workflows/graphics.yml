@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           actual="$(bash ./beacon.sh examples/graphics-smoke.beacon | tr -d '\r')"
-          expected="$(printf 'true\nopengl\ntrue')"
+          expected="$(printf 'true\ntrue\nopengl\ntrue')"
           if [ "$actual" != "$expected" ]; then
             printf 'Unexpected graphics output:\n%s\n' "$actual" >&2
             exit 1
