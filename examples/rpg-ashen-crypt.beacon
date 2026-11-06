@@ -1,10 +1,10 @@
 // THE ASHEN CRYPT
 // A playable native OpenGL dungeon crawler built with Beacon language rules.
-// The portable simulation lives in std.rpg; this file owns visuals and input.
+// The game-local simulation lives in examples/rpg/rules.beacon; this file owns visuals and input.
 include std.window
 include std.graphics
 include std.graphics.gl
-include std.rpg
+include "rpg/rules"
 
 ink: record = { red: 0.035, green: 0.048, blue: 0.075 }
 floorA: record = { red: 0.105, green: 0.13, blue: 0.18 }
