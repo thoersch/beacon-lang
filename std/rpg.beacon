@@ -1,3 +1,5 @@
+include std.math
+
 // A portable, deterministic dungeon RPG rules engine. The player data model
 // grows out of examples/rpg-typed-inventory.beacon; rendering is a separate concern.
 item: type = {
@@ -125,7 +127,7 @@ enemyTurn: fn(game: record) = [
     for [i: number = 0, i < game.enemies.length(), i += 1]
         foe: record = game.enemies@i
         if foe.alive then
-            distance: number = (foe.x - game.player.x).abs() + (foe.y - game.player.y).abs()
+            distance: number = math.abs(foe.x - game.player.x) + math.abs(foe.y - game.player.y)
             if distance == 1 then
                 game.player.health = game.player.health - foe.power
                 game.message = foe.name + " STRIKES! HEALTH LOST"
