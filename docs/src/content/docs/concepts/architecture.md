@@ -64,6 +64,8 @@ Stage-0 currently also contains runtime services used by compiled apps, includin
 
 Separating the evolving runtime from the bootstrap seed is a future architectural step.
 
+The [native-extension ABI](../native-extensions/) lets trusted platform-specific CLR assemblies evolve independently of Stage-0. OpenGL is the first proof. This does not yet separate the complete application runtime from the bootstrap.
+
 ## Inspect a generated plan
 
 ```bash

@@ -1,0 +1,63 @@
+// OpenGL-specific operations. The first milestone targets WGL/OpenGL 1.1
+// compatibility, including the software renderer on virtual Windows hosts.
+buffer: record = {
+    color: { id: "color" }
+}
+
+version: record = {
+    legacy: { major: 1, minor: 1 }
+}
+
+available: fn() = hostWindow("available", null)
+
+clearColor: fn(context: record, red: number, green: number, blue: number, alpha: number) = [
+    hostNative("opengl", {
+        action: "clearColor"
+        id: context.id
+        red: red
+        green: green
+        blue: blue
+        alpha: alpha
+    }),
+    null
+]
+
+clear: fn(context: record, mask: record) = [
+    if not mask.has("id") or mask.id != buffer.color.id then
+        fail("Unsupported OpenGL buffer mask; use graphics.gl.buffer.color")
+    end,
+    hostNative("opengl", {
+        action: "clear"
+        id: context.id
+    }),
+    null
+]
+
+viewport: fn(context: record, x: number, y: number, width: number, height: number) = [
+    hostNative("opengl", {
+        action: "viewport"
+        id: context.id
+        x: x
+        y: y
+        width: width
+        height: height
+    }),
+    null
+]
+
+// Temporary diagnostic primitive, intentionally not a general draw API.
+// It demonstrates GL commands reaching the driver from Beacon.
+drawLegacyTriangle: fn(context: record) = [
+    hostNative("opengl", { action: "triangle", id: context.id }),
+    null
+]
+
+samplePixel: fn(context: record, x: number, y: number) = [
+    result: record = hostNative("opengl", {
+        action: "samplePixel"
+        id: context.id
+        x: x
+        y: y
+    }),
+    result
+]

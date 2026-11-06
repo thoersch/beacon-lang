@@ -57,6 +57,16 @@ To launch a separate application with inspection enabled:
 
 See the [Inspector guide](../../tools/inspector/) for the session model, privacy boundaries, and current limitations.
 
+## OpenGL graphics demo (Windows)
+
+The first graphics example uses the independently hosted OpenGL binding and a discoverable renderer constant:
+
+```powershell
+./beacon.ps1 examples/graphics-triangle.beacon
+```
+
+See the [graphics documentation](../../standard-library/graphics/) for the rendering API and limitations.
+
 ## Verify the compiler
 
 The self-hosted compiler can verify its own fixed point:

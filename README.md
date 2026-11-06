@@ -94,6 +94,7 @@ For shell-specific setup and troubleshooting, see the [installation guide](https
 | **Standard library** | `std.text`, `std.math`, `std.fs`, `std.path`, `std.json` |
 | **Desktop** | `std.window` and `std.ui`, with a native Windows backend and structural UI built in Beacon |
 | **Inspection** | `std.inspect` for opt-in, read-only snapshots of a running Beacon process |
+| **Graphics (experimental)** | `std.graphics` and `std.graphics.gl` with independent native WGL/OpenGL bindings |
 | **Editor** | VS Code extension with a Beacon TextMate grammar and language configuration |
 
 **Status:** actively evolving. Desktop windows currently require Windows. Packaging, a broader standard library, and richer debugging remain works in progress.
@@ -118,6 +119,20 @@ On Windows:
 Select **Launch sample**, change the counter in the separate Beacon application, then select **Refresh** to see its live state in the Inspector.
 
 [Inspector guide](https://thoersch.github.io/beacon-lang/tools/inspector/) · [Inspector source](examples/inspector-ui.beacon) · [Counter demo](examples/inspector-target.beacon)
+
+## Native graphics without a framework
+
+Beacon's first OpenGL bindings use an independently compiled, package-free module under `native/opengl/`. Application code selects the backend through `graphics.renderer.opengl`, never a magic string, and the frozen bootstrap has no graphics-specific dependency.
+
+On Windows, run the first colored triangle:
+
+```powershell
+./beacon.ps1 examples/graphics-triangle.beacon
+```
+
+This initial proof targets OpenGL 1.1 compatibility; modern shaders and buffers are planned next.
+
+[Graphics guide](https://thoersch.github.io/beacon-lang/standard-library/graphics/) · [Native extension architecture](https://thoersch.github.io/beacon-lang/concepts/native-extensions/)
 
 ## How Beacon works
 

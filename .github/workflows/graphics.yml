@@ -1,0 +1,57 @@
+name: Beacon native graphics (OpenGL)
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Verify Beacon compiler self-hosting
+        run: bash ./beacon.sh self-host
+      - name: Verify portable graphics namespace and renderer constants
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/graphics-smoke.beacon)"
+          expected="$(printf 'false\nfalse\nopengl')"
+          [ "$actual" = "$expected" ] || { printf 'Unexpected portable output:\n%s\n' "$actual" >&2; exit 1; }
+      - name: Build OpenGL module without third-party packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o /tmp/graphics-build -p:UseAppHost=false
+          test -f /tmp/graphics-build/Beacon.Native.opengl.dll
+          (cd native/opengl && sha256sum -c SHA256SUMS)
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Verify graphics extension binary and source build
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd native/opengl && tr -d '\r' < SHA256SUMS | sha256sum -c -)
+          dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o "$RUNNER_TEMP/graphics-build" -p:UseAppHost=false
+          # The next test uses the *checked-in, checksum-verified* module DLL.
+          # Building its source independently must not change the runtime artifact.
+      - name: Create WGL context, render triangle, sample framebuffer, dispose
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/graphics-smoke.beacon | tr -d '\r')"
+          expected="$(printf 'true\ntrue\nopengl\ntrue')"
+          if [ "$actual" != "$expected" ]; then
+            printf 'Unexpected graphics output:\n%s\n' "$actual" >&2
+            exit 1
+          fi

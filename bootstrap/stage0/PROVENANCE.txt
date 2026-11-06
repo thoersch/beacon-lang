@@ -1,11 +1,11 @@
 Beacon Stage-0 bootstrap seed
 =============================
 
-Purpose: immutable CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
-Seed refresh: preserves opt-in inspection, native Win32 UI and CLR assembly services while enabling list<T|U|W> runtime validation, List mutation invariance, nominal typed Record identity, contextual nested Record construction, and explicit anonymous Type { ... } expressions.
+Purpose: frozen CLR bootstrap/runtime boundary for the self-hosted Beacon compiler.
+Seed refresh: introduces one reusable, versioned hostNative(module, request) extension ABI for trusted local .NET assemblies and exposes the native handle of a Beacon window to standard-library code. No OpenGL, WGL, Silk.NET, OpenTK, or other graphics binding is included in Stage-0. All prior inspection, native UI, and typed List behaviors are preserved.
 Historical implementation language: C#
-Source branch: feature/typed-lists-inline-records
+Source branch: feature/graphics-opengl-native-extension
 .NET SDK: 10.0.403
 
-The temporary reconstruction and C# source are removed after the frozen seed passes fixed-point verification.
-Beacon's canonical compiler remains under compiler/.
+Temporary reconstruction sources are removed after verification. The independent native/opengl/ assembly contains WGL/OpenGL bindings and can evolve separately from the bootstrap.
+Beacon's canonical compiler remains in compiler/.

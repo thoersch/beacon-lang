@@ -12,7 +12,7 @@ Thumbs.db
 *.bak
 *~
 
-# Historical .NET build output (the active tree contains no C# project)
+# Transient .NET build output (native/opengl contains a separate CLR project)
 bin/
 obj/
 
