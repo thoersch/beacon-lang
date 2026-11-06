@@ -23,7 +23,12 @@ try {
     ) -PassThru -RedirectStandardOutput $log -RedirectStandardError $errors
     $handle = [IntPtr]::Zero
     for ($i = 0; $i -lt 120; $i++) {
-        $handle = [BeaconRpgWindowProbe]::FindWindow($null, "The Ashen Crypt - Beacon RPG")
+        # Process.MainWindowHandle resolves correctly on hosted Windows runners,
+        # including windows whose title lookup fails through FindWindow.
+        $gameProcess = Get-Process -Name dotnet -ErrorAction SilentlyContinue |
+            Where-Object { $_.MainWindowTitle -eq "The Ashen Crypt - Beacon RPG" } |
+            Select-Object -First 1
+        if ($null -ne $gameProcess) { $handle = $gameProcess.MainWindowHandle }
         if ($handle -ne [IntPtr]::Zero) { break }
         if ($process.HasExited) { break }
         Start-Sleep -Milliseconds 250
