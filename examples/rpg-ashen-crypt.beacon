@@ -146,7 +146,8 @@ else
         else if event.type == "resize" then
             app.width = event.width
             app.height = event.height
-            if app.width > 0 and app.height > 0 then
+            // Preserve the fixed-size HUD geometry when the window is too small.
+            if app.width >= 650 and app.height >= 630 then
                 draw(context, app, game)
             end
         else if event.type == "keyDown" then
@@ -179,7 +180,8 @@ else
             if action != "" then
                 rpg.step(game, action)
             end
-            if app.width > 0 and app.height > 0 then
+            // Preserve the fixed-size HUD geometry when the window is too small.
+            if app.width >= 650 and app.height >= 630 then
                 draw(context, app, game)
             end
         end
