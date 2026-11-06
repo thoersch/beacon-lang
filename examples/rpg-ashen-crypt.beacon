@@ -35,16 +35,16 @@ draw: fn(context: record, app: record, game: record) = [
         for [x: number = 0, x < rpg.width, x += 1]
             px: number = originX + x * tile
             py: number = originY + y * tile
+            tileColor: record = floorA
+            if (x + y) - ((x + y) / 2).floor() * 2 != 0 then
+                tileColor = floorB
+            end
             if rpg.wall(x, y) then
                 commands.push(graphics.gl.rect(px, py, tile - 1, tile - 1, wallDark))
                 commands.push(graphics.gl.rect(px + 3, py + 3, tile - 7, 5, wallLight))
                 commands.push(graphics.gl.rect(px + 3, py + 12, 3, 17, wallLight))
             else
-                if (x + y) - ((x + y) / 2).floor() * 2 == 0 then
-                    commands.push(graphics.gl.rect(px, py, tile - 1, tile - 1, floorA))
-                else
-                    commands.push(graphics.gl.rect(px, py, tile - 1, tile - 1, floorB))
-                end
+                commands.push(graphics.gl.rect(px, py, tile - 1, tile - 1, tileColor))
                 commands.push(graphics.gl.rect(px + 5, py + 6, 3, 2, wallDark))
             end
         loop
