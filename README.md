@@ -134,6 +134,20 @@ This initial proof targets OpenGL 1.1 compatibility; modern shaders and buffers 
 
 [Graphics guide](https://thoersch.github.io/beacon-lang/standard-library/graphics/) · [Native extension architecture](https://thoersch.github.io/beacon-lang/concepts/native-extensions/)
 
+## Play a game built in Beacon
+
+**The Ashen Crypt** is a native, turn-based dungeon crawler that expands Beacon's typed RPG inventory example into a full playable game. Explore a tiled crypt, battle pursuing enemies, use potions, level up, and unlock the final gate. The game renders its pixel art and HUD with Beacon-owned OpenGL draw batches.
+
+On Windows, with the .NET 8 SDK:
+
+```powershell
+./tools/run-rpg.ps1
+```
+
+Use **WASD/arrow keys** to move and attack, **H** to heal, and **R** to restart.
+
+[Game source](examples/rpg-ashen-crypt.beacon) · [Portable rules engine](std/rpg.beacon) · [Playing guide](docs/src/content/docs/getting-started/rpg-game.md)
+
 ## How Beacon works
 
 ```text
