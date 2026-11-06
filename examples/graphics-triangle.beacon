@@ -32,8 +32,12 @@ else
         if event.type == "resize" then
             app.width = event.width
             app.height = event.height
-            graphics.gl.viewport(context, 0, 0, app.width, app.height)
-            draw()
+            // A minimized Win32 window can report a zero-sized client area.
+            // Defer rendering until the surface has usable dimensions again.
+            if app.width > 0 and app.height > 0 then
+                graphics.gl.viewport(context, 0, 0, app.width, app.height)
+                draw()
+            end
         else if event.type == "close" then
             running = false
         end
