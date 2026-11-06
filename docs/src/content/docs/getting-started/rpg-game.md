@@ -5,7 +5,7 @@ description: Play a native OpenGL dungeon crawler authored in Beacon.
 
 # The Ashen Crypt
 
-A turn-based dungeon crawler authored in Beacon using the `std.rpg` simulation and `std.graphics.gl` batched OpenGL drawing.
+A turn-based dungeon crawler authored in Beacon using the game-local rules module and `std.graphics.gl` batched OpenGL drawing.
 
 ## Play (Windows)
 
@@ -27,7 +27,7 @@ The launcher rebuilds the independent OpenGL extension from `native/opengl/Exten
 
 ## Architecture
 
-The portable rules live in `std/rpg.beacon` and reuse the typed hero, weapon and item vocabulary introduced by `examples/rpg-typed-inventory.beacon`. The renderer and keyboard input live in `examples/rpg-ashen-crypt.beacon`. A new OpenGL `batch` action draws rectangle sprites and a minimal embedded 5x7 bitmap font. One native call renders the entire frame.
+The portable rules live in `examples/rpg/rules.beacon` and reuse the typed hero, weapon and item vocabulary introduced by `examples/rpg-typed-inventory.beacon`. The renderer and keyboard input live in `examples/rpg-ashen-crypt.beacon`. A new OpenGL `batch` action draws rectangle sprites and a minimal embedded 5x7 bitmap font. One native call renders the entire frame.
 
 Run the portable rules test with:
 
