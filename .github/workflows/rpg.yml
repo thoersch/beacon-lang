@@ -1,0 +1,62 @@
+name: Beacon Ashen Crypt RPG
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  portable-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Verify self-hosting
+        run: bash ./beacon.sh self-host
+      - name: Test typed inventory, combat, levels and inventory usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/rpg-rules-smoke.beacon)"
+          expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+          if [ "$actual" != "$expected" ]; then
+            printf 'Unexpected RPG rules:\n%s\n' "$actual" >&2
+            exit 1
+          fi
+      - name: Check portable graphics path
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(bash ./beacon.sh examples/rpg-render-smoke.beacon)" = unsupported ]
+
+  windows-render:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Rebuild independent OpenGL extension from source
+        shell: pwsh
+        run: |
+          dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o native/opengl -p:UseAppHost=false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify geometry, bitmap font, context teardown
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/rpg-render-smoke.beacon | tr -d '\r')"
+          expected="$(printf 'true\ntrue\ntrue')"
+          if [ "$actual" != "$expected" ]; then
+            printf 'Unexpected OpenGL rendering:\n%s\n' "$actual" >&2
+            exit 1
+          fi
+      - name: Verify RPG rules on Windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/rpg-rules-smoke.beacon | tr -d '\r')"
+          expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+          [ "$actual" = "$expected" ]
