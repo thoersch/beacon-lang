@@ -13,6 +13,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Parse Beacon Bash launcher
+        shell: bash
+        run: bash -n ./beacon.sh
       - name: Verify self-hosting
         run: bash ./beacon.sh self-host
       - name: Test typed inventory, combat, levels and inventory usage
@@ -43,6 +46,17 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Parse Beacon PowerShell launcher
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ./beacon.ps1).Path,
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) { throw "$($errors[0])" }
       - name: Verify direct Beacon invocation starts with stale bundled DLL
         shell: pwsh
         run: |
