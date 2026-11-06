@@ -25,6 +25,11 @@ jobs:
             printf 'Unexpected RPG rules:\n%s\n' "$actual" >&2
             exit 1
           fi
+      - name: Parse full game and verify unsupported platform branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(bash ./beacon.sh examples/rpg-ashen-crypt.beacon)" = "The Ashen Crypt requires the Windows Beacon graphics backend." ]
       - name: Check portable graphics path
         shell: bash
         run: |
