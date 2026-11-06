@@ -136,7 +136,9 @@ else
     })
     game: record = rpg.create()
     window.show(app)
+    print("ASHEN CRYPT WINDOW SHOWN")
     draw(context, app, game)
+    print("ASHEN CRYPT FIRST FRAME RENDERED")
 
     running: boolean = true
     for [tick: number = 0, running, tick += 1]
