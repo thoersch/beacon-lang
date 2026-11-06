@@ -46,8 +46,9 @@ jobs:
       - name: Rebuild independent OpenGL extension from source
         shell: pwsh
         run: |
-          dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o native/opengl -p:UseAppHost=false
+          dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o "$env:RUNNER_TEMP/rpg-opengl-build" -p:UseAppHost=false
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item "$env:RUNNER_TEMP/rpg-opengl-build/Beacon.Native.opengl.dll" native/opengl/Beacon.Native.opengl.dll -Force
       - name: Inspect freshly built extension ABI
         shell: pwsh
         run: |
