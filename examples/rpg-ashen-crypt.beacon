@@ -51,14 +51,14 @@ draw: fn(context: record, app: record, game: record) = [
     loop,
 
     // The exit is locked until every enemy has been defeated.
-    gateX: number = originX + rpg.exitX * tile
-    gateY: number = originY + rpg.exitY * tile
-    gateColor: record = red
+    gateX: number = originX + rpg.exitX * tile,
+    gateY: number = originY + rpg.exitY * tile,
+    gateColor: record = red,
     if rpg.remaining(game) == 0 then
         gateColor = green
-    end
-    commands.push(graphics.gl.rect(gateX + 5, gateY + 3, 24, 28, gold))
-    commands.push(graphics.gl.rect(gateX + 9, gateY + 8, 16, 23, gateColor))
+    end,
+    commands.push(graphics.gl.rect(gateX + 5, gateY + 3, 24, 28, gold)),
+    commands.push(graphics.gl.rect(gateX + 9, gateY + 8, 16, 23, gateColor)),
     commands.push(graphics.gl.rect(gateX + 18, gateY + 18, 3, 3, gold)),
 
     // Draw monsters as compact layered sprites with health bars.
@@ -84,37 +84,37 @@ draw: fn(context: record, app: record, game: record) = [
     loop,
 
     // Hero silhouette: boots, cloak, armored chest, face and drawn blade.
-    hx: number = originX + game.player.x * tile
-    hy: number = originY + game.player.y * tile
-    commands.push(graphics.gl.rect(hx + 8, hy + 23, 7, 8, ink))
-    commands.push(graphics.gl.rect(hx + 20, hy + 23, 7, 8, ink))
-    commands.push(graphics.gl.rect(hx + 6, hy + 10, 24, 18, blue))
-    commands.push(graphics.gl.rect(hx + 11, hy + 4, 14, 11, white))
-    commands.push(graphics.gl.rect(hx + 13, hy + 10, 3, 3, ink))
-    commands.push(graphics.gl.rect(hx + 21, hy + 10, 3, 3, ink))
-    commands.push(graphics.gl.rect(hx + 28, hy + 3, 3, 25, gold))
+    hx: number = originX + game.player.x * tile,
+    hy: number = originY + game.player.y * tile,
+    commands.push(graphics.gl.rect(hx + 8, hy + 23, 7, 8, ink)),
+    commands.push(graphics.gl.rect(hx + 20, hy + 23, 7, 8, ink)),
+    commands.push(graphics.gl.rect(hx + 6, hy + 10, 24, 18, blue)),
+    commands.push(graphics.gl.rect(hx + 11, hy + 4, 14, 11, white)),
+    commands.push(graphics.gl.rect(hx + 13, hy + 10, 3, 3, ink)),
+    commands.push(graphics.gl.rect(hx + 21, hy + 10, 3, 3, ink)),
+    commands.push(graphics.gl.rect(hx + 28, hy + 3, 3, 25, gold)),
     commands.push(graphics.gl.rect(hx + 25, hy + 19, 9, 3, white)),
 
     // Distinct HUD: health, inventory, progression, goals and controls.
-    sidebarX: number = 600
-    commands.push(graphics.gl.rect(sidebarX, 116, app.width - sidebarX - 20, 408, floorA))
-    commands.push(graphics.gl.text(sidebarX + 14, 135, "JON THE WANDERER", 2, white))
-    commands.push(graphics.gl.text(sidebarX + 14, 164, "LEVEL {game.player.level}", 2, gold))
-    commands.push(graphics.gl.text(sidebarX + 14, 196, "HEALTH {game.player.health}/{game.player.maxHealth}", 2, white))
-    commands.push(graphics.gl.rect(sidebarX + 14, 216, 220, 12, wallDark))
-    commands.push(graphics.gl.rect(sidebarX + 14, 216, 220 * game.player.health / game.player.maxHealth, 12, red))
-    commands.push(graphics.gl.text(sidebarX + 14, 248, "XP {game.player.experience}/{game.player.experienceToLevel}", 2, white))
-    commands.push(graphics.gl.text(sidebarX + 14, 278, "GOLD {game.player.gold}", 2, gold))
-    commands.push(graphics.gl.text(sidebarX + 14, 308, "POTIONS {game.player.inventory@0.quantity}", 2, green))
-    commands.push(graphics.gl.text(sidebarX + 14, 340, "FOES {rpg.remaining(game)}", 2, red))
-    commands.push(graphics.gl.rect(sidebarX + 12, 370, 235, 1, wallLight))
-    commands.push(graphics.gl.text(sidebarX + 14, 389, "WASD / ARROWS MOVE", 2, muted))
-    commands.push(graphics.gl.text(sidebarX + 14, 419, "H TO HEAL", 2, muted))
-    commands.push(graphics.gl.text(sidebarX + 14, 449, "R TO RESTART", 2, muted))
+    sidebarX: number = 600,
+    commands.push(graphics.gl.rect(sidebarX, 116, app.width - sidebarX - 20, 408, floorA)),
+    commands.push(graphics.gl.text(sidebarX + 14, 135, "JON THE WANDERER", 2, white)),
+    commands.push(graphics.gl.text(sidebarX + 14, 164, "LEVEL {game.player.level}", 2, gold)),
+    commands.push(graphics.gl.text(sidebarX + 14, 196, "HEALTH {game.player.health}/{game.player.maxHealth}", 2, white)),
+    commands.push(graphics.gl.rect(sidebarX + 14, 216, 220, 12, wallDark)),
+    commands.push(graphics.gl.rect(sidebarX + 14, 216, 220 * game.player.health / game.player.maxHealth, 12, red)),
+    commands.push(graphics.gl.text(sidebarX + 14, 248, "XP {game.player.experience}/{game.player.experienceToLevel}", 2, white)),
+    commands.push(graphics.gl.text(sidebarX + 14, 278, "GOLD {game.player.gold}", 2, gold)),
+    commands.push(graphics.gl.text(sidebarX + 14, 308, "POTIONS {game.player.inventory@0.quantity}", 2, green)),
+    commands.push(graphics.gl.text(sidebarX + 14, 340, "FOES {rpg.remaining(game)}", 2, red)),
+    commands.push(graphics.gl.rect(sidebarX + 12, 370, 235, 1, wallLight)),
+    commands.push(graphics.gl.text(sidebarX + 14, 389, "WASD / ARROWS MOVE", 2, muted)),
+    commands.push(graphics.gl.text(sidebarX + 14, 419, "H TO HEAL", 2, muted)),
+    commands.push(graphics.gl.text(sidebarX + 14, 449, "R TO RESTART", 2, muted)),
     commands.push(graphics.gl.text(sidebarX + 14, 479, "WALK INTO FOES", 2, muted)),
 
-    commands.push(graphics.gl.rect(20, 542, app.width - 40, 82, floorA))
-    commands.push(graphics.gl.text(38, 560, game.message, 2, gold))
+    commands.push(graphics.gl.rect(20, 542, app.width - 40, 82, floorA)),
+    commands.push(graphics.gl.text(38, 560, game.message, 2, gold)),
     commands.push(graphics.gl.text(38, 591, "DEFEAT ALL FOES THEN REACH THE GOLD GATE", 2, muted)),
     graphics.gl.clearColor(context, ink.red, ink.green, ink.blue, 1.0),
     graphics.gl.clear(context, graphics.gl.buffer.color),
