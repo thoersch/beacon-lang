@@ -1,0 +1,177 @@
+// THE ASHEN CRYPT
+// A playable native OpenGL dungeon crawler built with Beacon language rules.
+// The portable simulation lives in std.rpg; this file owns visuals and input.
+include std.window
+include std.graphics
+include std.graphics.gl
+include std.rpg
+
+ink: record = { red: 0.035, green: 0.048, blue: 0.075 }
+floorA: record = { red: 0.105, green: 0.13, blue: 0.18 }
+floorB: record = { red: 0.12, green: 0.15, blue: 0.20 }
+wallDark: record = { red: 0.16, green: 0.21, blue: 0.29 }
+wallLight: record = { red: 0.24, green: 0.31, blue: 0.41 }
+gold: record = { red: 0.96, green: 0.72, blue: 0.31 }
+white: record = { red: 0.89, green: 0.92, blue: 0.94 }
+muted: record = { red: 0.48, green: 0.57, blue: 0.66 }
+red: record = { red: 0.91, green: 0.31, blue: 0.34 }
+green: record = { red: 0.32, green: 0.83, blue: 0.55 }
+blue: record = { red: 0.33, green: 0.66, blue: 0.95 }
+purple: record = { red: 0.67, green: 0.43, blue: 0.88 }
+
+tile: number = 34
+originX: number = 30
+originY: number = 116
+
+draw: fn(context: record, app: record, game: record) = [
+    commands: list = [],
+    commands.push(graphics.gl.rect(0, 0, app.width, app.height, ink)),
+    commands.push(graphics.gl.rect(20, 18, app.width - 40, 80, floorA)),
+    commands.push(graphics.gl.text(36, 32, "THE ASHEN CRYPT", 3, gold)),
+    commands.push(graphics.gl.text(38, 71, "A BEACON RPG", 2, muted)),
+
+    // Every dungeon tile is real OpenGL geometry, not a native UI widget.
+    for [y: number = 0, y < rpg.height, y += 1]
+        for [x: number = 0, x < rpg.width, x += 1]
+            px: number = originX + x * tile
+            py: number = originY + y * tile
+            if rpg.wall(x, y) then
+                commands.push(graphics.gl.rect(px, py, tile - 1, tile - 1, wallDark))
+                commands.push(graphics.gl.rect(px + 3, py + 3, tile - 7, 5, wallLight))
+                commands.push(graphics.gl.rect(px + 3, py + 12, 3, 17, wallLight))
+            else
+                if (x + y) - ((x + y) / 2).floor() * 2 == 0 then
+                    commands.push(graphics.gl.rect(px, py, tile - 1, tile - 1, floorA))
+                else
+                    commands.push(graphics.gl.rect(px, py, tile - 1, tile - 1, floorB))
+                end
+                commands.push(graphics.gl.rect(px + 5, py + 6, 3, 2, wallDark))
+            end
+        loop
+    loop,
+
+    // The exit is locked until every enemy has been defeated.
+    gateX: number = originX + rpg.exitX * tile
+    gateY: number = originY + rpg.exitY * tile
+    gateColor: record = red
+    if rpg.remaining(game) == 0 then
+        gateColor = green
+    end
+    commands.push(graphics.gl.rect(gateX + 5, gateY + 3, 24, 28, gold))
+    commands.push(graphics.gl.rect(gateX + 9, gateY + 8, 16, 23, gateColor))
+    commands.push(graphics.gl.rect(gateX + 18, gateY + 18, 3, 3, gold)),
+
+    // Draw monsters as compact layered sprites with health bars.
+    for [i: number = 0, i < game.enemies.length(), i += 1]
+        foe: record = game.enemies@i
+        if foe.alive then
+            fx: number = originX + foe.x * tile
+            fy: number = originY + foe.y * tile
+            shade: record = purple
+            if i == 0 then
+                shade = green
+            else if i == 2 then
+                shade = wallLight
+            else if i == 3 then
+                shade = red
+            end
+            commands.push(graphics.gl.rect(fx + 6, fy + 7, 22, 23, shade))
+            commands.push(graphics.gl.rect(fx + 9, fy + 11, 5, 5, ink))
+            commands.push(graphics.gl.rect(fx + 21, fy + 11, 5, 5, ink))
+            commands.push(graphics.gl.rect(fx + 10, fy + 26, 14, 3, ink))
+            commands.push(graphics.gl.rect(fx + 4, fy + 3, 26, 3, red))
+        end
+    loop,
+
+    // Hero silhouette: boots, cloak, armored chest, face and drawn blade.
+    hx: number = originX + game.player.x * tile
+    hy: number = originY + game.player.y * tile
+    commands.push(graphics.gl.rect(hx + 8, hy + 23, 7, 8, ink))
+    commands.push(graphics.gl.rect(hx + 20, hy + 23, 7, 8, ink))
+    commands.push(graphics.gl.rect(hx + 6, hy + 10, 24, 18, blue))
+    commands.push(graphics.gl.rect(hx + 11, hy + 4, 14, 11, white))
+    commands.push(graphics.gl.rect(hx + 13, hy + 10, 3, 3, ink))
+    commands.push(graphics.gl.rect(hx + 21, hy + 10, 3, 3, ink))
+    commands.push(graphics.gl.rect(hx + 28, hy + 3, 3, 25, gold))
+    commands.push(graphics.gl.rect(hx + 25, hy + 19, 9, 3, white)),
+
+    // Distinct HUD: health, inventory, progression, goals and controls.
+    sidebarX: number = 600
+    commands.push(graphics.gl.rect(sidebarX, 116, app.width - sidebarX - 20, 408, floorA))
+    commands.push(graphics.gl.text(sidebarX + 14, 135, "JON THE WANDERER", 2, white))
+    commands.push(graphics.gl.text(sidebarX + 14, 164, "LEVEL {game.player.level}", 2, gold))
+    commands.push(graphics.gl.text(sidebarX + 14, 196, "HEALTH {game.player.health}/{game.player.maxHealth}", 2, white))
+    commands.push(graphics.gl.rect(sidebarX + 14, 216, 220, 12, wallDark))
+    commands.push(graphics.gl.rect(sidebarX + 14, 216, 220 * game.player.health / game.player.maxHealth, 12, red))
+    commands.push(graphics.gl.text(sidebarX + 14, 248, "XP {game.player.experience}/{game.player.experienceToLevel}", 2, white))
+    commands.push(graphics.gl.text(sidebarX + 14, 278, "GOLD {game.player.gold}", 2, gold))
+    commands.push(graphics.gl.text(sidebarX + 14, 308, "POTIONS {game.player.inventory@0.quantity}", 2, green))
+    commands.push(graphics.gl.text(sidebarX + 14, 340, "FOES {rpg.remaining(game)}", 2, red))
+    commands.push(graphics.gl.rect(sidebarX + 12, 370, 235, 1, wallLight))
+    commands.push(graphics.gl.text(sidebarX + 14, 389, "WASD / ARROWS MOVE", 2, muted))
+    commands.push(graphics.gl.text(sidebarX + 14, 419, "H TO HEAL", 2, muted))
+    commands.push(graphics.gl.text(sidebarX + 14, 449, "R TO RESTART", 2, muted))
+    commands.push(graphics.gl.text(sidebarX + 14, 479, "WALK INTO FOES", 2, muted)),
+
+    commands.push(graphics.gl.rect(20, 542, app.width - 40, 82, floorA))
+    commands.push(graphics.gl.text(38, 560, game.message, 2, gold))
+    commands.push(graphics.gl.text(38, 591, "DEFEAT ALL FOES THEN REACH THE GOLD GATE", 2, muted)),
+    graphics.gl.clearColor(context, ink.red, ink.green, ink.blue, 1.0),
+    graphics.gl.clear(context, graphics.gl.buffer.color),
+    graphics.gl.drawBatch(context, app.width, app.height, commands),
+    graphics.present(context),
+    null
+]
+
+if not window.available() then
+    print("The Ashen Crypt requires the Windows Beacon graphics backend.")
+else
+    app: record = window.create({
+        title: "The Ashen Crypt - Beacon RPG"
+        width: 890
+        height: 660
+    })
+    context: record = graphics.createContext(app, {
+        renderer: graphics.renderer.opengl
+    })
+    game: record = rpg.create()
+    window.show(app)
+    draw(context, app, game)
+
+    running: boolean = true
+    for [tick: number = 0, running, tick += 1]
+        event: record = window.nextEvent(app)
+        if event.type == "close" then
+            running = false
+        else if event.type == "resize" then
+            app.width = event.width
+            app.height = event.height
+            if app.width > 0 and app.height > 0 then
+                draw(context, app, game)
+            end
+        else if event.type == "keyDown" then
+            action: string = ""
+            // Native Win32 virtual-key codes. Arrow keys and WASD both work.
+            when event.key
+                37 then action = "left"
+                38 then action = "up"
+                39 then action = "right"
+                40 then action = "down"
+                65 then action = "left"
+                87 then action = "up"
+                68 then action = "right"
+                83 then action = "down"
+                72 then action = "potion"
+                82 then game = rpg.create()
+                otherwise null
+            end
+            if action != "" then
+                rpg.step(game, action)
+            end
+            if app.width > 0 and app.height > 0 then
+                draw(context, app, game)
+            end
+        end
+    loop
+    graphics.destroyContext(context)
+end
