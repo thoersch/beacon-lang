@@ -74,3 +74,6 @@ jobs:
           actual="$(bash ./beacon.sh examples/rpg-rules-smoke.beacon | tr -d '\r')"
           expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
           [ "$actual" = "$expected" ]
+      - name: Launch actual game window and close it cleanly
+        shell: pwsh
+        run: ./tools/test-rpg-window.ps1
