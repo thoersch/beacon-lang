@@ -146,7 +146,7 @@ On Windows, with the .NET 8 SDK:
 
 Use **WASD/arrow keys** to move and attack, **H** to heal, and **R** to restart.
 
-[Game source](examples/rpg-ashen-crypt.beacon) · [Portable rules engine](std/rpg.beacon) · [Playing guide](docs/src/content/docs/getting-started/rpg-game.md)
+[Game source](examples/rpg-ashen-crypt.beacon) · [Game rules](examples/rpg/rules.beacon) · [Playing guide](docs/src/content/docs/getting-started/rpg-game.md)
 
 ## How Beacon works
 
