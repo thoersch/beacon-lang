@@ -153,17 +153,28 @@ else
             action: string = ""
             // Native Win32 virtual-key codes. Arrow keys and WASD both work.
             when
-                event.key == 37 then action = "left"
-                event.key == 38 then action = "up"
-                event.key == 39 then action = "right"
-                event.key == 40 then action = "down"
-                event.key == 65 then action = "left"
-                event.key == 87 then action = "up"
-                event.key == 68 then action = "right"
-                event.key == 83 then action = "down"
-                event.key == 72 then action = "potion"
-                event.key == 82 then game = rpg.create()
-                otherwise null
+                event.key == 37 then
+                    action = "left"
+                event.key == 38 then
+                    action = "up"
+                event.key == 39 then
+                    action = "right"
+                event.key == 40 then
+                    action = "down"
+                event.key == 65 then
+                    action = "left"
+                event.key == 87 then
+                    action = "up"
+                event.key == 68 then
+                    action = "right"
+                event.key == 83 then
+                    action = "down"
+                event.key == 72 then
+                    action = "potion"
+                event.key == 82 then
+                    game = rpg.create()
+                otherwise
+                    null
             end
             if action != "" then
                 rpg.step(game, action)
