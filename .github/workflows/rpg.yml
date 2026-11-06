@@ -43,6 +43,14 @@ jobs:
         run: |
           dotnet build native/opengl/Beacon.Native.opengl.csproj -c Release -o native/opengl -p:UseAppHost=false
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Inspect freshly built extension ABI
+        shell: pwsh
+        run: |
+          $path = (Resolve-Path native/opengl/Beacon.Native.opengl.dll).Path
+          $assembly = [System.Reflection.Assembly]::LoadFile($path)
+          Write-Host "Extension: $path"
+          $assembly.GetExportedTypes() | ForEach-Object { Write-Host "Exported type: $($_.FullName)" }
+          if (-not $assembly.GetType('Beacon.Native.Extension')) { throw "OpenGL extension ABI entry type is missing" }
       - name: Verify geometry, bitmap font, context teardown
         shell: bash
         run: |
