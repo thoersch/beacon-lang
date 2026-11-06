@@ -17,11 +17,18 @@ else
     graphics.gl.drawBatch(context, 640, 480, commands)
     pixel: record = graphics.gl.samplePixel(context, 20, 440)
     print(pixel.red > 0.85 and pixel.green < 0.22 and pixel.blue < 0.2)
-    glyph: record = graphics.gl.samplePixel(context, 173, 457)
-    print(glyph.green > 0.8 and glyph.red < 0.25)
-    if glyph.green <= 0.8 then
-        print("Glyph sample RGB " + glyph.red + " " + glyph.green + " " + glyph.blue)
-    end
+    // Sample the entire first glyph on its pixel grid. A thin bitmap
+    // stroke may shift by one framebuffer pixel on software WGL drivers.
+    glyphSeen: boolean = false
+    for [row: number = 0, row < 7, row += 1]
+        for [col: number = 0, col < 5, col += 1]
+            glyph: record = graphics.gl.samplePixel(context, 171 + col * 3, 458 - row * 3)
+            if glyph.green > 0.8 and glyph.red < 0.25 then
+                glyphSeen = true
+            end
+        loop
+    loop
+    print(glyphSeen)
     graphics.present(context)
     graphics.destroyContext(context)
     window.close(app)
