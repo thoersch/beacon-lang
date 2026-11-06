@@ -40,6 +40,9 @@ public static class Extension
     private const uint PfdDoubleBuffer = 0x00000001;
     private const uint GlColorBufferBit = 0x00004000;
     private const uint GlTriangles = 0x0004;
+    private const uint GlQuads = 0x0007;
+    private const uint GlProjection = 0x1701;
+    private const uint GlModelview = 0x1700;
     private const uint GlVersion = 0x1F02;
     private const uint GlRgba = 0x1908;
     private const uint GlUnsignedByte = 0x1401;
@@ -114,6 +117,12 @@ public static class Extension
     private static extern IntPtr GlGetString(uint name);
     [DllImport("opengl32.dll", EntryPoint = "glViewport")]
     private static extern void GlViewport(int x, int y, int width, int height);
+    [DllImport("opengl32.dll", EntryPoint = "glMatrixMode")]
+    private static extern void GlMatrixMode(uint mode);
+    [DllImport("opengl32.dll", EntryPoint = "glLoadIdentity")]
+    private static extern void GlLoadIdentity();
+    [DllImport("opengl32.dll", EntryPoint = "glOrtho")]
+    private static extern void GlOrtho(double left, double right, double bottom, double top, double near, double far);
     [DllImport("opengl32.dll", EntryPoint = "glClearColor")]
     private static extern void GlClearColor(float red, float green, float blue, float alpha);
     [DllImport("opengl32.dll", EntryPoint = "glClear")]
@@ -152,6 +161,7 @@ public static class Extension
             "clear" => Reply(Clear(request)),
             "viewport" => Reply(Viewport(request)),
             "triangle" => Reply(Triangle(request)),
+            "batch" => Reply(Batch(request)),
             "present" => Reply(Present(request)),
             "samplePixel" => Reply(SamplePixel(request)),
             _ => throw new InvalidOperationException($"Unknown OpenGL operation: {action}"),
@@ -327,6 +337,127 @@ public static class Extension
         GlColor3f(0.23f, 0.48f, 1);
         GlVertex2f(0, 0.72f);
         GlEnd();
+        GlFlush();
+        return new { ok = true };
+    }
+
+
+    // A small, fixed 5x7 bitmap alphabet used for debug HUDs and simple games.
+    // The font is embedded as geometry: no GDI/third-party rendering dependency.
+    private static readonly Dictionary<char, string[]> Glyphs = new()
+    {
+        ['A'] = new[] {"01110","10001","10001","11111","10001","10001","10001"},
+        ['B'] = new[] {"11110","10001","10001","11110","10001","10001","11110"},
+        ['C'] = new[] {"01111","10000","10000","10000","10000","10000","01111"},
+        ['D'] = new[] {"11110","10001","10001","10001","10001","10001","11110"},
+        ['E'] = new[] {"11111","10000","10000","11110","10000","10000","11111"},
+        ['F'] = new[] {"11111","10000","10000","11110","10000","10000","10000"},
+        ['G'] = new[] {"01111","10000","10000","10111","10001","10001","01111"},
+        ['H'] = new[] {"10001","10001","10001","11111","10001","10001","10001"},
+        ['I'] = new[] {"11111","00100","00100","00100","00100","00100","11111"},
+        ['J'] = new[] {"00111","00010","00010","00010","10010","10010","01100"},
+        ['K'] = new[] {"10001","10010","10100","11000","10100","10010","10001"},
+        ['L'] = new[] {"10000","10000","10000","10000","10000","10000","11111"},
+        ['M'] = new[] {"10001","11011","10101","10101","10001","10001","10001"},
+        ['N'] = new[] {"10001","11001","10101","10011","10001","10001","10001"},
+        ['O'] = new[] {"01110","10001","10001","10001","10001","10001","01110"},
+        ['P'] = new[] {"11110","10001","10001","11110","10000","10000","10000"},
+        ['Q'] = new[] {"01110","10001","10001","10001","10101","10010","01101"},
+        ['R'] = new[] {"11110","10001","10001","11110","10100","10010","10001"},
+        ['S'] = new[] {"01111","10000","10000","01110","00001","00001","11110"},
+        ['T'] = new[] {"11111","00100","00100","00100","00100","00100","00100"},
+        ['U'] = new[] {"10001","10001","10001","10001","10001","10001","01110"},
+        ['V'] = new[] {"10001","10001","10001","10001","10001","01010","00100"},
+        ['W'] = new[] {"10001","10001","10001","10101","10101","10101","01010"},
+        ['X'] = new[] {"10001","10001","01010","00100","01010","10001","10001"},
+        ['Y'] = new[] {"10001","10001","01010","00100","00100","00100","00100"},
+        ['Z'] = new[] {"11111","00001","00010","00100","01000","10000","11111"},
+        ['0'] = new[] {"01110","10011","10101","10101","11001","10001","01110"},
+        ['1'] = new[] {"00100","01100","00100","00100","00100","00100","01110"},
+        ['2'] = new[] {"01110","10001","00001","00010","00100","01000","11111"},
+        ['3'] = new[] {"11110","00001","00001","01110","00001","00001","11110"},
+        ['4'] = new[] {"00010","00110","01010","10010","11111","00010","00010"},
+        ['5'] = new[] {"11111","10000","10000","11110","00001","00001","11110"},
+        ['6'] = new[] {"01110","10000","10000","11110","10001","10001","01110"},
+        ['7'] = new[] {"11111","00001","00010","00100","01000","01000","01000"},
+        ['8'] = new[] {"01110","10001","10001","01110","10001","10001","01110"},
+        ['9'] = new[] {"01110","10001","10001","01111","00001","00001","01110"},
+        [':'] = new[] {"00000","00100","00100","00000","00100","00100","00000"},
+        ['/'] = new[] {"00001","00001","00010","00100","01000","10000","10000"},
+        ['-'] = new[] {"00000","00000","00000","11111","00000","00000","00000"},
+        ['!'] = new[] {"00100","00100","00100","00100","00100","00000","00100"},
+        ['.'] = new[] {"00000","00000","00000","00000","00000","00100","00100"},
+        ['+'] = new[] {"00000","00100","00100","11111","00100","00100","00000"},
+        ['?'] = new[] {"01110","10001","00001","00010","00100","00000","00100"},
+    };
+
+    private static float Color(JsonElement element, string key)
+    {
+        var n = Number(element, key);
+        if (n < 0 || n > 1) throw new ArgumentException($"{key} must be between 0 and 1");
+        return (float)n;
+    }
+
+    private static void Quad(double x, double y, double width, double height)
+    {
+        GlVertex2f((float)x, (float)y);
+        GlVertex2f((float)(x + width), (float)y);
+        GlVertex2f((float)(x + width), (float)(y + height));
+        GlVertex2f((float)x, (float)(y + height));
+    }
+
+    private static object Batch(JsonElement request)
+    {
+        Current(request);
+        var width = Integer(request, "width");
+        var height = Integer(request, "height");
+        if (width <= 0 || height <= 0)
+            throw new ArgumentException("Frame dimensions must be positive");
+        var commands = request.GetProperty("commands");
+        if (commands.ValueKind != JsonValueKind.Array || commands.GetArrayLength() > 20000)
+            throw new ArgumentException("A batch requires an array of at most 20000 commands");
+        GlViewport(0, 0, width, height);
+        GlMatrixMode(GlProjection);
+        GlLoadIdentity();
+        GlOrtho(0, width, height, 0, -1, 1);
+        GlMatrixMode(GlModelview);
+        GlLoadIdentity();
+        GlBegin(GlQuads);
+        try
+        {
+            foreach (var command in commands.EnumerateArray())
+            {
+                var kind = String(command, "kind");
+                GlColor3f(Color(command, "red"), Color(command, "green"), Color(command, "blue"));
+                var x = Number(command, "x");
+                var y = Number(command, "y");
+                if (kind == "rect")
+                {
+                    var w = Number(command, "width");
+                    var h = Number(command, "height");
+                    if (w <= 0 || h <= 0) throw new ArgumentException("Rectangle dimensions must be positive");
+                    Quad(x, y, w, h);
+                }
+                else if (kind == "text")
+                {
+                    var value = String(command, "text").ToUpperInvariant();
+                    var scale = Number(command, "scale");
+                    if (scale < 1 || scale > 12 || value.Length > 256)
+                        throw new ArgumentException("Bitmap text requires scale 1..12 and at most 256 characters");
+                    for (var i = 0; i < value.Length; i++)
+                    {
+                        if (!Glyphs.TryGetValue(value[i], out var glyph)) continue;
+                        for (var row = 0; row < glyph.Length; row++)
+                            for (var col = 0; col < glyph[row].Length; col++)
+                                if (glyph[row][col] == '1')
+                                    Quad(x + i * 6 * scale + col * scale,
+                                         y + row * scale, scale, scale);
+                    }
+                }
+                else throw new ArgumentException($"Unsupported graphics command: {kind}");
+            }
+        }
+        finally { GlEnd(); }
         GlFlush();
         return new { ok = true };
     }

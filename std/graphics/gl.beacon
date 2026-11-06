@@ -61,3 +61,40 @@ samplePixel: fn(context: record, x: number, y: number) = [
     }),
     result
 ]
+
+
+// Draw an entire 2D frame in one native call. Coordinates are in pixels,
+// origin at the top-left. Commands are rectangles or built-in bitmap text.
+// The batch supports a useful 2D game without any third-party UI framework.
+rect: fn(x: number, y: number, width: number, height: number, color: record) = {
+    kind: "rect"
+    x: x
+    y: y
+    width: width
+    height: height
+    red: color.red
+    green: color.green
+    blue: color.blue
+}
+
+text: fn(x: number, y: number, value: string, scale: number, color: record) = {
+    kind: "text"
+    x: x
+    y: y
+    text: value
+    scale: scale
+    red: color.red
+    green: color.green
+    blue: color.blue
+}
+
+drawBatch: fn(context: record, width: number, height: number, commands: list) = [
+    hostNative("opengl", {
+        action: "batch"
+        id: context.id
+        width: width
+        height: height
+        commands: commands
+    }),
+    null
+]

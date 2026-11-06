@@ -1,0 +1,33 @@
+include "rpg/rules"
+
+game: record = rpg.create()
+print(game.player.inventory@0.quantity == 3)
+print(game.player.inventory@1.damage == 2)
+print(rpg.wall(0, 0))
+print(not rpg.wall(1, 1))
+
+rpg.step(game, "potion")
+print(game.turn == 0)
+
+rpg.step(game, "right")
+print(game.player.x == 2 and game.turn == 1)
+
+rpg.attack(game, 0)
+rpg.attack(game, 0)
+rpg.attack(game, 1)
+rpg.attack(game, 1)
+rpg.attack(game, 2)
+rpg.attack(game, 2)
+print(game.player.level == 2)
+print(game.player.gold == 15)
+print(rpg.remaining(game) == 1)
+
+game.player.health = 8
+rpg.step(game, "potion")
+print(game.player.inventory@0.quantity == 2)
+print(game.player.health >= 11 and game.player.health <= 14)
+
+game.player.x = rpg.exitX
+game.player.y = rpg.exitY
+rpg.step(game, "up")
+print(not game.won)
