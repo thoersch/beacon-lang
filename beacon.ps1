@@ -8,57 +8,12 @@ if (-not (Test-Path $HostAssembly)) {
     throw "Beacon bootstrap seed not found: $HostAssembly. Run tools/finalize-bootstrap.ps1 first."
 }
 
-# Keep the trusted native module in sync with the source checkout when
-# launching graphics programs directly, including the RPG's batch renderer.
+
+# Keep the trusted native OpenGL DLL in sync with the source checkout.
 function Ensure-GraphicsExtension([string]$Target) {
     if ($env:OS -ne "Windows_NT" -or -not (Test-Path $Target -PathType Leaf)) { return }
     $source = Get-Content -LiteralPath $Target -Raw
-    if ($source -notmatch '(?m)^\\s*include\\s+std\\.graphics(\\.gl)?\\s*
-    Write-Host "Usage:"
-    Write-Host "  ./beacon.ps1 file.beacon"
-    Write-Host "  ./beacon.ps1 run file.beacon"
-    Write-Host "  ./beacon.ps1 plan file.beacon"
-    Write-Host "  ./beacon.ps1 inspect file.beacon"
-    Write-Host "  ./beacon.ps1 self-host"
-    exit 2
-}
-
-if ($args[0] -eq "run" -or $args[0] -eq "inspect" -or $args[0] -eq "plan") {
-    if ($args.Count -ge 2) { Ensure-GraphicsExtension $args[1] }
-} elseif ($args[0] -ne "self-host") {
-    Ensure-GraphicsExtension $args[0]
-}
-
-switch ($args[0]) {
-    "inspect" {
-        if ($args.Count -lt 2) { throw "inspect requires a Beacon source file" }
-        $Target = (Resolve-Path $args[1]).Path
-        & dotnet $HostAssembly $Compiler --stage1-run $Target --inspect
-        exit $LASTEXITCODE
-    }
-    "self-host" {
-        & dotnet $HostAssembly $Compiler --self-host
-        exit $LASTEXITCODE
-    }
-    "plan" {
-        if ($args.Count -lt 2) { throw "plan requires a Beacon source file" }
-        $Target = (Resolve-Path $args[1]).Path
-        & dotnet $HostAssembly $Compiler --stage1 $Target
-        exit $LASTEXITCODE
-    }
-    "run" {
-        if ($args.Count -lt 2) { throw "run requires a Beacon source file" }
-        $Target = (Resolve-Path $args[1]).Path
-        & dotnet $HostAssembly $Compiler --stage1-run $Target
-        exit $LASTEXITCODE
-    }
-    default {
-        $Target = (Resolve-Path $args[0]).Path
-        & dotnet $HostAssembly $Compiler --stage1-run $Target
-        exit $LASTEXITCODE
-    }
-}
-) { return }
+    if ($source -notmatch '(?m)^\s*include\s+std\.graphics(\.gl)?\s*$') { return }
     $dir = Join-Path $Root "native/opengl"
     $project = Join-Path $dir "Beacon.Native.opengl.csproj"
     $sourceHash = (Get-FileHash (Join-Path $dir "Extension.cs") -Algorithm SHA256).Hash
@@ -87,6 +42,13 @@ if ($args.Count -eq 0) {
     Write-Host "  ./beacon.ps1 inspect file.beacon"
     Write-Host "  ./beacon.ps1 self-host"
     exit 2
+}
+
+
+if ($args[0] -eq "run" -or $args[0] -eq "inspect" -or $args[0] -eq "plan") {
+    if ($args.Count -ge 2) { Ensure-GraphicsExtension $args[1] }
+} elseif ($args[0] -ne "self-host") {
+    Ensure-GraphicsExtension $args[0]
 }
 
 switch ($args[0]) {
