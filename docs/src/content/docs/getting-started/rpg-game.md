@@ -15,7 +15,13 @@ From the repository root in PowerShell:
 ./tools/run-rpg.ps1
 ```
 
-The launcher rebuilds the independent OpenGL extension from `native/opengl/Extension.cs` (requires .NET 8 SDK) and runs `examples/rpg-ashen-crypt.beacon`. The bundled extension DLL is intentionally **not** modified in this feature; the launcher recompiles before playing.
+Both the PowerShell and Bash Beacon launchers detect graphics programs and rebuild the independent OpenGL module from `native/opengl/Extension.cs` when the local source changes (requires .NET 8 SDK). You can therefore also run the game directly from Git Bash on Windows:
+
+```bash
+sh ./beacon.sh ./examples/rpg-ashen-crypt.beacon
+```
+
+The initial run recompiles the native extension to add the `batch` operation; subsequent runs reuse the built version until its source changes. The bundled DLL in this branch predates that operation.
 
 ## Controls and objective
 
