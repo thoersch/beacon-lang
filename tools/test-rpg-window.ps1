@@ -28,7 +28,12 @@ try {
         if ($process.HasExited) { break }
         Start-Sleep -Milliseconds 250
     }
-    if ($handle -eq [IntPtr]::Zero) { throw "RPG window never appeared. Output: $(Get-Content $log -Raw) Errors: $(Get-Content $errors -Raw)" }
+    if ($handle -eq [IntPtr]::Zero) {
+        Write-Host "Launcher exited: $($process.HasExited)"
+        Get-Process | Where-Object { $_.MainWindowTitle } | Select-Object Id,ProcessName,MainWindowTitle | Format-Table | Out-String | Write-Host
+        Get-Process -Name dotnet -ErrorAction SilentlyContinue | Select-Object Id,CPU,StartTime | Format-Table | Out-String | Write-Host
+        throw "RPG window never appeared. Output: $(Get-Content $log -Raw) Errors: $(Get-Content $errors -Raw)"
+    }
     if (-not [BeaconRpgWindowProbe]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)) {
         throw "Failed to send close event to the RPG window"
     }
