@@ -166,11 +166,15 @@ step: fn(game: record, action: string) = [
         dy: number = 0
         usedTurn: boolean = false
         when
-            action == "up" then dy = -1
-            action == "down" then dy = 1
-            action == "left" then dx = -1
-            action == "right" then dx = 1
-            action == "potion" then [
+            action == "up" then
+                dy = -1
+            action == "down" then
+                dy = 1
+            action == "left" then
+                dx = -1
+            action == "right" then
+                dx = 1
+            action == "potion" then
                 potions: record = game.player.inventory@0,
                 if potions.quantity > 0 and game.player.health < game.player.maxHealth then
                     potions.quantity = potions.quantity - 1
@@ -183,8 +187,8 @@ step: fn(game: record, action: string) = [
                 else
                     game.message = "CANNOT USE POTION"
                 end
-            ]
-            otherwise null
+            otherwise
+                null
         end
         if dx != 0 or dy != 0 then
             x: number = game.player.x + dx
