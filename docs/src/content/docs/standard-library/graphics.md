@@ -62,6 +62,21 @@ window.close(app)
 
 The context holds an opaque numeric ID, the chosen renderer descriptor, and the reported GL version. Actual native handles are private to the standard-library/native boundary.
 
+## 2D drawing for games
+
+The native OpenGL extension now provides batched pixel-space rectangles and a built-in 5×7 bitmap font, useful for lightweight 2D games:
+
+```beacon
+commands: list = [
+    graphics.gl.rect(12, 12, 64, 48, { red: 0.9, green: 0.2, blue: 0.2 }),
+    graphics.gl.text(12, 76, "BEACON RPG", 2, { red: 1.0, green: 1.0, blue: 1.0 })
+]
+graphics.gl.drawBatch(context, 640, 480, commands)
+graphics.present(context)
+```
+
+The draw batch is submitted in one extension invocation, with the top-left pixel as the origin. Text uses a deliberately minimal embedded uppercase font. The source-built extension is used by [The Ashen Crypt](../../getting-started/rpg-game/), a playable Windows dungeon crawler.
+
 ## Important limits
 
 The first implementation uses **OpenGL 1.1 compatibility** functions so it can be tested against software-only Windows drivers. It is a real OpenGL binding, but does **not** yet expose modern core-profile shaders, vertex buffers, textures, or continuous rendering. The availability check means the Windows window backend exists; driver/context creation can still fail. Hardware acceleration depends on the installed driver.
