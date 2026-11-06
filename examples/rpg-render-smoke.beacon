@@ -19,6 +19,9 @@ else
     print(pixel.red > 0.85 and pixel.green < 0.22 and pixel.blue < 0.2)
     glyph: record = graphics.gl.samplePixel(context, 173, 457)
     print(glyph.green > 0.8 and glyph.red < 0.25)
+    if glyph.green <= 0.8 then
+        print("Glyph sample RGB " + glyph.red + " " + glyph.green + " " + glyph.blue)
+    end
     graphics.present(context)
     graphics.destroyContext(context)
     window.close(app)
