@@ -25,6 +25,12 @@ else
     pixel: record = graphics.gl.samplePixel(context, 320, 220)
     triangleRendered: boolean = pixel.red > 0.14 and pixel.green > 0.20 and pixel.blue > 0.14
     print(triangleRendered)
+
+    // Verify the clear independently, at a pixel outside the triangle.
+    // Allow for 8-bit framebuffer quantization in the Windows GL driver.
+    background: record = graphics.gl.samplePixel(context, 8, 8)
+    backgroundRendered: boolean = background.red > 0.03 and background.red < 0.07 and background.green > 0.04 and background.green < 0.08 and background.blue > 0.08 and background.blue < 0.12
+    print(backgroundRendered)
     print(context.renderer.id)
     graphics.present(context)
     graphics.destroyContext(context)
