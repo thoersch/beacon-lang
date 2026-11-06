@@ -25,6 +25,36 @@ USAGE
 
 [[ $# -gt 0 ]] || usage
 
+# Ensure that Windows graphics programs load a native module matching this
+# source checkout; the tracked DLL may predate newer drawing operations.
+ensure_graphics_extension() {
+  local target="$1"
+  [[ -f "$target" ]] || return 0
+  [[ "$(printenv OS || true)" == "Windows_NT" ]] || return 0
+  grep -Eq '^[[:space:]]*include[[:space:]]+std[.]graphics([.]gl)?[[:space:]]*$' "$target" || return 0
+
+  local project="$ROOT/native/opengl/Beacon.Native.opengl.csproj"
+  local built="$ROOT/native/opengl/bin/Release/net8.0/Beacon.Native.opengl.dll"
+  local installed="$ROOT/native/opengl/Beacon.Native.opengl.dll"
+  local stamp="$ROOT/native/opengl/obj/.beacon-opengl-source.sha256"
+  local fingerprint
+  fingerprint="$(sha256sum "$ROOT/native/opengl/Extension.cs" "$project" | sha256sum | cut -d ' ' -f 1)"
+  if [[ ! -f "$installed" || ! -f "$stamp" || "$(cat "$stamp")" != "$fingerprint" ]]; then
+    echo "Beacon: building native OpenGL extension for this checkout..." >&2
+    dotnet build "$project" -c Release -p:UseAppHost=false -v:q >&2
+    [[ -f "$built" ]] || { echo "Beacon: OpenGL build produced no DLL" >&2; exit 1; }
+    cp "$built" "$installed"
+    printf '%s\n' "$fingerprint" > "$stamp"
+  fi
+}
+
+case "$1" in
+  run|inspect|plan) [[ $# -ge 2 ]] && ensure_graphics_extension "$2" ;;
+  self-host) ;;
+  *) ensure_graphics_extension "$1" ;;
+esac
+
+
 case "$1" in
   inspect)
     [[ $# -ge 2 ]] || usage
