@@ -144,6 +144,8 @@ On Windows, with the .NET 8 SDK:
 ./tools/run-rpg.ps1
 ```
 
+On Windows, the same game can run directly with `sh ./beacon.sh ./examples/rpg-ashen-crypt.beacon`. The Beacon launcher automatically rebuilds its native OpenGL module when needed; no separate compilation step is required.
+
 Use **WASD/arrow keys** to move and attack, **H** to heal, and **R** to restart.
 
 [Game source](examples/rpg-ashen-crypt.beacon) · [Game rules](examples/rpg/rules.beacon) · [Playing guide](docs/src/content/docs/getting-started/rpg-game.md)
