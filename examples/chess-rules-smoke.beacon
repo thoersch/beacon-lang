@@ -1,0 +1,108 @@
+// Portable rules regression: exact legal moves, check, special moves and draws.
+// No platform or native renderer required.
+include "chess/rules"
+
+count: fn(state: record, from: number, to: number) = [
+    result: number = 0,
+    moves: list = chess.legal(state),
+    for [i: number = 0, i < moves.length(), i += 1]
+        m: record = moves@i
+        if m.from == from and m.to == to then
+            result += 1
+        end
+    loop,
+    result
+]
+play: fn(state: record, fileA: string, rankA: number, fileB: string, rankB: number) = [
+    m: record = chess.findMove(state, chess.square(fileA, rankA), chess.square(fileB, rankB), ""),
+    if not m.valid then
+        fail("Expected legal move")
+    end,
+    chess.apply(state, m)
+]
+empty: fn() = [
+    board: list = [],
+    for [i: number = 0, i < 64, i += 1]
+        board.push(".")
+    loop,
+    board
+]
+
+start: record = chess.newGame()
+print(chess.legal(start).length() == 20)
+print(chess.square("e", 2) == 52 and chess.square("e", 8) == 4)
+print(chess.inCheck(start, 1) == false and chess.inCheck(start, -1) == false)
+print(count(start, 60, 62) == 0)
+
+after: record = play(start, "e", 2, "e", 4)
+print(after.ep == chess.square("e", 3) and after.turn == -1 and after.half == 0)
+after = play(after, "e", 7, "e", 5)
+print(after.full == 2 and after.turn == 1)
+after = play(after, "g", 1, "f", 3)
+after = play(after, "b", 8, "c", 6)
+after = play(after, "f", 1, "c", 4)
+after = play(after, "g", 8, "f", 6)
+print(count(after, 60, 62) == 1)
+castle: record = chess.findMove(after, 60, 62, "")
+after = chess.apply(after, castle)
+print(after.board@62 == "K" and after.board@61 == "R" and not after.wk and not after.wq)
+
+epGame: record = chess.newGame()
+epGame = play(epGame, "e", 2, "e", 4)
+epGame = play(epGame, "a", 7, "a", 6)
+epGame = play(epGame, "e", 4, "e", 5)
+epGame = play(epGame, "d", 7, "d", 5)
+epMove: record = chess.findMove(epGame, chess.square("e", 5), chess.square("d", 6), "")
+print(epMove.valid and epMove.flag == "ep")
+epGame = chess.apply(epGame, epMove)
+print(epGame.board@(chess.square("d", 5)) == "." and epGame.board@(chess.square("d", 6)) == "P")
+
+promotion: record = chess.newGame()
+promotion.board = empty()
+promotion.board@(chess.square("e", 1)) = "K"
+promotion.board@(chess.square("e", 8)) = "k"
+promotion.board@(chess.square("a", 7)) = "P"
+promotion.wk = false
+promotion.wq = false
+promotion.bk = false
+promotion.bq = false
+print(count(promotion, chess.square("a", 7), chess.square("a", 8)) == 4)
+promote: record = chess.findMove(promotion, chess.square("a", 7), chess.square("a", 8), "N")
+promotion = chess.apply(promotion, promote)
+print(promotion.board@(chess.square("a", 8)) == "N")
+
+mate: record = chess.newGame()
+mate = play(mate, "f", 2, "f", 3)
+mate = play(mate, "e", 7, "e", 5)
+mate = play(mate, "g", 2, "g", 4)
+mate = play(mate, "d", 8, "h", 4)
+mateStatus: record = chess.status([mate])
+print(mateStatus.finished and mateStatus.message == "CHECKMATE - BLACK WINS")
+
+stale: record = chess.newGame()
+stale.board = empty()
+stale.board@(chess.square("a", 8)) = "k"
+stale.board@(chess.square("c", 6)) = "K"
+stale.board@(chess.square("b", 6)) = "Q"
+stale.turn = -1
+stale.wk = false
+stale.wq = false
+stale.bk = false
+stale.bq = false
+staleStatus: record = chess.status([stale])
+print(staleStatus.finished and staleStatus.message == "DRAW - STALEMATE")
+
+bare: record = chess.newGame()
+bare.board = empty()
+bare.board@(chess.square("e", 1)) = "K"
+bare.board@(chess.square("e", 8)) = "k"
+print(chess.insufficient(bare))
+
+// A move must not expose its own king to a rook attack.
+pin: record = chess.newGame()
+pin.board = empty()
+pin.board@(chess.square("e", 1)) = "K"
+pin.board@(chess.square("e", 2)) = "R"
+pin.board@(chess.square("e", 8)) = "r"
+pin.board@(chess.square("a", 8)) = "k"
+print(not chess.findMove(pin, chess.square("e", 2), chess.square("d", 2), "").valid)
