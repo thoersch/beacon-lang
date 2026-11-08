@@ -14,7 +14,10 @@ try {
         throw "Beacon window wake did not arrive within the smoke-test timeout"
     }
     $text = (Get-Content $output -Raw).Trim()
-    if ($process.ExitCode -ne 0 -or $text -ne "true`r`ntrue`r`ntrue" -and $text -ne "true`ntrue`ntrue") {
+    # The first run can print the native-extension build transcript.
+    # The smoke assertions are the three Boolean output lines.
+    $checks = @($text -split "[`r`n]+" | Where-Object { $_ -eq "true" -or $_ -eq "false" })
+    if ($process.ExitCode -ne 0 -or $checks.Count -ne 3 -or @($checks | Where-Object { $_ -ne "true" }).Count -ne 0) {
         throw "Vector/wake smoke failed, exit $($process.ExitCode). Output: $text Errors: $(Get-Content $errors -Raw)"
     }
     Write-Host "Ellipse/polygon framebuffer pixels and delayed native window event verified."
