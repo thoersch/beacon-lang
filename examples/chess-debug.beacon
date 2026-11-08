@@ -1,0 +1,18 @@
+include "chess/rules"
+s: record = chess.newGame()
+print(s.board@52)
+print(chess.square("e", 2))
+print(chess.square("e", 4))
+moves: list = chess.legal(s)
+print(moves.length())
+for [i: number = 0, i < moves.length(), i += 1]
+    m: record = moves@i
+    if m.from == 52 then
+        print(m.from)
+        print(m.to)
+        print(m.promotion)
+        print(m.flag)
+    end
+loop
+found: record = chess.findMove(s, 52, 36, "")
+print(found.valid)
