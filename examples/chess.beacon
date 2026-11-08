@@ -41,6 +41,10 @@ newSession: fn() = {
     thinkActive: false
     thinkMoves: []
     thinkIndex: 0
+    thinkComplete: false
+    releaseReady: false
+    computeToken: 0
+    releaseToken: 0
     thinkScore: -200000
     thinkAlpha: -200000
     thinkBest: { valid: false, from: -1, to: -1, promotion: "", flag: "" }
@@ -199,8 +203,9 @@ scheduleWake: fn(session: record, context: record, delay: number) = [
     if session.wakeToken > 30000 then
         session.wakeToken = 1
     end,
-    graphics.gl.requestWake(context, delay, session.wakeToken),
-    null
+    token: number = session.wakeToken,
+    graphics.gl.requestWake(context, delay, token),
+    token
 ]
 
 startComputer: fn(session: record, context: record) = [
@@ -210,47 +215,60 @@ startComputer: fn(session: record, context: record) = [
         session.thinkActive = true
         session.thinkMoves = chessAI.ordered(state, chess.legal(state))
         session.thinkIndex = 0
+        session.thinkComplete = false
+        session.releaseReady = false
         session.thinkScore = -200000
         session.thinkAlpha = -200000
         session.thinkBest = { valid: false, from: -1, to: -1, promotion: "", flag: "" }
         session.message = "YOUR MOVE IS PLAYED - COMPUTER NEXT"
-        scheduleWake(session, context, 1400)
+        // Search in small chunks while the human move remains highlighted.
+        // The computer cannot play until the independent 1.4s gate fires.
+        session.releaseToken = scheduleWake(session, context, 1400)
+        session.computeToken = scheduleWake(session, context, 20)
     end,
     null
 ]
 
-// One root candidate per wake: window events and repainting resume between
-// chunks of the search, rather than freezing until every move is calculated.
+// One root candidate per wake: repainting and user input resume between
+// candidates. Compute and display-delay timers are independent, so useful
+// thinking occurs DURING the pause rather than extending it.
 advanceComputer: fn(session: record, context: record, token: number) = [
-    if session.thinkActive and token == session.wakeToken then
-        state: record = current(session)
-        if session.thinkIndex < session.thinkMoves.length() then
-            move: record = session.thinkMoves@(session.thinkIndex)
-            score: number = chessAI.scoreCandidate(state, move, session.aiLevel, session.thinkAlpha)
-            if score > session.thinkScore then
-                session.thinkScore = score
-                session.thinkBest = {
-                    valid: true
-                    from: move.from
-                    to: move.to
-                    promotion: move.promotion
-                    flag: move.flag
-                }
+    if session.thinkActive then
+        if token == session.releaseToken then
+            session.releaseReady = true
+        else if token == session.computeToken and not session.thinkComplete then
+            state: record = current(session)
+            if session.thinkIndex < session.thinkMoves.length() then
+                move: record = session.thinkMoves@(session.thinkIndex)
+                score: number = chessAI.scoreCandidate(state, move, session.aiLevel, session.thinkAlpha)
+                if score > session.thinkScore then
+                    session.thinkScore = score
+                    session.thinkBest = {
+                        valid: true
+                        from: move.from
+                        to: move.to
+                        promotion: move.promotion
+                        flag: move.flag
+                    }
+                end
+                if score > session.thinkAlpha then
+                    session.thinkAlpha = score
+                end
+                session.thinkIndex += 1
             end
-            if score > session.thinkAlpha then
-                session.thinkAlpha = score
+            if session.thinkIndex >= session.thinkMoves.length() then
+                session.thinkComplete = true
+            else
+                session.computeToken = scheduleWake(session, context, 12)
             end
-            session.thinkIndex += 1
         end
-        if session.thinkIndex >= session.thinkMoves.length() then
+        if session.releaseReady and session.thinkComplete then
             session.thinkActive = false
             if session.thinkBest.valid then
                 commitMove(session, session.thinkBest)
                 played: record = session.thinkBest
                 session.message = "COMPUTER " + chess.name(played.from) + chess.name(played.to) + played.promotion
             end
-        else
-            scheduleWake(session, context, 12)
         end
     end,
     null
