@@ -95,9 +95,8 @@ drawPiece: fn(commands: list, piece: string, x: number, y: number) = [
     null
 ]
 
-hasTarget: fn(state: record, selected: number, target: number) = [
+hasTarget: fn(options: list, selected: number, target: number) = [
     yes: boolean = false,
-    options: list = chess.legal(state),
     for [i: number = 0, i < options.length(), i += 1]
         m: record = options@i
         if m.from == selected and m.to == target then
@@ -111,6 +110,10 @@ hasTarget: fn(state: record, selected: number, target: number) = [
 draw: fn(context: record, app: record, session: record) = [
     state: record = current(session),
     result: record = chess.status(session.history),
+    options: list = [],
+    if session.selected >= 0 then
+        options = chess.legal(state)
+    end,
     cmds: list = [],
     appendRect(cmds, 0, 0, app.width, app.height, bg),
     appendText(cmds, 48, 26, "BEACON CHESS", 4, gold),
@@ -133,7 +136,7 @@ draw: fn(context: record, app: record, session: record) = [
             if state.board@i != "." then
                 drawPiece(cmds, state.board@i, x, y)
             end
-            if session.selected >= 0 and hasTarget(state, session.selected, i) then
+            if session.selected >= 0 and hasTarget(options, session.selected, i) then
                 if state.board@i == "." then
                     appendRect(cmds, x + 29, y + 29, 8, 8, hintColor)
                 else
