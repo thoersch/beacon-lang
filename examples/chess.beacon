@@ -7,6 +7,7 @@ include std.graphics.gl
 include "chess/rules"
 include "chess/ai"
 include "chess/art"
+include "chess/ui"
 
 bg: record = { red: 0.055, green: 0.070, blue: 0.095 }
 surface: record = { red: 0.10, green: 0.14, blue: 0.19 }
@@ -80,9 +81,7 @@ draw: fn(context: record, app: record, session: record) = [
     options: list = [],
     lastFrom: number = -1,
     lastTo: number = -1,
-    moveNumber: number = state.full,
-    halfCount: number = state.half,
-    aiLevel: number = session.aiLevel,
+    labels: record = chessUI.labels(state, session.aiLevel),
     if session.moveDetails.length() > 0 then
         last: record = session.moveDetails@(session.moveDetails.length() - 1)
         lastFrom = last.from
@@ -134,8 +133,8 @@ draw: fn(context: record, app: record, session: record) = [
     else
         appendText(cmds, sidebar + 15, 145, result.message, 1, textColor)
     end,
-    appendText(cmds, sidebar + 15, 180, "MOVE {moveNumber}", 2, textColor),
-    appendText(cmds, sidebar + 15, 212, "HALF {halfCount}", 2, muted),
+    appendText(cmds, sidebar + 15, 180, labels.move, 2, textColor),
+    appendText(cmds, sidebar + 15, 212, labels.half, 2, muted),
     appendText(cmds, sidebar + 15, 251, "CONTROLS", 2, gold),
     appendText(cmds, sidebar + 15, 279, "CLICK PIECE", 2, textColor),
     appendText(cmds, sidebar + 15, 307, "CLICK TARGET", 2, textColor),
@@ -151,7 +150,7 @@ draw: fn(context: record, app: record, session: record) = [
         appendText(cmds, sidebar + 25, 416, "TWO PLAYERS", 2, textColor)
     end,
     appendRect(cmds, sidebar + 15, 445, 205, 31, darkSquare),
-    appendText(cmds, sidebar + 25, 456, "AI LEVEL {aiLevel}", 2, textColor),
+    appendText(cmds, sidebar + 25, 456, labels.level, 2, textColor),
     appendText(cmds, sidebar + 15, 482, "M MODE  L LEVEL", 1, muted),
 
     if session.pending then
