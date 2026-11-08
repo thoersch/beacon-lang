@@ -50,9 +50,36 @@ try {
         if ($process.HasExited) { throw "Chess exited while processing a mouse move: $(Get-Content $errors -Raw)" }
     }
     & $click 336 504 # e2
-    & $click 336 376 # e4, then Black AI reply
+    $elapsed = [System.Diagnostics.Stopwatch]::StartNew()
+    & $click 336 376 # e4 - must be visible before Black moves
+
+    $initial = (Get-Content $log -Raw)
+    if ($initial -notmatch "WHITE e2e4") {
+        throw "Human move did not complete immediately: $initial"
+    }
+    if ($initial -match "BLACK ") {
+        throw "AI made its move before the human position could be seen"
+    }
+    $blackSeen = $false
+    for ($i = 0; $i -lt 250; $i++) {
+        $trace = Get-Content $log -Raw
+        if ($trace -match "BLACK ") {
+            $blackSeen = $true
+            break
+        }
+        if ($process.HasExited) { break }
+        Start-Sleep -Milliseconds 100
+    }
+    if (-not $blackSeen) {
+        throw "Computer move never completed. Output: $(Get-Content $log -Raw) Errors: $(Get-Content $errors -Raw)"
+    }
+    $elapsed.Stop()
+    Write-Host "White rendered first; Black replied after $([Math]::Round($elapsed.Elapsed.TotalSeconds, 2)) seconds."
+    if ($elapsed.Elapsed.TotalMilliseconds -lt 1200) {
+        throw "The computer did not respect the 1.4-second human-move display delay"
+    }
     [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]85, [IntPtr]::Zero) | Out-Null # U
-    Start-Sleep -Milliseconds 150
+    Start-Sleep -Milliseconds 200
 
     # Switch to local mode; both colors must remain human-controlled.
     [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]77, [IntPtr]::Zero) | Out-Null # M
