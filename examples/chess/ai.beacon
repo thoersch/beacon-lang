@@ -198,9 +198,18 @@ choose: fn(state: record, level: number) = [
     choice
 ]
 
+// Score one candidate independently so the Beacon game loop can evaluate
+// one root move per scheduled wake instead of blocking during all candidates.
+scoreCandidate: fn(state: record, move: record, depth: number, alpha: number) = [
+    next: record = chess.apply(state, move),
+    -search(next, depth - 1, -200000, -alpha)
+]
+
 chessAI: record = {
     pieceValue: pieceValue
     evaluate: evaluate
     search: search
     choose: choose
+    ordered: ordered
+    scoreCandidate: scoreCandidate
 }

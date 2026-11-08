@@ -3,13 +3,22 @@ include "chess/rules"
 include "chess/ai"
 include std.graphics.gl
 include "chess/art"
+include "chess/ui"
 
 start: record = chess.newGame()
 print(chessAI.pieceValue("Q") == 920)
 print(chessAI.pieceValue("P") == 100)
-print(chessArt.mask("K").length() == 12)
-print(chessArt.mask("N").length() == 12)
-print(chessArt.mask("Q")@1 != chessArt.mask("K")@1)
+kingCommands: list = []
+knightCommands: list = []
+chessArt.draw(kingCommands, "K", 0, 0)
+chessArt.draw(knightCommands, "N", 0, 0)
+print(kingCommands.length() >= 10)
+print(knightCommands.length() >= 7)
+print(kingCommands.length() != knightCommands.length())
+labels: record = chessUI.labels(start, 2)
+print(labels.move == "MOVE 1")
+print(labels.half == "HALF 0")
+print(labels.level == "AI LEVEL 2")
 
 choice: record = chessAI.choose(start, 1)
 print(choice.valid)

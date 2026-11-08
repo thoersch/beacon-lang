@@ -28,11 +28,16 @@ jobs:
         run: |
           set -euo pipefail
           actual="$(bash ./beacon.sh examples/chess-ai-smoke.beacon)"
-          expected="$(printf 'true\n%.0s' {1..12})"
+          expected="$(printf 'true\n%.0s' {1..15})"
           if [ "$actual" != "$expected" ]; then
             printf 'Unexpected chess AI results:\n%s\n' "$actual" >&2
             exit 1
           fi
+      - name: Parse vector and timer regression across platforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(bash ./beacon.sh examples/chess-render-timer-smoke.beacon)" = "unsupported" ]
       - name: Parse standalone chess application without Windows graphics
         shell: bash
         run: |
@@ -53,6 +58,9 @@ jobs:
           actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon | tr -d '\r')"
           expected="$(printf 'true\n%.0s' {1..17})"
           [ "$actual" = "$expected" ]
+      - name: Validate vector artwork rendering and nonblocking timer event
+        shell: pwsh
+        run: ./tools/test-chess-render-timer.ps1
       - name: Open native chess board and close it
         shell: pwsh
         run: ./tools/test-chess-window.ps1

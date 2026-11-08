@@ -88,6 +88,45 @@ text: fn(x: number, y: number, value: string, scale: number, color: record) = {
     blue: color.blue
 }
 
+// Convex filled polygons and ellipses are reusable 2D geometry primitives.
+// These draw in the same top-left pixel coordinates as rectangles.
+vertex: fn(x: number, y: number) = { x: x, y: y }
+
+polygon: fn(points: list, color: record) = {
+    kind: "polygon"
+    x: 0
+    y: 0
+    points: points
+    red: color.red
+    green: color.green
+    blue: color.blue
+}
+
+ellipse: fn(x: number, y: number, rx: number, ry: number, color: record) = {
+    kind: "ellipse"
+    x: x
+    y: y
+    rx: rx
+    ry: ry
+    red: color.red
+    green: color.green
+    blue: color.blue
+}
+
+// Schedules one nonblocking wake through the Win32 event queue. The returned
+// event is mouseMove with x=32766 and y=token. A caller-provided token
+// disambiguates outstanding timers after cancellation. The scheduled callback
+// only posts an event; application state is always updated on Beacon's thread.
+requestWake: fn(context: record, milliseconds: number, token: number) = [
+    hostNative("opengl", {
+        action: "wake"
+        id: context.id
+        milliseconds: milliseconds
+        token: token
+    }),
+    null
+]
+
 drawBatch: fn(context: record, width: number, height: number, commands: list) = [
     hostNative("opengl", {
         action: "batch"

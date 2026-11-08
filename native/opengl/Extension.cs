@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Beacon.Native;
 
@@ -41,6 +42,7 @@ public static class Extension
     private const uint GlColorBufferBit = 0x00004000;
     private const uint GlTriangles = 0x0004;
     private const uint GlQuads = 0x0007;
+    private const uint GlTriangleFan = 0x0006;
     private const uint GlProjection = 0x1701;
     private const uint GlModelview = 0x1700;
     private const uint GlVersion = 0x1F02;
@@ -81,6 +83,14 @@ public static class Extension
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect { public int left, top, right, bottom; }
 
+    // Generic delayed wake for programs using the blocking Win32 event queue.
+    // Reserved mouse coordinates (32766, token) identify scheduled wakeups.
+    // Tokens let callers ignore stale events after undo or reset.
+    private const uint WmMouseMove = 0x0200;
+    private const int WakeMarkerX = 32766;
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr GetDC(IntPtr hwnd);
     [DllImport("user32.dll", SetLastError = true)]
@@ -162,6 +172,7 @@ public static class Extension
             "viewport" => Reply(Viewport(request)),
             "triangle" => Reply(Triangle(request)),
             "batch" => Reply(Batch(request)),
+            "wake" => Reply(Wake(request)),
             "present" => Reply(Present(request)),
             "samplePixel" => Reply(SamplePixel(request)),
             _ => throw new InvalidOperationException($"Unknown OpenGL operation: {action}"),
@@ -406,6 +417,97 @@ public static class Extension
         GlVertex2f((float)x, (float)(y + height));
     }
 
+    // Window wake uses the host's existing event pump. It does no work on the
+    // background thread except enqueue an ordinary Win32 message. Chess
+    // search, controls and all application state remain entirely in Beacon.
+    private static object Wake(JsonElement request)
+    {
+        var context = Current(request);
+        var milliseconds = Integer(request, "milliseconds");
+        if (milliseconds < 0 || milliseconds > 30000)
+            throw new ArgumentOutOfRangeException(nameof(milliseconds));
+        var token = Integer(request, "token");
+        if (token < 1 || token > 32000)
+            throw new ArgumentOutOfRangeException(nameof(token));
+        var hwnd = context.Window;
+        _ = Task.Delay(milliseconds).ContinueWith(_ =>
+        {
+            if (IsWindow(hwnd))
+            {
+                var position = new IntPtr((token << 16) | WakeMarkerX);
+                PostMessage(hwnd, WmMouseMove, IntPtr.Zero, position);
+            }
+        });
+        return new { ok = true };
+    }
+
+    // Ear-clip simple, possibly concave polygons into triangles. Crown points
+    // and horse silhouettes are concave: a raw triangle fan fills them badly.
+    // This is generic rendering infrastructure, independent of chess.
+    private static float Cross((float X, float Y) a, (float X, float Y) b,
+                               (float X, float Y) c) =>
+        (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+
+    private static void FillPolygon(JsonElement jsonPoints)
+    {
+        var points = new List<(float X, float Y)>();
+        foreach (var point in jsonPoints.EnumerateArray())
+            points.Add(((float)Number(point, "x"), (float)Number(point, "y")));
+
+        float area = 0;
+        for (var i = 0; i < points.Count; i++)
+        {
+            var a = points[i];
+            var b = points[(i + 1) % points.Count];
+            area += a.X * b.Y - b.X * a.Y;
+        }
+        if (Math.Abs(area) < 0.0001f)
+            throw new ArgumentException("Polygon has zero area");
+
+        var winding = area >= 0 ? 1 : -1;
+        var remaining = new List<int>();
+        for (var i = 0; i < points.Count; i++) remaining.Add(i);
+
+        while (remaining.Count > 2)
+        {
+            var clipped = false;
+            for (var i = 0; i < remaining.Count; i++)
+            {
+                var pa = remaining[(i + remaining.Count - 1) % remaining.Count];
+                var pb = remaining[i];
+                var pc = remaining[(i + 1) % remaining.Count];
+                var a = points[pa];
+                var b = points[pb];
+                var c = points[pc];
+                if (winding * Cross(a, b, c) <= 0.0001f) continue;
+
+                var occupied = false;
+                foreach (var other in remaining)
+                {
+                    if (other == pa || other == pb || other == pc) continue;
+                    var p = points[other];
+                    if (winding * Cross(a, b, p) >= -0.0001f &&
+                        winding * Cross(b, c, p) >= -0.0001f &&
+                        winding * Cross(c, a, p) >= -0.0001f)
+                    {
+                        occupied = true;
+                        break;
+                    }
+                }
+                if (occupied) continue;
+
+                GlVertex2f(a.X, a.Y);
+                GlVertex2f(b.X, b.Y);
+                GlVertex2f(c.X, c.Y);
+                remaining.RemoveAt(i);
+                clipped = true;
+                break;
+            }
+            if (!clipped)
+                throw new ArgumentException("Polygon is self-intersecting or degenerate");
+        }
+    }
+
     private static object Batch(JsonElement request)
     {
         Current(request);
@@ -453,6 +555,35 @@ public static class Extension
                                     Quad(x + i * 6 * scale + col * scale,
                                          y + row * scale, scale, scale);
                     }
+                }
+                else if (kind == "ellipse")
+                {
+                    var rx = Number(command, "rx");
+                    var ry = Number(command, "ry");
+                    if (rx <= 0 || ry <= 0 || rx > 4096 || ry > 4096)
+                        throw new ArgumentException("Ellipse radii must be positive and bounded");
+                    GlEnd();
+                    GlBegin(GlTriangleFan);
+                    GlVertex2f((float)x, (float)y);
+                    for (var n = 0; n <= 40; n++)
+                    {
+                        var a = n * Math.PI * 2 / 40;
+                        GlVertex2f((float)(x + Math.Cos(a) * rx), (float)(y + Math.Sin(a) * ry));
+                    }
+                    GlEnd();
+                    GlBegin(GlQuads);
+                }
+                else if (kind == "polygon")
+                {
+                    var points = command.GetProperty("points");
+                    if (points.ValueKind != JsonValueKind.Array ||
+                        points.GetArrayLength() < 3 || points.GetArrayLength() > 64)
+                        throw new ArgumentException("Polygon requires 3..64 vertices");
+                    GlEnd();
+                    GlBegin(GlTriangles);
+                    try { FillPolygon(points); }
+                    finally { GlEnd(); }
+                    GlBegin(GlQuads);
                 }
                 else throw new ArgumentException($"Unsupported graphics command: {kind}");
             }

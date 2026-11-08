@@ -77,6 +77,27 @@ graphics.present(context)
 
 The draw batch is submitted in one extension invocation, with the top-left pixel as the origin. Text uses a deliberately minimal embedded uppercase font. The source-built extension is used by [The Ashen Crypt](../../getting-started/rpg-game/), a playable Windows dungeon crawler.
 
+## Vector drawing and timed wakeups
+
+The OpenGL batch supports generic solid **ellipses** and **simple polygons** alongside rectangles and bitmap text. Polygons are triangulated so concave shapes such as chess crowns can be drawn reliably:
+
+```beacon
+include std.graphics.gl
+
+commands: list = [
+    graphics.gl.ellipse(50, 50, 20, 15, { red: 0.9, green: 0.8, blue: 0.4 }),
+    graphics.gl.polygon([
+        graphics.gl.vertex(100, 30),
+        graphics.gl.vertex(130, 70),
+        graphics.gl.vertex(80, 70)
+    ], { red: 0.8, green: 0.3, blue: 0.2 })
+]
+```
+
+Applications using the blocking native event loop can schedule a nonblocking wake with `graphics.gl.requestWake(context, delayMilliseconds, token)`. The extension posts a Windows `mouseMove` event with reserved `x == 32766` and `y == token`, where token is 1–32000. The application may ignore obsolete wakeups by comparing that token against its current pending work. The extension does not run application callbacks on another thread: it only posts the event.
+
+[Beacon Chess](https://github.com/thoersch/beacon-lang/blob/master/examples/chess.beacon) uses these generic primitives for its smooth piece silhouettes and incremental AI turn scheduling. The chess rules, AI evaluation and player state remain entirely in Beacon.
+
 ## Important limits
 
 The first implementation uses **OpenGL 1.1 compatibility** functions so it can be tested against software-only Windows drivers. It is a real OpenGL binding, but does **not** yet expose modern core-profile shaders, vertex buffers, textures, or continuous rendering. The availability check means the Windows window backend exists; driver/context creation can still fail. Hardware acceleration depends on the installed driver.
