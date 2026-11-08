@@ -1,0 +1,40 @@
+// Smoke reusable vector OpenGL primitives and tagged timer events.
+// Executable on Windows, portable compilation on other platforms.
+include std.window
+include std.graphics
+include std.graphics.gl
+
+if not window.available() then
+    print("unsupported")
+else
+    app: record = window.create({ title: "Beacon Chess event smoke", width: 360, height: 240 })
+    context: record = graphics.createContext(app, { renderer: graphics.renderer.opengl })
+    window.show(app)
+    commands: list = [
+        graphics.gl.ellipse(50, 50, 20, 20, { red: 0.1, green: 0.8, blue: 0.2 }),
+        graphics.gl.polygon([
+            graphics.gl.vertex(100, 20),
+            graphics.gl.vertex(140, 80),
+            graphics.gl.vertex(100, 80)
+        ], { red: 0.9, green: 0.1, blue: 0.2 })
+    ]
+    graphics.gl.clearColor(context, 0.01, 0.02, 0.03, 1)
+    graphics.gl.clear(context, graphics.gl.buffer.color)
+    graphics.gl.drawBatch(context, 360, 240, commands)
+    ovalPixel: record = graphics.gl.samplePixel(context, 50, 190)
+    trianglePixel: record = graphics.gl.samplePixel(context, 112, 190)
+    print(ovalPixel.green > 0.65 and ovalPixel.red < 0.25)
+    print(trianglePixel.red > 0.75 and trianglePixel.green < 0.25)
+    graphics.present(context)
+    graphics.gl.requestWake(context, 180, 117)
+    woke: boolean = false
+    for [i: number = 0, not woke, i += 1]
+        event: record = window.nextEvent(app)
+        if event.type == "mouseMove" and event.x == 32766 and event.y == 117 then
+            woke = true
+        end
+    loop
+    print(woke)
+    graphics.destroyContext(context)
+    window.close(app)
+end
