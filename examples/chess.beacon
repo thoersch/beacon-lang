@@ -197,8 +197,16 @@ commitMove: fn(session: record, move: record) = [
 ]
 undo: fn(session: record) = [
     if session.history.length() > 1 then
-        session.history.pop()
-        session.moves.pop()
+        previous: list = []
+        for [i: number = 0, i < session.history.length() - 1, i += 1]
+            previous.push(session.history@i)
+        loop
+        previousMoves: list = []
+        for [i: number = 0, i < session.moves.length() - 1, i += 1]
+            previousMoves.push(session.moves@i)
+        loop
+        session.history = previous
+        session.moves = previousMoves
         session.message = "MOVE UNDONE"
     end,
     session.selected = -1,
