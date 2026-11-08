@@ -17,7 +17,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon)"
+          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon | tee /dev/stderr)"
           expected="$(printf 'true\n%.0s' {1..16})"
           if [ "$actual" != "$expected" ]; then
             printf "Unexpected chess results:\n%s\n" "$actual" >&2
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon | tr -d '\r')"
+          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon | tr -d '\r' | tee /dev/stderr)"
           expected="$(printf 'true\n%.0s' {1..16})"
           [ "$actual" = "$expected" ]
       - name: Open native chess board and close it
