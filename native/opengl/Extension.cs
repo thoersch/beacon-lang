@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Beacon.Native;
 
@@ -41,6 +42,7 @@ public static class Extension
     private const uint GlColorBufferBit = 0x00004000;
     private const uint GlTriangles = 0x0004;
     private const uint GlQuads = 0x0007;
+    private const uint GlTriangleFan = 0x0006;
     private const uint GlProjection = 0x1701;
     private const uint GlModelview = 0x1700;
     private const uint GlVersion = 0x1F02;
@@ -81,6 +83,13 @@ public static class Extension
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect { public int left, top, right, bottom; }
 
+    // A generic delayed event wake for applications using the blocking Win32
+    // event queue. F24 is reserved by this extension as an internal wake event.
+    private const uint WmKeyDown = 0x0100;
+    private const int WakeVirtualKey = 0x87; // VK_F24
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr GetDC(IntPtr hwnd);
     [DllImport("user32.dll", SetLastError = true)]
@@ -162,6 +171,7 @@ public static class Extension
             "viewport" => Reply(Viewport(request)),
             "triangle" => Reply(Triangle(request)),
             "batch" => Reply(Batch(request)),
+            "wake" => Reply(Wake(request)),
             "present" => Reply(Present(request)),
             "samplePixel" => Reply(SamplePixel(request)),
             _ => throw new InvalidOperationException($"Unknown OpenGL operation: {action}"),
@@ -406,6 +416,24 @@ public static class Extension
         GlVertex2f((float)x, (float)(y + height));
     }
 
+    // Window wake uses the host's existing event pump. It does no work on the
+    // background thread except enqueue an ordinary Win32 message. Chess
+    // search, controls and all application state remain entirely in Beacon.
+    private static object Wake(JsonElement request)
+    {
+        var context = Current(request);
+        var milliseconds = Integer(request, "milliseconds");
+        if (milliseconds < 0 || milliseconds > 30000)
+            throw new ArgumentOutOfRangeException(nameof(milliseconds));
+        var hwnd = context.Window;
+        _ = Task.Delay(milliseconds).ContinueWith(_ =>
+        {
+            if (IsWindow(hwnd))
+                PostMessage(hwnd, WmKeyDown, new IntPtr(WakeVirtualKey), IntPtr.Zero);
+        });
+        return new { ok = true };
+    }
+
     private static object Batch(JsonElement request)
     {
         Current(request);
@@ -453,6 +481,36 @@ public static class Extension
                                     Quad(x + i * 6 * scale + col * scale,
                                          y + row * scale, scale, scale);
                     }
+                }
+                else if (kind == "ellipse")
+                {
+                    var rx = Number(command, "rx");
+                    var ry = Number(command, "ry");
+                    if (rx <= 0 || ry <= 0 || rx > 4096 || ry > 4096)
+                        throw new ArgumentException("Ellipse radii must be positive and bounded");
+                    GlEnd();
+                    GlBegin(GlTriangleFan);
+                    GlVertex2f((float)x, (float)y);
+                    for (var n = 0; n <= 40; n++)
+                    {
+                        var a = n * Math.PI * 2 / 40;
+                        GlVertex2f((float)(x + Math.Cos(a) * rx), (float)(y + Math.Sin(a) * ry));
+                    }
+                    GlEnd();
+                    GlBegin(GlQuads);
+                }
+                else if (kind == "polygon")
+                {
+                    var points = command.GetProperty("points");
+                    if (points.ValueKind != JsonValueKind.Array ||
+                        points.GetArrayLength() < 3 || points.GetArrayLength() > 64)
+                        throw new ArgumentException("Polygon requires 3..64 vertices");
+                    GlEnd();
+                    GlBegin(GlTriangleFan);
+                    foreach (var point in points.EnumerateArray())
+                        GlVertex2f((float)Number(point, "x"), (float)Number(point, "y"));
+                    GlEnd();
+                    GlBegin(GlQuads);
                 }
                 else throw new ArgumentException($"Unsupported graphics command: {kind}");
             }
