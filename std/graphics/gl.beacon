@@ -113,14 +113,16 @@ ellipse: fn(x: number, y: number, rx: number, ry: number, color: record) = {
     blue: color.blue
 }
 
-// Schedules one nonblocking wake through the native window event queue.
-// The returned event is keyDown with virtual key 135 (F24), reserved for
-// application timer work. No Beacon game or AI code runs on native threads.
-requestWake: fn(context: record, milliseconds: number) = [
+// Schedules one nonblocking wake through the Win32 event queue. The returned
+// event is mouseMove with x=32766 and y=token. A caller-provided token
+// disambiguates outstanding timers after cancellation. The scheduled callback
+// only posts an event; application state is always updated on Beacon's thread.
+requestWake: fn(context: record, milliseconds: number, token: number) = [
     hostNative("opengl", {
         action: "wake"
         id: context.id
         milliseconds: milliseconds
+        token: token
     }),
     null
 ]
