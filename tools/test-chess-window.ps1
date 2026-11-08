@@ -39,6 +39,26 @@ try {
         Get-Process -Name dotnet -ErrorAction SilentlyContinue | Select-Object Id,CPU,StartTime | Format-Table | Out-String | Write-Host
         throw "Chess window never appeared. Output: $(Get-Content $log -Raw) Errors: $(Get-Content $errors -Raw)"
     }
+    # Exercise native mouse/keyboard events: e2-e4, d7-d5, e4xd5, undo and reset.
+    $click = {
+        param([int]$x, [int]$y)
+        $coords = [IntPtr]((($y -band 0xffff) -shl 16) -bor ($x -band 0xffff))
+        [BeaconChessWindowProbe]::PostMessage($handle, 0x0201, [IntPtr]::Zero, $coords) | Out-Null
+        [BeaconChessWindowProbe]::PostMessage($handle, 0x0202, [IntPtr]::Zero, $coords) | Out-Null
+        Start-Sleep -Milliseconds 150
+        if ($process.HasExited) { throw "Chess exited while processing a mouse move: $(Get-Content $errors -Raw)" }
+    }
+    & $click 336 504 # e2
+    & $click 336 376 # e4
+    & $click 272 184 # d7
+    & $click 272 312 # d5
+    & $click 336 376 # e4
+    & $click 272 312 # captures d5
+    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]85, [IntPtr]::Zero) | Out-Null # U: undo
+    Start-Sleep -Milliseconds 150
+    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]82, [IntPtr]::Zero) | Out-Null # R: reset
+    Start-Sleep -Milliseconds 150
+    if ($process.HasExited) { throw "Chess exited during undo/reset: $(Get-Content $errors -Raw)" }
     if (-not [BeaconChessWindowProbe]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)) {
         throw "Failed to send close event to the Chess window"
     }
