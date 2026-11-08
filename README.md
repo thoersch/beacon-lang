@@ -136,13 +136,13 @@ This initial proof targets OpenGL 1.1 compatibility; modern shaders and buffers 
 
 ## Play chess in Beacon
 
-**Beacon Chess** is a chess game written entirely in Beacon, with a selectable computer opponent and local two-player mode. Its high-contrast, piece-specific pixel-art sprites make kings, queens, bishops, knights, rooks, and pawns easy to distinguish. The game uses `std.window` and `std.graphics.gl` for its native Windows display. All chess logic, including check, legal move filtering, castling, en passant, promotion, checkmate, stalemate, and draw conditions, lives in the game-owned `examples/chess/rules.beacon` module.
+**Beacon Chess** is a chess game written entirely in Beacon, with a selectable computer opponent and local two-player mode. Its high-contrast vector chessmen have distinct sculpted silhouettes: a horse-head knight, cross-topped king, crowned queen, battlement rook, mitred bishop and round-headed pawn. The game uses `std.window` and `std.graphics.gl` for its native Windows display. All chess logic, including check, legal move filtering, castling, en passant, promotion, checkmate, stalemate, and draw conditions, lives in the game-owned `examples/chess/rules.beacon` module.
 
 ```powershell
 ./beacon.ps1 examples/chess.beacon
 ```
 
-The default mode is **play White against the Beacon computer** (Black). Click a piece, then a highlighted destination. The computer chooses a legal reply using a pure-Beacon alpha-beta search and a positional/material evaluation. Press **M** to switch between computer and two-player play, or **L** to cycle AI levels 1–3. Press **U** to undo the preceding turn (including the computer's reply), **R** to restart, and **Q/R/B/N** to select a promotion. All chess and AI logic stays in `examples/chess/`, never the standard library.
+The default mode is **play White against the Beacon computer** (Black). Click a piece, then a highlighted destination. Your move is rendered immediately and both its starting and destination squares stay highlighted. The computer thinks in small steps while a 1.4-second display delay runs, then plays its legal reply using a pure-Beacon alpha-beta search and a positional/material evaluation. The native window remains responsive between AI search steps. Press **M** to switch between computer and two-player play, or **L** to cycle AI levels 1–3. Press **U** to undo the preceding turn (including the computer's reply), **R** to restart, and **Q/R/B/N** to select a promotion. All chess and AI logic stays in `examples/chess/`, never the standard library.
 
 [Chess application](examples/chess.beacon) · [Chess rules](examples/chess/rules.beacon) · [Computer AI](examples/chess/ai.beacon) · [Piece artwork](examples/chess/art.beacon) · [AI tests](examples/chess-ai-smoke.beacon)
 
