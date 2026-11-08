@@ -1,0 +1,16 @@
+// Game-owned HUD labels. Beacon interpolation handles named local variables,
+// not dotted record expressions in template strings.
+statusLabels: fn(state: record, difficulty: number) = [
+    moveNumber: number = state.full,
+    halfCount: number = state.half,
+    aiLevel: number = difficulty,
+    {
+        move: "MOVE {moveNumber}"
+        half: "HALF {halfCount}"
+        level: "AI LEVEL {aiLevel}"
+    }
+]
+
+chessUI: record = {
+    labels: statusLabels
+}
