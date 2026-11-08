@@ -248,7 +248,7 @@ clickBoard: fn(session: record, x: number, y: number) = [
 ]
 keyAction: fn(session: record, key: number) = [
     if session.pending then
-        promo: string = "",
+        promo: string = ""
         when
             key == 81 then
                 promo = "Q"
@@ -260,7 +260,7 @@ keyAction: fn(session: record, key: number) = [
                 promo = "N"
             otherwise
                 null
-        end,
+        end
         if promo != "" then
             move: record = chess.findMove(current(session), session.from, session.to, promo)
             if move.valid then
