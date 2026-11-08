@@ -37,6 +37,14 @@ newSession: fn() = {
     claimed: false
     vsComputer: true
     aiLevel: 2
+    thinkActive: false
+    thinkMoves: []
+    thinkIndex: 0
+    thinkScore: -200000
+    thinkAlpha: -200000
+    thinkBest: { valid: false, from: -1, to: -1, promotion: "", flag: "" }
+    wakeToken: 0
+    moveDetails: []
 }
 
 current: fn(session: record) = session.history@(session.history.length() - 1)
@@ -70,6 +78,16 @@ draw: fn(context: record, app: record, session: record) = [
     state: record = current(session),
     result: record = chess.status(session.history),
     options: list = [],
+    lastFrom: number = -1,
+    lastTo: number = -1,
+    moveNumber: number = state.full,
+    halfCount: number = state.half,
+    aiLevel: number = session.aiLevel,
+    if session.moveDetails.length() > 0 then
+        last: record = session.moveDetails@(session.moveDetails.length() - 1)
+        lastFrom = last.from
+        lastTo = last.to
+    end,
     if session.selected >= 0 then
         options = chess.legal(state)
     end,
@@ -87,6 +105,9 @@ draw: fn(context: record, app: record, session: record) = [
             squareColor: record = lightSquare
             if parity == 1 then
                 squareColor = darkSquare
+            end
+            if lastFrom == i or lastTo == i then
+                squareColor = { red: 0.64, green: 0.76, blue: 0.44 }
             end
             if session.selected == i then
                 squareColor = selectedColor
@@ -108,9 +129,13 @@ draw: fn(context: record, app: record, session: record) = [
 
     appendRect(cmds, sidebar, originY, 236, 512, surface),
     appendText(cmds, sidebar + 15, 109, "MATCH STATUS", 2, gold),
-    appendText(cmds, sidebar + 15, 145, result.message, 1, textColor),
-    appendText(cmds, sidebar + 15, 180, "MOVE {state.full}", 2, textColor),
-    appendText(cmds, sidebar + 15, 212, "HALF {state.half}", 2, muted),
+    if session.thinkActive then
+        appendText(cmds, sidebar + 15, 145, "COMPUTER THINKING", 1, textColor)
+    else
+        appendText(cmds, sidebar + 15, 145, result.message, 1, textColor)
+    end,
+    appendText(cmds, sidebar + 15, 180, "MOVE {moveNumber}", 2, textColor),
+    appendText(cmds, sidebar + 15, 212, "HALF {halfCount}", 2, muted),
     appendText(cmds, sidebar + 15, 251, "CONTROLS", 2, gold),
     appendText(cmds, sidebar + 15, 279, "CLICK PIECE", 2, textColor),
     appendText(cmds, sidebar + 15, 307, "CLICK TARGET", 2, textColor),
@@ -126,7 +151,7 @@ draw: fn(context: record, app: record, session: record) = [
         appendText(cmds, sidebar + 25, 416, "TWO PLAYERS", 2, textColor)
     end,
     appendRect(cmds, sidebar + 15, 445, 205, 31, darkSquare),
-    appendText(cmds, sidebar + 25, 456, "AI LEVEL {session.aiLevel}", 2, textColor),
+    appendText(cmds, sidebar + 25, 456, "AI LEVEL {aiLevel}", 2, textColor),
     appendText(cmds, sidebar + 15, 482, "M MODE  L LEVEL", 1, muted),
 
     if session.pending then
@@ -157,33 +182,81 @@ commitMove: fn(session: record, move: record) = [
     label: string = chess.name(move.from) + chess.name(move.to) + move.promotion,
     session.history.push(played),
     session.moves.push(label),
+    session.moveDetails.push(move),
     session.selected = -1,
     session.pending = false,
     session.message = "PLAYED " + label,
     null
 ]
-computerTurn: fn(session: record) = [
+// Native wakeups only enqueue window events; chess decisions and game state
+// remain entirely in Beacon. The human move is rendered before AI begins.
+scheduleWake: fn(session: record, context: record, delay: number) = [
+    session.wakeToken += 1,
+    if session.wakeToken > 30000 then
+        session.wakeToken = 1
+    end,
+    graphics.gl.requestWake(context, delay, session.wakeToken),
+    null
+]
+
+startComputer: fn(session: record, context: record) = [
     state: record = current(session),
     result: record = chess.status(session.history),
     if session.vsComputer and state.turn == -1 and not result.finished and not session.claimed and not session.pending then
-        choice: record = chessAI.choose(state, session.aiLevel)
-        if choice.valid then
-            commitMove(session, choice)
-            session.message = "COMPUTER " + chess.name(choice.from) + chess.name(choice.to) + choice.promotion
+        session.thinkActive = true
+        session.thinkMoves = chessAI.ordered(state, chess.legal(state))
+        session.thinkIndex = 0
+        session.thinkScore = -200000
+        session.thinkAlpha = -200000
+        session.thinkBest = { valid: false, from: -1, to: -1, promotion: "", flag: "" }
+        session.message = "YOUR MOVE IS PLAYED - COMPUTER NEXT"
+        scheduleWake(session, context, 1400)
+    end,
+    null
+]
+
+// One root candidate per wake: window events and repainting resume between
+// chunks of the search, rather than freezing until every move is calculated.
+advanceComputer: fn(session: record, context: record, token: number) = [
+    if session.thinkActive and token == session.wakeToken then
+        state: record = current(session)
+        if session.thinkIndex < session.thinkMoves.length() then
+            move: record = session.thinkMoves@(session.thinkIndex)
+            score: number = chessAI.scoreCandidate(state, move, session.aiLevel, session.thinkAlpha)
+            if score > session.thinkScore then
+                session.thinkScore = score
+                session.thinkBest = move
+            end
+            if score > session.thinkAlpha then
+                session.thinkAlpha = score
+            end
+            session.thinkIndex += 1
+        end
+        if session.thinkIndex >= session.thinkMoves.length() then
+            session.thinkActive = false
+            if session.thinkBest.valid then
+                commitMove(session, session.thinkBest)
+                played: record = session.thinkBest
+                session.message = "COMPUTER " + chess.name(played.from) + chess.name(played.to) + played.promotion
+            end
+        else
+            scheduleWake(session, context, 12)
         end
     end,
     null
 ]
 
-toggleMode: fn(session: record) = [
+toggleMode: fn(session: record, context: record) = [
     session.vsComputer = not session.vsComputer,
     session.selected = -1,
+    session.thinkActive = false,
+    session.wakeToken += 1,
     if session.vsComputer then
         session.message = "PLAY WHITE - COMPUTER IS BLACK"
+        startComputer(session, context)
     else
         session.message = "LOCAL TWO PLAYER MODE"
     end,
-    computerTurn(session),
     null
 ]
 
@@ -192,7 +265,8 @@ cycleLevel: fn(session: record) = [
     if session.aiLevel > 3 then
         session.aiLevel = 1
     end,
-    session.message = "COMPUTER LEVEL {session.aiLevel}",
+    level: number = session.aiLevel,
+    session.message = "COMPUTER LEVEL {level}",
     null
 ]
 
@@ -207,19 +281,24 @@ undo: fn(session: record) = [
             previous.push(session.history@i)
         loop
         previousMoves: list = []
+        previousDetails: list = []
         for [i: number = 0, i < session.moves.length() - plies, i += 1]
             previousMoves.push(session.moves@i)
+            previousDetails.push(session.moveDetails@i)
         loop
         session.history = previous
         session.moves = previousMoves
+        session.moveDetails = previousDetails
         session.message = "MOVE UNDONE"
     end,
     session.selected = -1,
     session.pending = false,
     session.claimed = false,
+    session.thinkActive = false,
+    session.wakeToken += 1,
     null
 ]
-clickBoard: fn(session: record, x: number, y: number) = [
+clickBoard: fn(session: record, context: record, x: number, y: number) = [
     state: record = current(session),
     status: record = chess.status(session.history),
     if status.finished or session.claimed or session.pending or (session.vsComputer and state.turn == -1) then
@@ -247,7 +326,7 @@ clickBoard: fn(session: record, x: number, y: number) = [
                             session.message = "PROMOTION - Q R B N"
                         else
                             commitMove(session, m)
-                            computerTurn(session)
+                            startComputer(session, context)
                         end
                         break
                     end
@@ -260,7 +339,7 @@ clickBoard: fn(session: record, x: number, y: number) = [
     end,
     null
 ]
-keyAction: fn(session: record, key: number) = [
+keyAction: fn(session: record, context: record, key: number) = [
     if session.pending then
         promo: string = ""
         when
@@ -279,7 +358,7 @@ keyAction: fn(session: record, key: number) = [
             move: record = chess.findMove(current(session), session.from, session.to, promo)
             if move.valid then
                 commitMove(session, move)
-                computerTurn(session)
+                startComputer(session, context)
             end
         end
     else
@@ -290,12 +369,15 @@ keyAction: fn(session: record, key: number) = [
                 newGame: record = newSession()
                 session.history = newGame.history
                 session.moves = newGame.moves
+                session.moveDetails = newGame.moveDetails
+                session.thinkActive = false
+                session.wakeToken += 1
                 session.selected = -1
                 session.pending = false
                 session.claimed = false
                 session.message = "NEW GAME"
             key == 77 then
-                toggleMode(session)
+                toggleMode(session, context)
             key == 76 then
                 cycleLevel(session)
             key == 68 then
@@ -341,17 +423,24 @@ else
                     session.vsComputer = previousMode
                     session.aiLevel = previousLevel
                 else if event.x >= sidebar + 15 and event.x <= sidebar + 220 and event.y >= 405 and event.y <= 436 then
-                    toggleMode(session)
+                    toggleMode(session, context)
                 else if event.x >= sidebar + 15 and event.x <= sidebar + 220 and event.y >= 445 and event.y <= 476 then
                     cycleLevel(session)
                 else
-                    clickBoard(session, event.x, event.y)
+                    clickBoard(session, context, event.x, event.y)
                 end
                 if app.width >= 840 and app.height >= 655 then
                     draw(context, app, session)
                 end
+            event.type == "mouseMove" then
+                if event.x == 32766 then
+                    advanceComputer(session, context, event.y)
+                    if app.width >= 840 and app.height >= 655 then
+                        draw(context, app, session)
+                    end
+                end
             event.type == "keyDown" then
-                keyAction(session, event.key)
+                keyAction(session, context, event.key)
                 if app.width >= 840 and app.height >= 655 then
                     draw(context, app, session)
                 end
