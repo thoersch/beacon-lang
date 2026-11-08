@@ -1,6 +1,15 @@
 include "chess/rules"
 s: record = chess.newGame()
 print(s.board@52)
+print(s.turn)
+print(side("P"))
+print(side("p"))
+print(kind("P"))
+print(row(52))
+print(pseudo(s).length())
+print(inCheck(s,1))
+print(attacked(s.board,60,-1))
+
 print(chess.square("e", 2))
 print(chess.square("e", 4))
 moves: list = chess.legal(s)
