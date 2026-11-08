@@ -13,11 +13,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Debug opening pawn moves
+        shell: bash
+        run: bash ./beacon.sh examples/chess-debug.beacon
       - name: Validate pure Beacon chess rules
         shell: bash
         run: |
           set -euo pipefail
-          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon | tee /dev/stderr)"
+          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon)"
           expected="$(printf 'true\n%.0s' {1..16})"
           if [ "$actual" != "$expected" ]; then
             printf "Unexpected chess results:\n%s\n" "$actual" >&2
