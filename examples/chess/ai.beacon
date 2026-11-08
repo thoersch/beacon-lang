@@ -1,0 +1,206 @@
+// Chess opponent written entirely in Beacon. No native engine, FFI chess
+// library, opening database, or additional runtime dependency.
+// Negamax with alpha-beta pruning and positional material evaluation.
+include std.math
+
+pieceValue: fn(piece: string) = [
+    value: number = 0,
+    when
+        piece == "P" then
+            value = 100
+        piece == "N" then
+            value = 320
+        piece == "B" then
+            value = 335
+        piece == "R" then
+            value = 510
+        piece == "Q" then
+            value = 920
+        piece == "K" then
+            value = 20000
+        otherwise
+            null
+    end,
+    value
+]
+
+// A center preference for development and space; pawn advancement is
+// deliberately rewarded more than aimless king movement.
+squareValue: fn(piece: string, square: number, color: number) = [
+    r: number = chess.row(square),
+    c: number = chess.col(square),
+    centerFile: number = 3 - math.abs(c - 3),
+    centerRank: number = 3 - math.abs(r - 3),
+    advanced: number = 6 - r,
+    if color == -1 then
+        advanced = r - 1
+    end,
+    value: number = 0,
+    when
+        piece == "P" then
+            value = advanced * 7 + centerFile * 4
+        piece == "N" then
+            value = (centerFile + centerRank) * 9
+        piece == "B" then
+            value = (centerFile + centerRank) * 5
+        piece == "R" then
+            value = advanced * 2
+        piece == "Q" then
+            value = (centerFile + centerRank) * 2
+        piece == "K" then
+            value = -(centerFile + centerRank) * 3
+        otherwise
+            null
+    end,
+    value
+]
+
+evaluate: fn(state: record) = [
+    score: number = 0,
+    for [i: number = 0, i < 64, i += 1]
+        piece: string = state.board@i
+        color: number = chess.side(piece)
+        if color != 0 then
+            value: number = pieceValue(chess.pieceType(piece)) + squareValue(chess.pieceType(piece), i, color)
+            score += color * value
+        end
+    loop,
+    // Report the evaluation from the side to move, as negamax requires.
+    score * state.turn
+]
+
+// A substantial capture, promotion, or forcing check is searched ahead of
+// quiet moves, improving alpha-beta pruning without changing legal moves.
+priority: fn(state: record, move: record) = [
+    victim: string = state.board@(move.to),
+    value: number = 0,
+    if victim != "." then
+        value += pieceValue(chess.pieceType(victim)) * 10 - pieceValue(chess.pieceType(state.board@(move.from)))
+    end,
+    if move.flag == "ep" then
+        value += 1000
+    end,
+    if move.promotion != "" then
+        value += pieceValue(move.promotion) * 10
+    end,
+    value
+]
+
+ordered: fn(state: record, moves: list) = [
+    result: list = [],
+    ranked: list = [],
+    for [i: number = 0, i < moves.length(), i += 1]
+        move: record = moves@i
+        rank: number = priority(state, move)
+        place: number = result.length()
+        for [j: number = 0, j < ranked.length(), j += 1]
+            if rank > ranked@j then
+                place = j
+                break
+            end
+        loop
+        if place == result.length() then
+            result.push(move)
+            ranked.push(rank)
+        else
+            nextMoves: list = []
+            nextScores: list = []
+            for [j: number = 0, j < result.length() + 1, j += 1]
+                if j == place then
+                    nextMoves.push(move)
+                    nextScores.push(rank)
+                end
+                if j < result.length() then
+                    nextIndex: number = j
+                    if j >= place then
+                        nextIndex = j - 0
+                    end
+                    nextMoves.push(result@j)
+                    nextScores.push(ranked@j)
+                end
+            loop
+            result = nextMoves
+            ranked = nextScores
+        end
+    loop,
+    result
+]
+
+// All moves are produced by chess.legal(), including castling and special
+// captures; the opponent cannot invent an illegal move.
+search: fn(state: record, depth: number, alpha: number, beta: number) = [
+    moves: list = chess.legal(state),
+    result: number = 0,
+    if moves.length() == 0 then
+        if chess.inCheck(state, state.turn) then
+            result = -100000 - depth
+        end
+    else if chess.insufficient(state) or state.half >= 150 then
+        result = 0
+    else if depth <= 0 then
+        result = evaluate(state)
+    else
+        result = -200000
+        candidates: list = ordered(state, moves)
+        for [i: number = 0, i < candidates.length(), i += 1]
+            move: record = candidates@i
+            next: record = chess.apply(state, move)
+            score: number = -search(next, depth - 1, -beta, -alpha)
+            if score > result then
+                result = score
+            end
+            if score > alpha then
+                alpha = score
+            end
+            if alpha >= beta then
+                break
+            end
+        loop
+    end,
+    result
+]
+
+// Levels 1, 2 and 3 search respectively 1, 2 or 3 full plies.
+// The search is deterministic, transparent and entirely in Beacon.
+choose: fn(state: record, level: number) = [
+    moves: list = chess.legal(state),
+    choice: record = { valid: false, from: -1, to: -1, promotion: "", flag: "", score: 0 },
+    if moves.length() > 0 then
+        depth: number = level
+        if depth < 1 then
+            depth = 1
+        else if depth > 3 then
+            depth = 3
+        end
+        candidates: list = ordered(state, moves)
+        best: number = -200000
+        alpha: number = -200000
+        for [i: number = 0, i < candidates.length(), i += 1]
+            move: record = candidates@i
+            next: record = chess.apply(state, move)
+            score: number = -search(next, depth - 1, -200000, -alpha)
+            if score > best then
+                best = score
+                choice = {
+                    valid: true
+                    from: move.from
+                    to: move.to
+                    promotion: move.promotion
+                    flag: move.flag
+                    score: score
+                }
+            end
+            if score > alpha then
+                alpha = score
+            end
+        loop
+    end,
+    choice
+]
+
+chessAI: record = {
+    pieceValue: pieceValue
+    evaluate: evaluate
+    search: search
+    choose: choose
+}
