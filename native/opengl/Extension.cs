@@ -441,6 +441,73 @@ public static class Extension
         return new { ok = true };
     }
 
+    // Ear-clip simple, possibly concave polygons into triangles. Crown points
+    // and horse silhouettes are concave: a raw triangle fan fills them badly.
+    // This is generic rendering infrastructure, independent of chess.
+    private static float Cross((float X, float Y) a, (float X, float Y) b,
+                               (float X, float Y) c) =>
+        (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+
+    private static void FillPolygon(JsonElement jsonPoints)
+    {
+        var points = new List<(float X, float Y)>();
+        foreach (var point in jsonPoints.EnumerateArray())
+            points.Add(((float)Number(point, "x"), (float)Number(point, "y")));
+
+        float area = 0;
+        for (var i = 0; i < points.Count; i++)
+        {
+            var a = points[i];
+            var b = points[(i + 1) % points.Count];
+            area += a.X * b.Y - b.X * a.Y;
+        }
+        if (Math.Abs(area) < 0.0001f)
+            throw new ArgumentException("Polygon has zero area");
+
+        var winding = area >= 0 ? 1 : -1;
+        var remaining = new List<int>();
+        for (var i = 0; i < points.Count; i++) remaining.Add(i);
+
+        while (remaining.Count > 2)
+        {
+            var clipped = false;
+            for (var i = 0; i < remaining.Count; i++)
+            {
+                var pa = remaining[(i + remaining.Count - 1) % remaining.Count];
+                var pb = remaining[i];
+                var pc = remaining[(i + 1) % remaining.Count];
+                var a = points[pa];
+                var b = points[pb];
+                var c = points[pc];
+                if (winding * Cross(a, b, c) <= 0.0001f) continue;
+
+                var occupied = false;
+                foreach (var other in remaining)
+                {
+                    if (other == pa || other == pb || other == pc) continue;
+                    var p = points[other];
+                    if (winding * Cross(a, b, p) >= -0.0001f &&
+                        winding * Cross(b, c, p) >= -0.0001f &&
+                        winding * Cross(c, a, p) >= -0.0001f)
+                    {
+                        occupied = true;
+                        break;
+                    }
+                }
+                if (occupied) continue;
+
+                GlVertex2f(a.X, a.Y);
+                GlVertex2f(b.X, b.Y);
+                GlVertex2f(c.X, c.Y);
+                remaining.RemoveAt(i);
+                clipped = true;
+                break;
+            }
+            if (!clipped)
+                throw new ArgumentException("Polygon is self-intersecting or degenerate");
+        }
+    }
+
     private static object Batch(JsonElement request)
     {
         Current(request);
@@ -513,10 +580,9 @@ public static class Extension
                         points.GetArrayLength() < 3 || points.GetArrayLength() > 64)
                         throw new ArgumentException("Polygon requires 3..64 vertices");
                     GlEnd();
-                    GlBegin(GlTriangleFan);
-                    foreach (var point in points.EnumerateArray())
-                        GlVertex2f((float)Number(point, "x"), (float)Number(point, "y"));
-                    GlEnd();
+                    GlBegin(GlTriangles);
+                    try { FillPolygon(points); }
+                    finally { GlEnd(); }
                     GlBegin(GlQuads);
                 }
                 else throw new ArgumentException($"Unsupported graphics command: {kind}");
