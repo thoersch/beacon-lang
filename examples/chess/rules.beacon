@@ -318,6 +318,10 @@ apply: fn(state: record, move: record) = [
     if resets then
         half = 0
     end,
+    nextFull: number = state.full,
+    if state.turn == -1 then
+        nextFull += 1
+    end,
     {
         board: b
         turn: -state.turn
@@ -327,7 +331,7 @@ apply: fn(state: record, move: record) = [
         bq: bq
         ep: ep
         half: half
-        full: state.full + (state.turn == -1)
+        full: nextFull
     }
 ]
 legal: fn(state: record) = [
