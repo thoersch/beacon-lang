@@ -1,6 +1,7 @@
 // Pure Beacon chess AI regression: no native engine or graphics.
 include "chess/rules"
 include "chess/ai"
+include std.graphics.gl
 include "chess/art"
 
 start: record = chess.newGame()
