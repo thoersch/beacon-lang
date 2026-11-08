@@ -134,6 +134,18 @@ This initial proof targets OpenGL 1.1 compatibility; modern shaders and buffers 
 
 [Graphics guide](https://thoersch.github.io/beacon-lang/standard-library/graphics/) · [Native extension architecture](https://thoersch.github.io/beacon-lang/concepts/native-extensions/)
 
+## Play chess in Beacon
+
+**Beacon Chess** is a complete two-player chess example written entirely in Beacon. The game uses `std.window` and `std.graphics.gl` for its native Windows display. All chess logic, including check, legal move filtering, castling, en passant, promotion, checkmate, stalemate, and draw conditions, lives in the game-owned `examples/chess/rules.beacon` module.
+
+```powershell
+./beacon.ps1 examples/chess.beacon
+```
+
+Click a piece and a highlighted destination to move. Use **U** or **Undo** to take back a move; **R** or **Reset** to start over; and **Q/R/B/N** to choose a pawn promotion. Players alternate on the same computer.
+
+[Chess application](examples/chess.beacon) · [Chess rules](examples/chess/rules.beacon) · [Rules tests](examples/chess-rules-smoke.beacon)
+
 ## Play a game built in Beacon
 
 **The Ashen Crypt** is a native, turn-based dungeon crawler that expands Beacon's typed RPG inventory example into a full playable game. Explore a tiled crypt, battle pursuing enemies, use potions, level up, and unlock the final gate. The game renders its pixel art and HUD with Beacon-owned OpenGL draw batches.

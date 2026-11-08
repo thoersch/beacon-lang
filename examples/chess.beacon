@@ -1,0 +1,344 @@
+// BEACON CHESS: two-player chess with legal move validation.
+// Chess mechanics and the entire UI are written in Beacon.
+// The existing std.graphics.gl extension is only a generic rectangle/text renderer.
+include std.window
+include std.graphics
+include std.graphics.gl
+include "chess/rules"
+
+bg: record = { red: 0.055, green: 0.070, blue: 0.095 }
+surface: record = { red: 0.10, green: 0.14, blue: 0.19 }
+lightSquare: record = { red: 0.86, green: 0.84, blue: 0.76 }
+darkSquare: record = { red: 0.31, green: 0.42, blue: 0.47 }
+selectedColor: record = { red: 0.90, green: 0.72, blue: 0.31 }
+hintColor: record = { red: 0.38, green: 0.80, blue: 0.62 }
+ivory: record = { red: 0.96, green: 0.94, blue: 0.84 }
+night: record = { red: 0.13, green: 0.18, blue: 0.25 }
+gold: record = { red: 0.92, green: 0.73, blue: 0.37 }
+textColor: record = { red: 0.92, green: 0.94, blue: 0.94 }
+muted: record = { red: 0.54, green: 0.64, blue: 0.69 }
+danger: record = { red: 0.82, green: 0.33, blue: 0.32 }
+
+tile: number = 64
+originX: number = 48
+originY: number = 88
+sidebar: number = 594
+
+newSession: fn() = {
+    history: [chess.newGame()]
+    moves: []
+    selected: -1
+    pending: false
+    from: -1
+    to: -1
+    message: "SELECT A PIECE TO BEGIN"
+    claimed: false
+}
+
+current: fn(session: record) = session.history@(session.history.length() - 1)
+
+appendRect: fn(commands: list, x: number, y: number, w: number, h: number, color: record) = [
+    commands.push(graphics.gl.rect(x, y, w, h, color)),
+    null
+]
+appendText: fn(commands: list, x: number, y: number, value: string, scale: number, color: record) = [
+    commands.push(graphics.gl.text(x, y, value, scale, color)),
+    null
+]
+
+// Compact flat-shaded chess sprites: scalable, distinguishable silhouettes.
+// The readable piece-letter insignia is drawn using Beacon's bitmap font.
+drawPiece: fn(commands: list, piece: string, x: number, y: number) = [
+    body: record = ivory,
+    outline: record = night,
+    if chess.side(piece) == -1 then
+        body = night
+        outline = ivory
+    end,
+    k: string = chess.pieceType(piece),
+    appendRect(commands, x + 10, y + 49, 44, 8, outline),
+    appendRect(commands, x + 13, y + 45, 38, 7, body),
+    appendRect(commands, x + 17, y + 31, 30, 16, body),
+    if k == "P" then
+        appendRect(commands, x + 24, y + 19, 16, 15, body)
+        appendRect(commands, x + 27, y + 14, 10, 8, body)
+    else if k == "R" then
+        appendRect(commands, x + 18, y + 16, 28, 23, body)
+        appendRect(commands, x + 17, y + 12, 8, 10, body)
+        appendRect(commands, x + 28, y + 12, 8, 10, body)
+        appendRect(commands, x + 39, y + 12, 8, 10, body)
+    else if k == "N" then
+        appendRect(commands, x + 21, y + 17, 26, 20, body)
+        appendRect(commands, x + 16, y + 11, 21, 17, body)
+        appendRect(commands, x + 14, y + 17, 13, 8, body)
+        appendRect(commands, x + 21, y + 9, 5, 8, body)
+    else if k == "B" then
+        appendRect(commands, x + 25, y + 17, 14, 22, body)
+        appendRect(commands, x + 21, y + 21, 22, 11, body)
+        appendRect(commands, x + 29, y + 11, 6, 11, body)
+    else if k == "Q" then
+        appendRect(commands, x + 21, y + 19, 22, 21, body)
+        appendRect(commands, x + 15, y + 14, 9, 11, body)
+        appendRect(commands, x + 28, y + 10, 8, 12, body)
+        appendRect(commands, x + 40, y + 14, 9, 11, body)
+    else if k == "K" then
+        appendRect(commands, x + 20, y + 20, 24, 20, body)
+        appendRect(commands, x + 29, y + 8, 6, 18, body)
+        appendRect(commands, x + 22, y + 14, 20, 5, body)
+    end,
+    letterColor: record = night,
+    if chess.side(piece) == -1 then
+        letterColor = ivory
+    end,
+    appendRect(commands, x + 22, y + 34, 21, 11, outline),
+    appendText(commands, x + 25, y + 35, k, 1, letterColor),
+    null
+]
+
+hasTarget: fn(options: list, selected: number, target: number) = [
+    yes: boolean = false,
+    for [i: number = 0, i < options.length(), i += 1]
+        m: record = options@i
+        if m.from == selected and m.to == target then
+            yes = true
+            break
+        end
+    loop,
+    yes
+]
+
+draw: fn(context: record, app: record, session: record) = [
+    state: record = current(session),
+    result: record = chess.status(session.history),
+    options: list = [],
+    if session.selected >= 0 then
+        options = chess.legal(state)
+    end,
+    cmds: list = [],
+    appendRect(cmds, 0, 0, app.width, app.height, bg),
+    appendText(cmds, 48, 26, "BEACON CHESS", 4, gold),
+    appendText(cmds, 49, 60, "100 PERCENT BEACON GAME LOGIC", 1, muted),
+
+    for [r: number = 0, r < 8, r += 1]
+        for [c: number = 0, c < 8, c += 1]
+            i: number = r * 8 + c
+            x: number = originX + c * tile
+            y: number = originY + r * tile
+            parity: number = r + c - math.floor((r + c) / 2) * 2
+            squareColor: record = lightSquare
+            if parity == 1 then
+                squareColor = darkSquare
+            end
+            if session.selected == i then
+                squareColor = selectedColor
+            end
+            appendRect(cmds, x, y, tile, tile, squareColor)
+            if state.board@i != "." then
+                drawPiece(cmds, state.board@i, x, y)
+            end
+            if session.selected >= 0 and hasTarget(options, session.selected, i) then
+                if state.board@i == "." then
+                    appendRect(cmds, x + 29, y + 29, 8, 8, hintColor)
+                else
+                    appendRect(cmds, x + 2, y + 2, 60, 3, hintColor)
+                    appendRect(cmds, x + 2, y + 59, 60, 3, hintColor)
+                end
+            end
+        loop
+    loop,
+
+    appendRect(cmds, sidebar, originY, 236, 512, surface),
+    appendText(cmds, sidebar + 15, 109, "MATCH STATUS", 2, gold),
+    appendText(cmds, sidebar + 15, 145, result.message, 1, textColor),
+    appendText(cmds, sidebar + 15, 180, "MOVE {state.full}", 2, textColor),
+    appendText(cmds, sidebar + 15, 212, "HALF {state.half}", 2, muted),
+    appendText(cmds, sidebar + 15, 251, "CONTROLS", 2, gold),
+    appendText(cmds, sidebar + 15, 279, "CLICK PIECE", 2, textColor),
+    appendText(cmds, sidebar + 15, 307, "CLICK TARGET", 2, textColor),
+    appendRect(cmds, sidebar + 15, 354, 99, 37, darkSquare),
+    appendText(cmds, sidebar + 29, 366, "UNDO", 2, textColor),
+    appendRect(cmds, sidebar + 123, 354, 98, 37, darkSquare),
+    appendText(cmds, sidebar + 130, 366, "RESET", 2, textColor),
+    appendText(cmds, sidebar + 15, 425, "U UNDO  R RESET", 1, muted),
+    appendText(cmds, sidebar + 15, 448, "D CLAIM DRAW", 1, muted),
+
+    if session.pending then
+        appendRect(cmds, sidebar + 12, 472, 212, 103, bg)
+        appendText(cmds, sidebar + 23, 484, "PROMOTE PAWN", 2, gold)
+        appendText(cmds, sidebar + 23, 516, "Q    R    B    N", 2, textColor)
+        appendText(cmds, sidebar + 23, 546, "PRESS Q R B OR N", 1, muted)
+    else
+        appendText(cmds, sidebar + 15, 504, "LAST MOVE", 2, gold)
+        if session.moves.length() > 0 then
+            appendText(cmds, sidebar + 15, 542, session.moves@(session.moves.length() - 1), 2, textColor)
+        else
+            appendText(cmds, sidebar + 15, 542, "NEW GAME", 2, muted)
+        end
+    end,
+
+    appendText(cmds, 49, 621, session.message, 2, gold),
+    graphics.gl.clearColor(context, bg.red, bg.green, bg.blue, 1.0),
+    graphics.gl.clear(context, graphics.gl.buffer.color),
+    graphics.gl.drawBatch(context, app.width, app.height, cmds),
+    graphics.present(context),
+    null
+]
+
+commitMove: fn(session: record, move: record) = [
+    old: record = current(session),
+    played: record = chess.apply(old, move),
+    label: string = chess.name(move.from) + chess.name(move.to) + move.promotion,
+    session.history.push(played),
+    session.moves.push(label),
+    session.selected = -1,
+    session.pending = false,
+    session.message = "PLAYED " + label,
+    null
+]
+undo: fn(session: record) = [
+    if session.history.length() > 1 then
+        previous: list = []
+        for [i: number = 0, i < session.history.length() - 1, i += 1]
+            previous.push(session.history@i)
+        loop
+        previousMoves: list = []
+        for [i: number = 0, i < session.moves.length() - 1, i += 1]
+            previousMoves.push(session.moves@i)
+        loop
+        session.history = previous
+        session.moves = previousMoves
+        session.message = "MOVE UNDONE"
+    end,
+    session.selected = -1,
+    session.pending = false,
+    session.claimed = false,
+    null
+]
+clickBoard: fn(session: record, x: number, y: number) = [
+    state: record = current(session),
+    status: record = chess.status(session.history),
+    if status.finished or session.claimed or session.pending then
+        null
+    else
+        c: number = math.floor((x - originX) / tile)
+        r: number = math.floor((y - originY) / tile)
+        if c >= 0 and c < 8 and r >= 0 and r < 8 then
+            target: number = r * 8 + c
+            piece: string = state.board@target
+            if chess.side(piece) == state.turn then
+                session.selected = target
+                session.message = "SELECT A HIGHLIGHTED SQUARE"
+            else if session.selected >= 0 then
+                options: list = chess.legal(state)
+                matched: boolean = false
+                for [i: number = 0, i < options.length(), i += 1]
+                    m: record = options@i
+                    if m.from == session.selected and m.to == target then
+                        matched = true
+                        if m.promotion != "" then
+                            session.pending = true
+                            session.from = m.from
+                            session.to = m.to
+                            session.message = "PROMOTION - Q R B N"
+                        else
+                            commitMove(session, m)
+                        end
+                        break
+                    end
+                loop
+                if not matched then
+                    session.message = "ILLEGAL MOVE"
+                end
+            end
+        end
+    end,
+    null
+]
+keyAction: fn(session: record, key: number) = [
+    if session.pending then
+        promo: string = ""
+        when
+            key == 81 then
+                promo = "Q"
+            key == 82 then
+                promo = "R"
+            key == 66 then
+                promo = "B"
+            key == 78 then
+                promo = "N"
+            otherwise
+                null
+        end
+        if promo != "" then
+            move: record = chess.findMove(current(session), session.from, session.to, promo)
+            if move.valid then
+                commitMove(session, move)
+            end
+        end
+    else
+        when
+            key == 85 then
+                undo(session)
+            key == 82 then
+                newGame: record = newSession()
+                session.history = newGame.history
+                session.moves = newGame.moves
+                session.selected = -1
+                session.pending = false
+                session.claimed = false
+                session.message = "NEW GAME"
+            key == 68 then
+                status: record = chess.status(session.history)
+                if status.claim then
+                    session.claimed = true
+                    session.message = "DRAW CLAIMED"
+                end
+            otherwise
+                null
+        end
+    end,
+    null
+]
+
+if not graphics.available() then
+    print("Beacon Chess requires the Windows native graphics backend.")
+else
+    app: record = window.create({ title: "Beacon Chess", width: 850, height: 670 })
+    context: record = graphics.createContext(app, { renderer: graphics.renderer.opengl })
+    session: record = newSession()
+    window.show(app)
+    draw(context, app, session)
+    running: boolean = true
+    for [tick: number = 0, running, tick += 1]
+        event: record = window.nextEvent(app)
+        when
+            event.type == "close" then
+                running = false
+            event.type == "resize" then
+                app.width = event.width
+                app.height = event.height
+                if app.width >= 840 and app.height >= 655 then
+                    draw(context, app, session)
+                end
+            event.type == "mouseDown" then
+                if event.x >= sidebar + 15 and event.x <= sidebar + 114 and event.y >= 354 and event.y <= 391 then
+                    undo(session)
+                else if event.x >= sidebar + 123 and event.x <= sidebar + 221 and event.y >= 354 and event.y <= 391 then
+                    session = newSession()
+                else
+                    clickBoard(session, event.x, event.y)
+                end
+                if app.width >= 840 and app.height >= 655 then
+                    draw(context, app, session)
+                end
+            event.type == "keyDown" then
+                keyAction(session, event.key)
+                if app.width >= 840 and app.height >= 655 then
+                    draw(context, app, session)
+                end
+            otherwise
+                null
+        end
+    loop
+    graphics.destroyContext(context)
+end

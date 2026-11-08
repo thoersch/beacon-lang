@@ -1,0 +1,48 @@
+name: Beacon Chess
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Validate pure Beacon chess rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon)"
+          expected="$(printf 'true\n%.0s' {1..17})"
+          if [ "$actual" != "$expected" ]; then
+            printf "Unexpected chess results:\n%s\n" "$actual" >&2
+            exit 1
+          fi
+      - name: Parse standalone chess application without Windows graphics
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(bash ./beacon.sh examples/chess.beacon)" = "Beacon Chess requires the Windows native graphics backend." ]
+
+  native-window:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Chess rules on Windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/chess-rules-smoke.beacon | tr -d '\r')"
+          expected="$(printf 'true\n%.0s' {1..17})"
+          [ "$actual" = "$expected" ]
+      - name: Open native chess board and close it
+        shell: pwsh
+        run: ./tools/test-chess-window.ps1
