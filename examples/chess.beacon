@@ -225,7 +225,13 @@ advanceComputer: fn(session: record, context: record, token: number) = [
             score: number = chessAI.scoreCandidate(state, move, session.aiLevel, session.thinkAlpha)
             if score > session.thinkScore then
                 session.thinkScore = score
-                session.thinkBest = move
+                session.thinkBest = {
+                    valid: true
+                    from: move.from
+                    to: move.to
+                    promotion: move.promotion
+                    flag: move.flag
+                }
             end
             if score > session.thinkAlpha then
                 session.thinkAlpha = score
@@ -419,9 +425,11 @@ else
                 else if event.x >= sidebar + 123 and event.x <= sidebar + 221 and event.y >= 354 and event.y <= 391 then
                     previousMode: boolean = session.vsComputer
                     previousLevel: number = session.aiLevel
+                    previousToken: number = session.wakeToken
                     session = newSession()
                     session.vsComputer = previousMode
                     session.aiLevel = previousLevel
+                    session.wakeToken = previousToken + 1
                 else if event.x >= sidebar + 15 and event.x <= sidebar + 220 and event.y >= 405 and event.y <= 436 then
                     toggleMode(session, context)
                 else if event.x >= sidebar + 15 and event.x <= sidebar + 220 and event.y >= 445 and event.y <= 476 then
