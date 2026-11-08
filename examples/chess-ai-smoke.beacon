@@ -18,11 +18,14 @@ print(chess.apply(start, choice).turn == -1)
 
 // Capture an undefended queen rather than a quiet move.
 position: record = chess.newGame()
-blank: list = []
-for [i: number = 0, i < 64, i += 1]
-    blank.push(".")
-loop
-position.board = blank
+blankBoard: fn() = [
+    cells: list = [],
+    for [i: number = 0, i < 64, i += 1]
+        cells.push(".")
+    loop,
+    cells
+]
+position.board = blankBoard()
 position.board@(chess.square("e", 1)) = "K"
 position.board@(chess.square("e", 8)) = "k"
 position.board@(chess.square("d", 4)) = "r"
@@ -37,7 +40,7 @@ print(choice.valid and choice.from == chess.square("d", 4) and choice.to == ches
 
 // The AI must never produce a move if the position is over.
 stale: record = chess.newGame()
-stale.board = blank.concat([])
+stale.board = blankBoard()
 stale.board@(chess.square("a", 8)) = "k"
 stale.board@(chess.square("c", 6)) = "K"
 stale.board@(chess.square("b", 6)) = "Q"
@@ -50,7 +53,7 @@ print(not chessAI.choose(stale, 2).valid)
 
 // A black pawn promotion should be a legal promotion choice.
 promo: record = chess.newGame()
-promo.board = blank.concat([])
+promo.board = blankBoard()
 promo.board@(chess.square("h", 8)) = "k"
 promo.board@(chess.square("h", 1)) = "K"
 promo.board@(chess.square("a", 2)) = "p"
