@@ -83,10 +83,11 @@ public static class Extension
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect { public int left, top, right, bottom; }
 
-    // A generic delayed event wake for applications using the blocking Win32
-    // event queue. F24 is reserved by this extension as an internal wake event.
-    private const uint WmKeyDown = 0x0100;
-    private const int WakeVirtualKey = 0x87; // VK_F24
+    // Generic delayed wake for programs using the blocking Win32 event queue.
+    // Reserved mouse coordinates (32766, token) identify scheduled wakeups.
+    // Tokens let callers ignore stale events after undo or reset.
+    private const uint WmMouseMove = 0x0200;
+    private const int WakeMarkerX = 32766;
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
@@ -425,11 +426,17 @@ public static class Extension
         var milliseconds = Integer(request, "milliseconds");
         if (milliseconds < 0 || milliseconds > 30000)
             throw new ArgumentOutOfRangeException(nameof(milliseconds));
+        var token = Integer(request, "token");
+        if (token < 1 || token > 32000)
+            throw new ArgumentOutOfRangeException(nameof(token));
         var hwnd = context.Window;
         _ = Task.Delay(milliseconds).ContinueWith(_ =>
         {
             if (IsWindow(hwnd))
-                PostMessage(hwnd, WmKeyDown, new IntPtr(WakeVirtualKey), IntPtr.Zero);
+            {
+                var position = new IntPtr((token << 16) | WakeMarkerX);
+                PostMessage(hwnd, WmMouseMove, IntPtr.Zero, position);
+            }
         });
         return new { ok = true };
     }
