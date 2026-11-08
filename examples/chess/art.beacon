@@ -1,0 +1,141 @@
+// Beacon-owned 12x12 pixel sprites. Each chessman has an unmistakable
+// silhouette: pawn orb, rook battlements, knight horse head, bishop mitre,
+// queen multi-point crown, and king cross. No image assets or native game art.
+pieceMask: fn(kind: string) = [
+    rows: list = [],
+    when
+        kind == "P" then
+            rows = [
+                "............",
+                "............",
+                "....####....",
+                "...######...",
+                "...######...",
+                "....####....",
+                ".....##.....",
+                "....####....",
+                "...######...",
+                "...######...",
+                "..########..",
+                ".##########."
+            ]
+        kind == "R" then
+            rows = [
+                "............",
+                "..##.##.##..",
+                "..##.##.##..",
+                "..########..",
+                "...######...",
+                "...######...",
+                "...######...",
+                "...######...",
+                "...######...",
+                "..########..",
+                "..########..",
+                ".##########."
+            ]
+        kind == "N" then
+            rows = [
+                "......##....",
+                "....######..",
+                "...#######..",
+                "..########..",
+                ".#########..",
+                "..##..#####.",
+                "..##...####.",
+                "..#####.###.",
+                "....######..",
+                "...#######..",
+                "..########..",
+                ".##########."
+            ]
+        kind == "B" then
+            rows = [
+                ".....##.....",
+                "....####....",
+                "...######...",
+                "....####....",
+                ".....###....",
+                "...######...",
+                "...######...",
+                "....####....",
+                "...######...",
+                "..########..",
+                "..########..",
+                ".##########."
+            ]
+        kind == "Q" then
+            rows = [
+                "............",
+                ".##...##..##",
+                "..##.####.##",
+                "..##########",
+                "...########.",
+                "...######...",
+                "...######...",
+                "...######...",
+                "...######...",
+                "..########..",
+                "..########..",
+                ".##########."
+            ]
+        kind == "K" then
+            rows = [
+                ".....##.....",
+                ".....##.....",
+                "...######...",
+                "...######...",
+                ".....##.....",
+                "...######...",
+                "...######...",
+                "...######...",
+                "...######...",
+                "..########..",
+                "..########..",
+                ".##########."
+            ]
+        otherwise
+            null
+    end,
+    rows
+]
+
+paintChessPiece: fn(commands: list, piece: string, x: number, y: number) = [
+    rows: list = pieceMask(chess.pieceType(piece)),
+    outline: record = { red: 0.11, green: 0.15, blue: 0.21 },
+    fill: record = { red: 0.97, green: 0.94, blue: 0.82 },
+    accent: record = { red: 0.86, green: 0.67, blue: 0.33 },
+    if chess.side(piece) == -1 then
+        outline = { red: 0.94, green: 0.87, blue: 0.65 }
+        fill = { red: 0.15, green: 0.21, blue: 0.31 }
+        accent = { red: 0.86, green: 0.66, blue: 0.32 }
+    end,
+    label: string = chess.pieceType(piece),
+    for [r: number = 0, r < rows.length(), r += 1]
+        pixels: string = rows@r
+        for [c: number = 0, c < pixels.length(), c += 1]
+            if pixels.slice(c, 1) == "#" then
+                dx: number = x + 8 + c * 4
+                dy: number = y + 5 + r * 4
+                commands.push(graphics.gl.rect(dx - 1, dy - 1, 6, 6, outline))
+                pixelColor: record = fill
+                if r < 4 and (label == "K" or label == "Q" or label == "B") then
+                    pixelColor = accent
+                end
+                commands.push(graphics.gl.rect(dx, dy, 4, 4, pixelColor))
+            end
+        loop
+    loop,
+    // The letter inscribed on every base is a second identification cue,
+    // particularly important for bishops vs pawns and queens vs kings.
+    labelBg: record = outline,
+    labelFg: record = fill,
+    commands.push(graphics.gl.rect(x + 24, y + 35, 16, 16, labelBg)),
+    commands.push(graphics.gl.text(x + 27, y + 36, label, 2, labelFg)),
+    null
+]
+
+chessArt: record = {
+    draw: paintChessPiece
+    mask: pieceMask
+}
