@@ -40,7 +40,7 @@ side: fn(p: string) = [
     end,
     result
 ]
-kind: fn(p: string) = [
+pieceType: fn(p: string) = [
     result: string = p,
     when
         p == "p" then
@@ -98,7 +98,7 @@ clearRay: fn(board: list, f: number, t: number) = [
 // and king attacks ignore castling by design.
 attacksFrom: fn(board: list, f: number, t: number) = [
     p: string = board@f,
-    k: string = kind(p),
+    k: string = pieceType(p),
     dr: number = row(t) - row(f),
     dc: number = col(t) - col(f),
     ar: number = abs(dr),
@@ -159,7 +159,7 @@ rayMoves: fn(state: record, moves: list, f: number, dr: number, dc: number) = [
         if side(victim) == state.turn then
             break
         end
-        if kind(victim) != "K" then
+        if pieceType(victim) != "K" then
             pushMove(moves, f, t, "", false)
         end
         if victim != "." then
@@ -175,7 +175,7 @@ pseudo: fn(state: record) = [
     for [f: number = 0, f < 64, f += 1]
         p: string = state.board@f
         if side(p) == state.turn then
-            k: string = kind(p)
+            k: string = pieceType(p)
             r: number = row(f)
             c: number = col(f)
             if k == "P" then
@@ -194,9 +194,9 @@ pseudo: fn(state: record) = [
                     if inside(ahead, tc) then
                         t: number = ahead * 8 + tc
                         victim: string = state.board@t
-                        if side(victim) == -state.turn and kind(victim) != "K" then
+                        if side(victim) == -state.turn and pieceType(victim) != "K" then
                             pushMove(moves, f, t, "", true)
-                        else if t == state.ep and victim == "." and kind(state.board@(t + state.turn * 8)) == "P" and side(state.board@(t + state.turn * 8)) == -state.turn then
+                        else if t == state.ep and victim == "." and pieceType(state.board@(t + state.turn * 8)) == "P" and side(state.board@(t + state.turn * 8)) == -state.turn then
                             pushMove(moves, f, t, "ep", false)
                         end
                     end
@@ -208,7 +208,7 @@ pseudo: fn(state: record) = [
                         tc: number = c + dc
                         if inside(tr, tc) and attacksFrom(state.board, f, tr * 8 + tc) then
                             t: number = tr * 8 + tc
-                            if side(state.board@t) != state.turn and kind(state.board@t) != "K" then
+                            if side(state.board@t) != state.turn and pieceType(state.board@t) != "K" then
                                 pushMove(moves, f, t, "", false)
                             end
                         end
@@ -313,7 +313,7 @@ apply: fn(state: record, move: record) = [
     if f == 0 or t == 0 then
         bq = false
     end,
-    resets: boolean = kind(p) == "P" or victim != "." or move.flag == "ep",
+    resets: boolean = pieceType(p) == "P" or victim != "." or move.flag == "ep",
     half: number = state.half + 1,
     if resets then
         half = 0
@@ -365,7 +365,7 @@ insufficient: fn(state: record) = [
     onlyBishops: boolean = true,
     loneMinor: boolean = true,
     for [i: number = 0, i < 64, i += 1]
-        k: string = kind(state.board@i)
+        k: string = pieceType(state.board@i)
         if k != "." and k != "K" then
             count += 1
             if k != "N" and k != "B" then
@@ -462,7 +462,7 @@ chess: record = {
     square: square
     name: name
     side: side
-    kind: kind
+    pieceType: pieceType
     makeMove: makeMove
     attacked: attacked
     inCheck: inCheck
