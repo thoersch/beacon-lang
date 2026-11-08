@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           actual="$(bash ./beacon.sh examples/chess-ai-smoke.beacon)"
-          expected="$(printf 'true\n%.0s' {1..12})"
+          expected="$(printf 'true\n%.0s' {1..15})"
           if [ "$actual" != "$expected" ]; then
             printf 'Unexpected chess AI results:\n%s\n' "$actual" >&2
             exit 1
