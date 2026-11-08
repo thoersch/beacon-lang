@@ -19,7 +19,7 @@ $process = $null
 try {
     $launcher = Join-Path $root "beacon.ps1"
     $process = Start-Process -FilePath "pwsh" -ArgumentList @(
-        "-NoProfile", "-File", $launcher, "examples/chess-ashen-crypt.beacon"
+        "-NoProfile", "-File", $launcher, "examples/chess.beacon"
     ) -PassThru -RedirectStandardOutput $log -RedirectStandardError $errors
     $handle = [IntPtr]::Zero
     for ($i = 0; $i -lt 120; $i++) {
