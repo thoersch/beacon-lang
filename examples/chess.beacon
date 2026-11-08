@@ -55,7 +55,7 @@ drawPiece: fn(commands: list, piece: string, x: number, y: number) = [
         body = night
         outline = ivory
     end,
-    k: string = chess.kind(piece),
+    k: string = chess.pieceType(piece),
     appendRect(commands, x + 10, y + 49, 44, 8, outline),
     appendRect(commands, x + 13, y + 45, 38, 7, body),
     appendRect(commands, x + 17, y + 31, 30, 16, body),
