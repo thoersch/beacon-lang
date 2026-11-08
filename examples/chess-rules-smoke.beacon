@@ -16,7 +16,7 @@ count: fn(state: record, from: number, to: number) = [
 play: fn(state: record, fileA: string, rankA: number, fileB: string, rankB: number) = [
     m: record = chess.findMove(state, chess.square(fileA, rankA), chess.square(fileB, rankB), ""),
     if not m.valid then
-        fail("Expected legal move {fileA}{rankA}{fileB}{rankB}; from {chess.square(fileA, rankA)} to {chess.square(fileB, rankB)}; legal matches {count(state, chess.square(fileA, rankA), chess.square(fileB, rankB))}; ep {state.ep}")
+        fail("Expected legal move {fileA}{rankA}{fileB}{rankB}")
     end,
     chess.apply(state, m)
 ]
@@ -34,10 +34,6 @@ print(chess.square("e", 2) == 52 and chess.square("e", 8) == 4)
 print(chess.inCheck(start, 1) == false and chess.inCheck(start, -1) == false)
 print(count(start, 60, 62) == 0)
 
-print(chess.square("e", 2))
-print(chess.square("e", 4))
-print(count(start, 52, 36))
-print(chess.findMove(start, 52, 36, "").valid)
 after: record = play(start, "e", 2, "e", 4)
 print(after.ep == chess.square("e", 3) and after.turn == -1 and after.half == 0)
 after = play(after, "e", 7, "e", 5)
