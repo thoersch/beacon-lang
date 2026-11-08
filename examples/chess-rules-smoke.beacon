@@ -31,6 +31,7 @@ empty: fn() = [
 start: record = chess.newGame()
 print(chess.legal(start).length() == 20)
 print(chess.square("e", 2) == 52 and chess.square("e", 8) == 4)
+print(chess.name(52) == "e2" and chess.name(36) == "e4")
 print(chess.inCheck(start, 1) == false and chess.inCheck(start, -1) == false)
 print(count(start, 60, 62) == 0)
 
