@@ -1,10 +1,12 @@
-// BEACON CHESS: two-player chess with legal move validation.
+// BEACON CHESS: human vs Beacon AI or local two-player play.
 // Chess mechanics and the entire UI are written in Beacon.
 // The existing std.graphics.gl extension is only a generic rectangle/text renderer.
 include std.window
 include std.graphics
 include std.graphics.gl
 include "chess/rules"
+include "chess/ai"
+include "chess/art"
 
 bg: record = { red: 0.055, green: 0.070, blue: 0.095 }
 surface: record = { red: 0.10, green: 0.14, blue: 0.19 }
@@ -33,6 +35,8 @@ newSession: fn() = {
     to: -1
     message: "SELECT A PIECE TO BEGIN"
     claimed: false
+    vsComputer: true
+    aiLevel: 2
 }
 
 current: fn(session: record) = session.history@(session.history.length() - 1)
@@ -46,54 +50,9 @@ appendText: fn(commands: list, x: number, y: number, value: string, scale: numbe
     null
 ]
 
-// Compact flat-shaded chess sprites: scalable, distinguishable silhouettes.
-// The readable piece-letter insignia is drawn using Beacon's bitmap font.
-drawPiece: fn(commands: list, piece: string, x: number, y: number) = [
-    body: record = ivory,
-    outline: record = night,
-    if chess.side(piece) == -1 then
-        body = night
-        outline = ivory
-    end,
-    k: string = chess.pieceType(piece),
-    appendRect(commands, x + 10, y + 49, 44, 8, outline),
-    appendRect(commands, x + 13, y + 45, 38, 7, body),
-    appendRect(commands, x + 17, y + 31, 30, 16, body),
-    if k == "P" then
-        appendRect(commands, x + 24, y + 19, 16, 15, body)
-        appendRect(commands, x + 27, y + 14, 10, 8, body)
-    else if k == "R" then
-        appendRect(commands, x + 18, y + 16, 28, 23, body)
-        appendRect(commands, x + 17, y + 12, 8, 10, body)
-        appendRect(commands, x + 28, y + 12, 8, 10, body)
-        appendRect(commands, x + 39, y + 12, 8, 10, body)
-    else if k == "N" then
-        appendRect(commands, x + 21, y + 17, 26, 20, body)
-        appendRect(commands, x + 16, y + 11, 21, 17, body)
-        appendRect(commands, x + 14, y + 17, 13, 8, body)
-        appendRect(commands, x + 21, y + 9, 5, 8, body)
-    else if k == "B" then
-        appendRect(commands, x + 25, y + 17, 14, 22, body)
-        appendRect(commands, x + 21, y + 21, 22, 11, body)
-        appendRect(commands, x + 29, y + 11, 6, 11, body)
-    else if k == "Q" then
-        appendRect(commands, x + 21, y + 19, 22, 21, body)
-        appendRect(commands, x + 15, y + 14, 9, 11, body)
-        appendRect(commands, x + 28, y + 10, 8, 12, body)
-        appendRect(commands, x + 40, y + 14, 9, 11, body)
-    else if k == "K" then
-        appendRect(commands, x + 20, y + 20, 24, 20, body)
-        appendRect(commands, x + 29, y + 8, 6, 18, body)
-        appendRect(commands, x + 22, y + 14, 20, 5, body)
-    end,
-    letterColor: record = night,
-    if chess.side(piece) == -1 then
-        letterColor = ivory
-    end,
-    appendRect(commands, x + 22, y + 34, 21, 11, outline),
-    appendText(commands, x + 25, y + 35, k, 1, letterColor),
-    null
-]
+// Dedicated recognizable Beacon pixel-art sprites, no external art package.
+drawPiece: fn(commands: list, piece: string, x: number, y: number) =
+    chessArt.draw(commands, piece, x, y)
 
 hasTarget: fn(options: list, selected: number, target: number) = [
     yes: boolean = false,
@@ -159,20 +118,28 @@ draw: fn(context: record, app: record, session: record) = [
     appendText(cmds, sidebar + 29, 366, "UNDO", 2, textColor),
     appendRect(cmds, sidebar + 123, 354, 98, 37, darkSquare),
     appendText(cmds, sidebar + 130, 366, "RESET", 2, textColor),
-    appendText(cmds, sidebar + 15, 425, "U UNDO  R RESET", 1, muted),
-    appendText(cmds, sidebar + 15, 448, "D CLAIM DRAW", 1, muted),
+
+    appendRect(cmds, sidebar + 15, 405, 205, 31, darkSquare),
+    if session.vsComputer then
+        appendText(cmds, sidebar + 25, 416, "VS COMPUTER", 2, textColor)
+    else
+        appendText(cmds, sidebar + 25, 416, "TWO PLAYERS", 2, textColor)
+    end,
+    appendRect(cmds, sidebar + 15, 445, 205, 31, darkSquare),
+    appendText(cmds, sidebar + 25, 456, "AI LEVEL {session.aiLevel}", 2, textColor),
+    appendText(cmds, sidebar + 15, 482, "M MODE  L LEVEL", 1, muted),
 
     if session.pending then
-        appendRect(cmds, sidebar + 12, 472, 212, 103, bg)
-        appendText(cmds, sidebar + 23, 484, "PROMOTE PAWN", 2, gold)
-        appendText(cmds, sidebar + 23, 516, "Q    R    B    N", 2, textColor)
-        appendText(cmds, sidebar + 23, 546, "PRESS Q R B OR N", 1, muted)
+        appendRect(cmds, sidebar + 12, 497, 212, 85, bg)
+        appendText(cmds, sidebar + 23, 503, "PROMOTE PAWN", 2, gold)
+        appendText(cmds, sidebar + 23, 530, "Q   R   B   N", 2, textColor)
+        appendText(cmds, sidebar + 23, 557, "PRESS Q R B OR N", 1, muted)
     else
-        appendText(cmds, sidebar + 15, 504, "LAST MOVE", 2, gold)
+        appendText(cmds, sidebar + 15, 511, "LAST MOVE", 2, gold)
         if session.moves.length() > 0 then
-            appendText(cmds, sidebar + 15, 542, session.moves@(session.moves.length() - 1), 2, textColor)
+            appendText(cmds, sidebar + 15, 549, session.moves@(session.moves.length() - 1), 2, textColor)
         else
-            appendText(cmds, sidebar + 15, 542, "NEW GAME", 2, muted)
+            appendText(cmds, sidebar + 15, 549, "NEW GAME", 2, muted)
         end
     end,
 
@@ -195,6 +162,40 @@ commitMove: fn(session: record, move: record) = [
     session.message = "PLAYED " + label,
     null
 ]
+computerTurn: fn(session: record) = [
+    state: record = current(session),
+    result: record = chess.status(session.history),
+    if session.vsComputer and state.turn == -1 and not result.finished and not session.claimed and not session.pending then
+        choice: record = chessAI.choose(state, session.aiLevel)
+        if choice.valid then
+            commitMove(session, choice)
+            session.message = "COMPUTER " + chess.name(choice.from) + chess.name(choice.to) + choice.promotion
+        end
+    end,
+    null
+]
+
+toggleMode: fn(session: record) = [
+    session.vsComputer = not session.vsComputer,
+    session.selected = -1,
+    if session.vsComputer then
+        session.message = "PLAY WHITE - COMPUTER IS BLACK"
+    else
+        session.message = "LOCAL TWO PLAYER MODE"
+    end,
+    computerTurn(session),
+    null
+]
+
+cycleLevel: fn(session: record) = [
+    session.aiLevel += 1,
+    if session.aiLevel > 3 then
+        session.aiLevel = 1
+    end,
+    session.message = "COMPUTER LEVEL {session.aiLevel}",
+    null
+]
+
 undo: fn(session: record) = [
     if session.history.length() > 1 then
         previous: list = []
@@ -217,7 +218,7 @@ undo: fn(session: record) = [
 clickBoard: fn(session: record, x: number, y: number) = [
     state: record = current(session),
     status: record = chess.status(session.history),
-    if status.finished or session.claimed or session.pending then
+    if status.finished or session.claimed or session.pending or (session.vsComputer and state.turn == -1) then
         null
     else
         c: number = math.floor((x - originX) / tile)
@@ -242,6 +243,7 @@ clickBoard: fn(session: record, x: number, y: number) = [
                             session.message = "PROMOTION - Q R B N"
                         else
                             commitMove(session, m)
+                            computerTurn(session)
                         end
                         break
                     end
@@ -273,6 +275,7 @@ keyAction: fn(session: record, key: number) = [
             move: record = chess.findMove(current(session), session.from, session.to, promo)
             if move.valid then
                 commitMove(session, move)
+                computerTurn(session)
             end
         end
     else
@@ -287,6 +290,10 @@ keyAction: fn(session: record, key: number) = [
                 session.pending = false
                 session.claimed = false
                 session.message = "NEW GAME"
+            key == 77 then
+                toggleMode(session)
+            key == 76 then
+                cycleLevel(session)
             key == 68 then
                 status: record = chess.status(session.history)
                 if status.claim then
@@ -324,7 +331,15 @@ else
                 if event.x >= sidebar + 15 and event.x <= sidebar + 114 and event.y >= 354 and event.y <= 391 then
                     undo(session)
                 else if event.x >= sidebar + 123 and event.x <= sidebar + 221 and event.y >= 354 and event.y <= 391 then
+                    previousMode: boolean = session.vsComputer
+                    previousLevel: number = session.aiLevel
                     session = newSession()
+                    session.vsComputer = previousMode
+                    session.aiLevel = previousLevel
+                else if event.x >= sidebar + 15 and event.x <= sidebar + 220 and event.y >= 405 and event.y <= 436 then
+                    toggleMode(session)
+                else if event.x >= sidebar + 15 and event.x <= sidebar + 220 and event.y >= 445 and event.y <= 476 then
+                    cycleLevel(session)
                 else
                     clickBoard(session, event.x, event.y)
                 end
