@@ -185,6 +185,11 @@ commitMove: fn(session: record, move: record) = [
     session.selected = -1,
     session.pending = false,
     session.message = "PLAYED " + label,
+    actor: string = "WHITE",
+    if old.turn == -1 then
+        actor = "BLACK"
+    end,
+    print("{actor} {label}"),
     null
 ]
 // Native wakeups only enqueue window events; chess decisions and game state
