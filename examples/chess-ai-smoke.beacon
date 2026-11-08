@@ -1,0 +1,67 @@
+// Pure Beacon chess AI regression: no native engine or graphics.
+include "chess/rules"
+include "chess/ai"
+include std.graphics.gl
+include "chess/art"
+
+start: record = chess.newGame()
+print(chessAI.pieceValue("Q") == 920)
+print(chessAI.pieceValue("P") == 100)
+print(chessArt.mask("K").length() == 12)
+print(chessArt.mask("N").length() == 12)
+print(chessArt.mask("Q")@1 != chessArt.mask("K")@1)
+
+choice: record = chessAI.choose(start, 1)
+print(choice.valid)
+print(chess.findMove(start, choice.from, choice.to, choice.promotion).valid)
+print(chess.apply(start, choice).turn == -1)
+
+// Capture an undefended queen rather than a quiet move.
+position: record = chess.newGame()
+blankBoard: fn() = [
+    cells: list = [],
+    for [i: number = 0, i < 64, i += 1]
+        cells.push(".")
+    loop,
+    cells
+]
+position.board = blankBoard()
+position.board@(chess.square("e", 1)) = "K"
+position.board@(chess.square("e", 8)) = "k"
+position.board@(chess.square("d", 4)) = "r"
+position.board@(chess.square("d", 5)) = "Q"
+position.turn = -1
+position.wk = false
+position.wq = false
+position.bk = false
+position.bq = false
+choice = chessAI.choose(position, 2)
+print(choice.valid and choice.from == chess.square("d", 4) and choice.to == chess.square("d", 5))
+
+// The AI must never produce a move if the position is over.
+stale: record = chess.newGame()
+stale.board = blankBoard()
+stale.board@(chess.square("a", 8)) = "k"
+stale.board@(chess.square("c", 6)) = "K"
+stale.board@(chess.square("b", 6)) = "Q"
+stale.turn = -1
+stale.wk = false
+stale.wq = false
+stale.bk = false
+stale.bq = false
+print(not chessAI.choose(stale, 2).valid)
+
+// A black pawn promotion should be a legal promotion choice.
+promo: record = chess.newGame()
+promo.board = blankBoard()
+promo.board@(chess.square("h", 8)) = "k"
+promo.board@(chess.square("h", 1)) = "K"
+promo.board@(chess.square("a", 2)) = "p"
+promo.turn = -1
+promo.wk = false
+promo.wq = false
+promo.bk = false
+promo.bq = false
+choice = chessAI.choose(promo, 1)
+print(choice.valid and choice.promotion == "Q")
+print(chess.apply(promo, choice).board@(chess.square("a", 1)) == "q")

@@ -136,15 +136,15 @@ This initial proof targets OpenGL 1.1 compatibility; modern shaders and buffers 
 
 ## Play chess in Beacon
 
-**Beacon Chess** is a complete two-player chess example written entirely in Beacon. The game uses `std.window` and `std.graphics.gl` for its native Windows display. All chess logic, including check, legal move filtering, castling, en passant, promotion, checkmate, stalemate, and draw conditions, lives in the game-owned `examples/chess/rules.beacon` module.
+**Beacon Chess** is a chess game written entirely in Beacon, with a selectable computer opponent and local two-player mode. Its high-contrast, piece-specific pixel-art sprites make kings, queens, bishops, knights, rooks, and pawns easy to distinguish. The game uses `std.window` and `std.graphics.gl` for its native Windows display. All chess logic, including check, legal move filtering, castling, en passant, promotion, checkmate, stalemate, and draw conditions, lives in the game-owned `examples/chess/rules.beacon` module.
 
 ```powershell
 ./beacon.ps1 examples/chess.beacon
 ```
 
-Click a piece and a highlighted destination to move. Use **U** or **Undo** to take back a move; **R** or **Reset** to start over; and **Q/R/B/N** to choose a pawn promotion. Players alternate on the same computer.
+The default mode is **play White against the Beacon computer** (Black). Click a piece, then a highlighted destination. The computer chooses a legal reply using a pure-Beacon alpha-beta search and a positional/material evaluation. Press **M** to switch between computer and two-player play, or **L** to cycle AI levels 1–3. Press **U** to undo the preceding turn (including the computer's reply), **R** to restart, and **Q/R/B/N** to select a promotion. All chess and AI logic stays in `examples/chess/`, never the standard library.
 
-[Chess application](examples/chess.beacon) · [Chess rules](examples/chess/rules.beacon) · [Rules tests](examples/chess-rules-smoke.beacon)
+[Chess application](examples/chess.beacon) · [Chess rules](examples/chess/rules.beacon) · [Computer AI](examples/chess/ai.beacon) · [Piece artwork](examples/chess/art.beacon) · [AI tests](examples/chess-ai-smoke.beacon)
 
 ## Play a game built in Beacon
 

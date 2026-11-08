@@ -39,7 +39,8 @@ try {
         Get-Process -Name dotnet -ErrorAction SilentlyContinue | Select-Object Id,CPU,StartTime | Format-Table | Out-String | Write-Host
         throw "Chess window never appeared. Output: $(Get-Content $log -Raw) Errors: $(Get-Content $errors -Raw)"
     }
-    # Exercise native mouse/keyboard events: e2-e4, d7-d5, e4xd5, undo and reset.
+    # Human vs AI: White's e2-e4 must trigger a legal computer response.
+    # Undo then rewinds both plies to restore White's turn.
     $click = {
         param([int]$x, [int]$y)
         $coords = [IntPtr]((($y -band 0xffff) -shl 16) -bor ($x -band 0xffff))
@@ -49,14 +50,22 @@ try {
         if ($process.HasExited) { throw "Chess exited while processing a mouse move: $(Get-Content $errors -Raw)" }
     }
     & $click 336 504 # e2
+    & $click 336 376 # e4, then Black AI reply
+    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]85, [IntPtr]::Zero) | Out-Null # U
+    Start-Sleep -Milliseconds 150
+
+    # Switch to local mode; both colors must remain human-controlled.
+    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]77, [IntPtr]::Zero) | Out-Null # M
+    Start-Sleep -Milliseconds 150
+    & $click 336 504 # e2
     & $click 336 376 # e4
     & $click 272 184 # d7
     & $click 272 312 # d5
     & $click 336 376 # e4
     & $click 272 312 # captures d5
-    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]85, [IntPtr]::Zero) | Out-Null # U: undo
+    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]85, [IntPtr]::Zero) | Out-Null # U
     Start-Sleep -Milliseconds 150
-    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]82, [IntPtr]::Zero) | Out-Null # R: reset
+    [BeaconChessWindowProbe]::PostMessage($handle, 0x0100, [IntPtr]82, [IntPtr]::Zero) | Out-Null # R
     Start-Sleep -Milliseconds 150
     if ($process.HasExited) { throw "Chess exited during undo/reset: $(Get-Content $errors -Raw)" }
     if (-not [BeaconChessWindowProbe]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)) {

@@ -23,6 +23,16 @@ jobs:
             printf "Unexpected chess results:\n%s\n" "$actual" >&2
             exit 1
           fi
+      - name: Validate Beacon computer AI and piece sprites
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(bash ./beacon.sh examples/chess-ai-smoke.beacon)"
+          expected="$(printf 'true\n%.0s' {1..12})"
+          if [ "$actual" != "$expected" ]; then
+            printf 'Unexpected chess AI results:\n%s\n' "$actual" >&2
+            exit 1
+          fi
       - name: Parse standalone chess application without Windows graphics
         shell: bash
         run: |
