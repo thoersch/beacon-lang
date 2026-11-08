@@ -60,7 +60,10 @@ pieceType: fn(p: string) = [
     end,
     result
 ]
-name: fn(i: number) = "abcdefgh".slice(col(i), 1) + "{8 - row(i)}"
+name: fn(i: number) = [
+    rank: number = 8 - row(i),
+    "abcdefgh".slice(col(i), 1) + "{rank}"
+]
 square: fn(file: string, rank: number) = (8 - rank) * 8 + text.indexOf("abcdefgh", file)
 makeMove: fn(f: number, t: number, promotion: string, flag: string) = {
     from: f
